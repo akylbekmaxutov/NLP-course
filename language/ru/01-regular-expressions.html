@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Regular Expressions | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 1: Regular Expressions шаблон за шаблоном — классы символов, квантификаторы, альтернация, группы, якоря; казахстанские примеры, практика на Python и интерактивный playground."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Мобильная панель (ниже 1024px) ---------------------------------- -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Язык">
+        <a href="../en/01-regular-expressions.html" data-lang-link="en">EN</a>
+        <a href="../kk/01-regular-expressions.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/01-regular-expressions.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Боковая панель: содержание ------------------------------------ -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          От обработки текста до Large Language Models
+        </p>
+        <div class="lang-switch" role="group" aria-label="Язык">
+          <a href="../en/01-regular-expressions.html" data-lang-link="en">EN</a>
+          <a href="../kk/01-regular-expressions.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/01-regular-expressions.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">План курса</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Закрыть содержание"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 1</span>
+              <h1>Regular Expressions</h1>
+              <p class="hero__subtitle">
+                Прежде чем модели начнут понимать язык, нам нужно научиться
+                работать с текстом. Собираем шаблоны по частям: классы символов,
+                квантификаторы, альтернация, группы, якоря.
+              </p>
+              <p class="hero__date">24 августа 2026</p>
+              <ul class="topic-chips">
+                <li>Классы символов</li>
+                <li>Квантификаторы</li>
+                <li>Альтернация и группы</li>
+                <li>Якоря</li>
+                <li>Python <span class="token">re</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Цели обучения
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели лекции</span>
+              <h2 id="goals">После этой лекции вы сможете…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Читать любой базовый шаблон</h3>
+                  <p>
+                    Разбирать Regex на части и говорить, что находит каждая из
+                    них.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Писать шаблоны самостоятельно</h3>
+                  <p>
+                    Соединять классы, квантификаторы, группы и якоря, описывая
+                    форму нужного текста.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Извлекать и очищать</h3>
+                  <p>
+                    Доставать телефоны, даты, цены и hashtag-и из казахстанского
+                    текста и убирать шум вокруг них.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Знать ловушки</h3>
+                  <p>
+                    Жадные квантификаторы, неэкранированная точка и границы слов,
+                    которые молча не работают на кириллице.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Почему сначала текст
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="why-text-first"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Мотивация</span>
+              <h2 id="why-text-first">
+                Прежде чем модели начнут понимать язык, нам нужно научиться
+                работать с текстом.
+              </h2>
+              <p class="narrow lead">
+                Любой NLP pipeline начинается с обычного «грязного» текста:
+                лишние пробелы, номера телефонов, даты, hashtag-и, смешанные
+                языки. Самый старый и до сих пор самый используемый инструмент
+                для этого первого шага:
+              </p>
+              <p>
+                <span class="diagram__node diagram__node--accent"
+                  >Regular Expressions — Regex</span
+                >
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Что такое Regular Expressions?
+               ========================================================== -->
+          <section class="section" aria-labelledby="what-regex">
+            <div class="container">
+              <span class="section__eyebrow">Определение</span>
+              <h2 id="what-regex">Что такое Regular Expressions?</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Regular Expressions</strong> — это шаблоны (patterns),
+                  которые используются, чтобы находить, извлекать, проверять,
+                  разделять или заменять текст.
+                </p>
+              </div>
+
+              <ul
+                class="diagram"
+                style="margin-top: 32px"
+                aria-label="Текст плюс шаблон равно совпадение"
+              >
+                <li>
+                  <span class="diagram__node">Text</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">Pattern</span>
+                  <span class="diagram__arrow" aria-hidden="true">=</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent">Match</span>
+                </li>
+              </ul>
+
+              <p class="narrow">
+                Regex не понимает смысла. Он описывает только
+                <strong>форму</strong>. И любой шаблон собирается всего из четырёх
+                видов деталей — именно в таком порядке мы их и разберём:
+              </p>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="topic-card">
+                  <span class="topic-card__num">1</span>
+                  <h3>Какой символ?</h3>
+                  <p>Классы символов: <span class="token">\d</span>, <span class="token">\w</span>, <span class="token">[абв]</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">2</span>
+                  <h3>Сколько раз?</h3>
+                  <p>Квантификаторы: <span class="token">+</span>, <span class="token">*</span>, <span class="token">?</span>, <span class="token">{n}</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">3</span>
+                  <h3>Это или то?</h3>
+                  <p>Альтернация и группы: <span class="token">|</span>, <span class="token">( )</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">4</span>
+                  <h3>Где именно?</h3>
+                  <p>Якоря: <span class="token">^</span>, <span class="token">$</span>, <span class="token">\b</span></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               1. Классы символов
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="character-classes"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Строительный блок 1</span>
+              <h2 id="character-classes">Классы символов — какой символ?</h2>
+              <p class="narrow lead">
+                Класс символов совпадает с <strong>одним</strong> символом. Это
+                самая маленькая деталь любого шаблона.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Классы символов с примерами
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Шаблон</th>
+                      <th scope="col">Находит один…</th>
+                      <th scope="col">Пример</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>цифра <code>0-9</code></td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\D</code></td>
+                      <td>символ, который <em>не</em> цифра</td>
+                      <td><code>\D</code> → пробел в <code>+7 701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>символ слова (буква, цифра, <code>_</code>)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>пробел, табуляция, перевод строки</td>
+                      <td><code>\s</code> → промежуток между словами</td>
+                    </tr>
+                    <tr>
+                      <td><code>\S</code></td>
+                      <td>всё, что не пробельный символ</td>
+                      <td><code>\S+</code> → одно целое слово</td>
+                    </tr>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>любой символ</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[абв]</code></td>
+                      <td>один из перечисленных символов</td>
+                      <td><code>[АӘ]</code> → <code>А</code> или <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^абв]</code></td>
+                      <td>всё, <em>кроме</em> них</td>
+                      <td><code>[^0-9]</code> → любой нецифровой символ</td>
+                    </tr>
+                    <tr>
+                      <td><code>[а-я]</code></td>
+                      <td>диапазон символов</td>
+                      <td><code>[A-Z]</code> → <code>K</code> в <code>KZK</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Казахские буквы — тоже диапазон</span>
+                <p>
+                  В казахском алфавите есть буквы, которых нет в обычном
+                  <span class="token">[а-я]</span>. Их нужно перечислить явно:
+                </p>
+                <p><span class="regex">[а-яёәғқңөұүһі]</span></p>
+                <p style="margin-bottom: 0">
+                  Заглавные:
+                  <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ]</span>
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>Осторожно с <span class="token">\w</span>.</strong> В
+                JavaScript он означает только
+                <span class="token">[A-Za-z0-9_]</span> — кириллица не входит. В
+                Python 3 он учитывает Unicode и находит
+                <span class="token">Астана</span>. Вернёмся к этому в разделе о
+                якорях.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               2. Квантификаторы
+               ========================================================== -->
+          <section class="section" aria-labelledby="quantifiers">
+            <div class="container">
+              <span class="section__eyebrow">Строительный блок 2</span>
+              <h2 id="quantifiers">Квантификаторы — сколько раз?</h2>
+              <p class="narrow lead">
+                Квантификатор повторяет ту деталь, которая написана прямо перед
+                ним.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">Квантификаторы с примерами</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Шаблон</th>
+                      <th scope="col">Значение</th>
+                      <th scope="col">Пример</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>один или более</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>ноль или более</td>
+                      <td><code>\s*</code> → подходит, даже если пробела нет</td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>ноль или один — необязательно</td>
+                      <td><code>https?</code> → <code>http</code> и <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{4}</code></td>
+                      <td>ровно четыре раза</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{2,4}</code></td>
+                      <td>от двух до четырёх раз</td>
+                      <td><code>\d{2,4}</code> → <code>12</code>, <code>123</code>, <code>1234</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{3,}</code></td>
+                      <td>три и более раз</td>
+                      <td><code>\d{3,}</code> → <code>7172</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 44px">Необязательный <span class="token">?</span> на практике</h3>
+              <div class="example">
+                <span class="example__label">Один шаблон — два написания</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Сайт http://egov.kz және https://astana.kz ашық.</code></pre>
+                </div>
+                <p>Шаблон: <span class="regex">https?://\S+</span></p>
+                <p>Результат:</p>
+                <ul class="regex-matches">
+                  <li>http://egov.kz</li>
+                  <li>https://astana.kz</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  <span class="token">?</span> относится только к букве
+                  <span class="token">s</span> прямо перед ним — «s здесь может
+                  быть, а может и не быть».
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">По частям</span>
+                  <dl class="breakdown__list">
+                    <dt>http</dt>
+                    <dd>ровно эти четыре буквы</dd>
+                    <dt>s?</dt>
+                    <dd>необязательная s — <code>?</code> означает «ноль или один» и относится только к одному символу перед ним</dd>
+                    <dt>://</dt>
+                    <dd>ещё три буквальных символа</dd>
+                    <dt>\S+</dt>
+                    <dd>один или более непробельных символов — весь остаток адреса</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Словами:</strong> http, возможно s, затем <code>://</code>, затем всё до следующего пробела.</p>
+                </div>
+                <p class="note"><strong>Деталь:</strong> <code>\S+</code> останавливается только на пробеле, поэтому в <code>Сайт https://astana.kz. Келесі…</code> он захватит и финальную точку, вернув <code>https://astana.kz.</code> — хорошее напоминание, что «до следующего пробела» и «до конца ссылки» — не одно и то же.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">По умолчанию — жадные</h3>
+              <p class="narrow">
+                <span class="token">+</span> и <span class="token">*</span> берут
+                столько текста, сколько смогут. Если добавить после них
+                <span class="token">?</span>, они становятся
+                <strong>ленивыми</strong> — останавливаются при первой же
+                возможности.
+              </p>
+              <div class="example">
+                <span class="example__label">Жадный и ленивый</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</code></pre>
+                </div>
+                <p>
+                  <span class="regex">&lt;.+&gt;</span> — жадный, одно огромное
+                  совпадение:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-top: 16px">
+                  <span class="regex">&lt;.+?&gt;</span> — ленивый, четыре
+                  маленьких:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  Один этот символ — самая частая причина жалобы «мой Regex
+                  захватывает слишком много».
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">По частям</span>
+                  <dl class="breakdown__list">
+                    <dt>&lt;</dt>
+                    <dd>буквальная левая угловая скобка</dd>
+                    <dt>.+</dt>
+                    <dd>любые символы, один или более — <code>.</code> это «что угодно», <code>+</code> это «хотя бы один»</dd>
+                    <dt>&gt;</dt>
+                    <dd>буквальная правая угловая скобка</dd>
+                    <dt>.+?</dt>
+                    <dd>то же самое, но лениво: <code>?</code> после <code>+</code> велит остановиться как можно раньше</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Словами:</strong> найди <code>&lt;</code>, затем несколько символов, затем <code>&gt;</code> — и разница только в том, <em>как далеко</em> тянутся «несколько символов».</p>
+                </div>
+                <p class="note"><strong>Почему так:</strong> жадный <code>+</code> сначала добегает до самого конца текста, а потом отступает назад, пока не поместится остаток шаблона. Последняя <code>&gt;</code> в строке подходит — значит, он оставляет себе всё. Ленивый вариант начинает с малого и растёт только при необходимости, поэтому останавливается на первой же <code>&gt;</code>.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               3. Альтернация и группы
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="groups">
+            <div class="container">
+              <span class="section__eyebrow">Строительный блок 3</span>
+              <h2 id="groups">Альтернация и группы — это или то?</h2>
+
+              <h3>Альтернация: <span class="token">|</span> значит ИЛИ</h3>
+              <div class="example">
+                <span class="example__label">Любой из нескольких городов</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Астана, Алматы және Шымкент — үлкен қалалар.</code></pre>
+                </div>
+                <p>Шаблон: <span class="regex">Астана|Алматы|Шымкент</span></p>
+                <p>Результат:</p>
+                <ul class="regex-matches">
+                  <li>Астана</li>
+                  <li>Алматы</li>
+                  <li>Шымкент</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">По частям</span>
+                  <dl class="breakdown__list">
+                    <dt>Астана</dt>
+                    <dd>первая альтернатива</dd>
+                    <dt>|</dt>
+                    <dd>ИЛИ — движок пробует альтернативы слева направо и берёт первую подходящую в этой позиции</dd>
+                    <dt>Алматы</dt>
+                    <dd>вторая альтернатива</dd>
+                    <dt>Шымкент</dt>
+                    <dd>третья альтернатива</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Словами:</strong> в этой позиции найди Астана, или Алматы, или Шымкент.</p>
+                </div>
+                <p class="note"><strong>Следите за областью действия:</strong> <code>|</code> делит <em>весь</em> шаблон, а не только соседнее слово. <code>^Астана|Алматы</code> значит «Астана в начале» ИЛИ «Алматы где угодно», поэтому в <code>Астанада Алматы бар</code> находятся оба. Возьмите альтернативы в скобки — <code>^(?:Астана|Алматы)</code> — и совпадёт только <code>Астана</code> в начале.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">Группы: <span class="token">( )</span> держат части вместе</h3>
+              <p class="narrow">
+                Скобки делают сразу два дела: определяют, к чему именно относится
+                квантификатор или <span class="token">|</span>, и
+                <strong>захватывают</strong> найденный кусок, чтобы его можно было
+                прочитать отдельно.
+              </p>
+
+              <div class="example">
+                <span class="example__label">Захватываем части даты</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Кездесу 24.08.2026 күні өтеді.</code></pre>
+                </div>
+                <p>Шаблон: <span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                <dl class="kv">
+                  <dt>всё совпадение</dt>
+                  <dd>24.08.2026</dd>
+                  <dt>группа 1 — день</dt>
+                  <dd>24</dd>
+                  <dt>группа 2 — месяц</dt>
+                  <dd>08</dd>
+                  <dt>группа 3 — год</dt>
+                  <dd>2026</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Группы превращают «найди дату» в «найди дату <em>и разбери
+                  её</em>».
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">По частям</span>
+                  <dl class="breakdown__list">
+                    <dt>(</dt>
+                    <dd>открывает группу 1 — группы нумеруются по порядку открывающих скобок</dd>
+                    <dt>\d{2}</dt>
+                    <dd>ровно две цифры — день</dd>
+                    <dt>)</dt>
+                    <dd>закрывает группу 1</dd>
+                    <dt>\.</dt>
+                    <dd>экранированная точка: настоящий символ точки, а не «любой символ»</dd>
+                    <dt>(\d{2})</dt>
+                    <dd>группа 2 — месяц</dd>
+                    <dt>(\d{4})</dt>
+                    <dd>группа 3 — год</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Словами:</strong> две цифры, точка, две цифры, точка, четыре цифры — и запомни каждый блок отдельно.</p>
+                </div>
+                <p class="note"><strong>Деталь:</strong> всё совпадение всегда доступно как группа 0, а захваченные части начинаются с 1. В Python это <code>m.group(0)</code>, <code>m.group(1)</code>, … Но осторожно: как только в шаблоне появляются скобки, <code>re.findall</code> возвращает <em>группы</em> вместо всего совпадения — поэтому в следующем примере скобки без захвата.</p>
+              </div>
+
+              <div class="example">
+                <span class="example__label">Группировка без захвата</span>
+                <p>
+                  <span class="regex">(?:…)</span> группирует, не сохраняя
+                  результат — удобно, когда скобки нужны только для структуры:
+                </p>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</code></pre>
+                </div>
+                <p>
+                  Шаблон:
+                  <span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span>
+                </p>
+                <p>Результат:</p>
+                <ul class="regex-matches">
+                  <li>1 500 теңге</li>
+                  <li>990 тг</li>
+                  <li>12 000 теңге</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">По частям</span>
+                  <dl class="breakdown__list">
+                    <dt>\d+</dt>
+                    <dd>одна или более цифр — <code>990</code> или <code>1</code> из <code>1 500</code></dd>
+                    <dt>(?:</dt>
+                    <dd>открывает группу <em>без</em> захвата — скобки только ради структуры</dd>
+                    <dt>\s\d{3}</dt>
+                    <dd>пробел и ровно три цифры — один блок тысяч, например <code>&nbsp;500</code></dd>
+                    <dt>)*</dt>
+                    <dd>ноль или больше таких блоков: ни одного для <code>990</code>, один для <code>1 500</code>, один для <code>12 000</code></dd>
+                    <dt>\s*</dt>
+                    <dd>необязательный пробел перед словом валюты</dd>
+                    <dt>(?:теңге|тг)</dt>
+                    <dd>любое из двух написаний валюты, снова без захвата</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Словами:</strong> число, возможно записанное с пробелами между тысячами, за которым идёт теңге или тг.</p>
+                </div>
+                <p class="note"><strong>Почему <code>(?:…)</code>, а не <code>(…)</code>:</strong> с обычными скобками <code>re.findall</code> вернул бы только то, что поймали скобки — <code>['теңге', 'тг']</code> — вместо целой цены. Скобки без захвата дают группировку, не меняя результат.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               4. Якоря
+               ========================================================== -->
+          <section class="section" aria-labelledby="anchors">
+            <div class="container">
+              <span class="section__eyebrow">Строительный блок 4</span>
+              <h2 id="anchors">Якоря и границы — где именно?</h2>
+              <p class="narrow lead">
+                Якоря совпадают не с символом, а с <strong>позицией</strong>. Они
+                ничего не «съедают», а лишь говорят «вот здесь».
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3><span class="token">^</span> начало текста</h3>
+                  <p>
+                    <span class="regex">^Астана</span> совпадёт, только если текст
+                    начинается с этого слова.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">$</span> конец текста</h3>
+                  <p>
+                    <span class="regex">\.$</span> находит финальную точку.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\b</span> граница слова</h3>
+                  <p>
+                    <span class="regex">\b\d{4}\b</span> находит
+                    <span class="match">2017</span> как отдельное число, а не
+                    четыре цифры внутри более длинного.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\B</span> не граница</h3>
+                  <p>
+                    Противоположность <span class="token">\b</span> — полезно,
+                    когда ищете что-то внутри слова.
+                  </p>
+                </div>
+              </div>
+
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Ловушка, которую стоит запомнить.</strong> В JavaScript
+                <span class="token">\b</span> определяется через
+                <span class="token">\w</span>, а он только ASCII. Поэтому
+                <span class="regex">\bАстана\b</span> в браузере не находит
+                <strong>ничего</strong>, хотя тот же шаблон работает в Python. С
+                казахским или русским текстом либо убирайте
+                <span class="token">\b</span>, либо включайте флаг
+                <span class="token">u</span> и используйте
+                <span class="token">\p{L}</span> — «любая буква».
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Unicode-безопасные шаблоны</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Бүгін #Astana және #Астана туралы жаздық.</code></pre>
+                </div>
+                <dl class="kv">
+                  <dt>#\w+</dt>
+                  <dd>#Astana — кириллический hashtag пропущен</dd>
+                  <dt>#[^\s#]+</dt>
+                  <dd>#Astana, #Астана — работает везде</dd>
+                  <dt>#[\p{L}\d_]+ с флагом u</dt>
+                  <dd>#Astana, #Астана — самый точный вариант</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Попробуйте все три в playground ниже: переключатель
+                  <strong>Unicode (u)</strong> включает
+                  <span class="token">\p{L}</span>.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               5. Экранирование
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="escaping">
+            <div class="container">
+              <span class="section__eyebrow">Строительный блок 5</span>
+              <h2 id="escaping">Экранирование — когда символ означает сам себя</h2>
+              <p class="narrow lead">
+                У этих символов внутри шаблона особая работа:
+              </p>
+              <p>
+                <span class="regex">. + * ? ( ) [ ] { } | ^ $ \</span>
+              </p>
+              <p class="narrow">
+                Чтобы найти такой символ буквально, поставьте перед ним обратный
+                слеш.
+              </p>
+
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Экранированные символы</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Неверно</th>
+                      <th scope="col">Верно</th>
+                      <th scope="col">Почему</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d{2}.\d{2}</code></td>
+                      <td><code>\d{2}\.\d{2}</code></td>
+                      <td>обычная <code>.</code> подходит к любому символу, поэтому пройдёт и <code>24x08</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+7</code></td>
+                      <td><code>\+7</code></td>
+                      <td>обычный <code>+</code> означает «один или более» и требует чего-то перед собой</td>
+                    </tr>
+                    <tr>
+                      <td><code>(2026)</code></td>
+                      <td><code>\(2026\)</code></td>
+                      <td>скобки создают группу, а не совпадают со скобками</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="callout">
+                Внутри <span class="token">[ ]</span> большинство символов теряет
+                особое значение, поэтому в
+                <span class="regex">[\w.-]</span> точку экранировать не нужно. В
+                Python <span class="token">re.escape("+7 (701)")</span> экранирует
+                строку за вас.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Cheat sheet
+               ========================================================== -->
+          <section class="section" aria-labelledby="cheatsheet">
+            <div class="container">
+              <span class="section__eyebrow">Справочник</span>
+              <h2 id="cheatsheet">Синтаксис Regex — cheat sheet</h2>
+              <p class="narrow lead">Всё вышеперечисленное на одной карточке.</p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Синтаксис Regular Expression с примерами из казахстанского контекста
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Синтаксис</th>
+                      <th scope="col">Значение</th>
+                      <th scope="col">Пример</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>любой символ</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>цифра</td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>символ слова (в JavaScript — ASCII)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>пробельный символ</td>
+                      <td><code>\s+</code> → промежуток в <code>Алматы&nbsp;&nbsp;&nbsp;қаласы</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>один или более</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>ноль или более</td>
+                      <td><code>ab*</code> совпадает и с <code>a</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>необязательно</td>
+                      <td><code>https?</code> → <code>http</code>, <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+?</code> <code>*?</code></td>
+                      <td>лениво — брать как можно меньше</td>
+                      <td><code>&lt;.+?&gt;</code> → <code>&lt;b&gt;</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{n}</code> <code>{n,m}</code></td>
+                      <td>ровно n / от n до m раз</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[abc]</code></td>
+                      <td>один из этих символов</td>
+                      <td><code>[АӘ]</code> → <code>А</code> или <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^abc]</code></td>
+                      <td>всё, кроме этих</td>
+                      <td><code>[^0-9]</code> → любой нецифровой символ</td>
+                    </tr>
+                    <tr>
+                      <td><code>|</code></td>
+                      <td>ИЛИ</td>
+                      <td><code>Астана|Алматы</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>(...)</code></td>
+                      <td>группа с захватом</td>
+                      <td><code>(\d{2})\.(\d{2})</code> → день, месяц</td>
+                    </tr>
+                    <tr>
+                      <td><code>(?:...)</code></td>
+                      <td>группа без захвата</td>
+                      <td><code>(?:теңге|тг)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>^</code> <code>$</code></td>
+                      <td>начало / конец текста</td>
+                      <td><code>^Астана</code>, <code>\.$</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\b</code></td>
+                      <td>граница слова (в JavaScript — ASCII)</td>
+                      <td><code>\b\d{4}\b</code> → <code>2017</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\p{L}</code></td>
+                      <td>любая буква — нужен флаг <code>u</code></td>
+                      <td><code>#[\p{L}\d_]+</code> → <code>#Астана</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Собираем вместе — казахстанские примеры
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="regex-examples"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Собираем вместе</span>
+              <h2 id="regex-examples">Regex на казахстанских данных</h2>
+              <p class="narrow lead">
+                Каждый шаблон ниже — это только строительные блоки сверху,
+                поставленные рядом.
+              </p>
+
+              <div class="stack" style="margin-top: 36px">
+                <article class="example">
+                  <span class="example__label">Пример 01 · Номера телефонов</span>
+                  <h3>Казахстанские номера телефонов</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Менің нөмірім +7 701 123 45 67.
+Кеңсе: +7 7172 55 44 33.</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">\+7[\s\d]+</span></p>
+                  <ul class="regex-matches">
+                    <li>+7 701 123 45 67</li>
+                    <li>+7 7172 55 44 33</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>\+</dt>
+                      <dd>экранированный плюс — обычный <code>+</code> означал бы «один или более» и требовал бы чего-то перед собой</dd>
+                      <dt>7</dt>
+                      <dd>буквально цифра 7</dd>
+                      <dt>[\s\d]</dt>
+                      <dd>один символ, который является пробелом или цифрой</dd>
+                      <dt>+</dt>
+                      <dd>один или более таких символов</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> буквальный <code>+7</code>, затем любая цепочка цифр и пробелов.</p>
+                  </div>
+                  <p class="note"><strong>Где останавливается:</strong> на первом символе, который не пробел и не цифра — на точке после <code>67</code> или на запятой после <code>33</code>. <strong>Его слабость:</strong> он не считает цифры, поэтому из <code>+7 701 123 45 67 2026 жылға</code> получится <code>+7 701 123 45 67 2026 </code> — год будет проглочен. Шаблон <code>\+7(?:[\s-]?\d){10}</code> считает десять цифр и останавливается там, где нужно.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    Промышленная валидация требует более строгих правил — этот
+                    шаблон спокойно примет бессмыслицу вроде
+                    <span class="token">+7 999999999999</span>.
+                  </div>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 02 · Годы</span>
+                  <h3>Извлечь годы</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">\b\d{4}\b</span></p>
+                  <ul class="regex-matches">
+                    <li>1991</li>
+                    <li>2017</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Граница + класс + квантификатор: три детали, один полезный
+                    шаблон.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>граница слова — позиция между символом слова и не-символом слова</dd>
+                      <dt>\d{4}</dt>
+                      <dd>ровно четыре цифры</dd>
+                      <dt>\b</dt>
+                      <dd>ещё одна граница слова, с другой стороны</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> четыре цифры, стоящие сами по себе.</p>
+                  </div>
+                  <p class="note"><strong>Зачем нужны границы:</strong> без них <code>\d{4}</code> на строке <code>нөмір 12345</code> спокойно вернёт <code>1234</code> — первые четыре цифры более длинного числа. С <code>\b</code> с обеих сторон совпадения не будет вовсе, а это ровно то, что нужно при поиске годов.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 03 · Даты</span>
+                  <h3>Извлечь даты</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу 24.08.2026 күні Астанада өтеді.</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span></p>
+                  <ul class="regex-matches">
+                    <li>24.08.2026</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>граница слова, чтобы не начать с середины длинного числа</dd>
+                      <dt>\d{2}</dt>
+                      <dd>день — ровно две цифры</dd>
+                      <dt>\.</dt>
+                      <dd>экранированная точка: сам разделитель</dd>
+                      <dt>\d{2}</dt>
+                      <dd>месяц</dd>
+                      <dt>\.</dt>
+                      <dd>второй разделитель</dd>
+                      <dt>\d{4}</dt>
+                      <dd>год — ровно четыре цифры</dd>
+                      <dt>\b</dt>
+                      <dd>закрывающая граница слова</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> две цифры, точка, две цифры, точка, четыре цифры — казахстанский формат даты.</p>
+                  </div>
+                  <p class="note"><strong>Классическая ошибка:</strong> написать <code>\d{2}.\d{2}.\d{4}</code> без экранирования. Обычная <code>.</code> подходит к <em>любому</em> символу, поэтому такой шаблон примет и <code>24x08y2026</code>. <strong>И ещё:</strong> шаблон проверяет форму, а не календарь — <code>99.99.2026</code> тоже пройдёт.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 04 · Время</span>
+                  <h3>Извлечь время суток</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</code></pre>
+                  </div>
+                  <p>
+                    Шаблон:
+                    <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>
+                  </p>
+                  <ul class="regex-matches">
+                    <li>15:00</li>
+                    <li>9:05</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Альтернация внутри группы без захвата позволяет сказать «00–19
+                    или 20–23», поэтому <span class="token">25:99</span>
+                    отбрасывается.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>(?:</dt>
+                      <dd>группа без захвата с двумя вариантами часа</dd>
+                      <dt>[01]?\d</dt>
+                      <dd>необязательный 0 или 1, затем любая цифра → 0–9 и 00–19</dd>
+                      <dt>|</dt>
+                      <dd>или</dd>
+                      <dt>2[0-3]</dt>
+                      <dd>2, за которой идёт 0–3 → 20–23</dd>
+                      <dt>:</dt>
+                      <dd>буквальное двоеточие</dd>
+                      <dt>[0-5]\d</dt>
+                      <dd>минуты: первая цифра 0–5, затем любая → 00–59</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> час от 0 до 23, двоеточие, затем минуты от 00 до 59.</p>
+                  </div>
+                  <p class="note"><strong>Что дают диапазоны:</strong> простой <code>\d{1,2}:\d{2}</code> принял бы и <code>25:99</code>. Здесь альтернация кодирует настоящее правило, поэтому <code>25:99</code> отбрасывается, а <code>15:00</code> и однозначное <code>9:05</code> принимаются.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 05 · Автомобильные номера</span>
+                  <h3>Казахстанские автомобильные номера</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>123 ABC 01
+777 KZK 02</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">\d{3}\s[A-Z]{3}\s\d{2}</span></p>
+                  <ul class="regex-matches">
+                    <li>123 ABC 01</li>
+                    <li>777 KZK 02</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Реальные форматы номеров и правила их проверки сложнее; шаблон
+                    показывает группы фиксированной длины.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>\d{3}</dt>
+                      <dd>ровно три цифры</dd>
+                      <dt>\s</dt>
+                      <dd>ровно один пробельный символ</dd>
+                      <dt>[A-Z]{3}</dt>
+                      <dd>ровно три заглавные латинские буквы</dd>
+                      <dt>\s</dt>
+                      <dd>ещё один пробел</dd>
+                      <dt>\d{2}</dt>
+                      <dd>ровно две цифры — код региона</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> три цифры, пробел, три заглавные буквы, пробел, две цифры.</p>
+                  </div>
+                  <p class="note"><strong>Деталь:</strong> <code>{3}</code> строгое — ни больше, ни меньше. А <code>[A-Z]</code> — только латиница, поэтому номер, набранный кириллическими <code>А</code> или <code>В</code> (на экране они выглядят одинаково), не совпадёт. Похожие буквы — настоящая повседневная проблема казахстанских текстовых данных.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 06 · Hashtag</span>
+                  <h3>Найти hashtag-и</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Бүгін #Astana қаласында #AI туралы конференция өтті.</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">#\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>#Astana</li>
+                    <li>#AI</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Для казахских hashtag-ов используйте
+                    <span class="regex">#[^\s#]+</span> — см. раздел о якорях.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>#</dt>
+                      <dd>буквальный символ решётки</dd>
+                      <dt>\w</dt>
+                      <dd>один символ слова — буква, цифра или подчёркивание</dd>
+                      <dt>+</dt>
+                      <dd>один или более, поэтому тег тянется до первого пробела или знака препинания</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> решётка, а затем цепочка символов слова после неё.</p>
+                  </div>
+                  <p class="note"><strong>Казахская загвоздка:</strong> в JavaScript <code>\w</code> — это только <code>[A-Za-z0-9_]</code>, поэтому <code>#Астана</code> пропускается полностью. Используйте <code>#[^\s#]+</code> («решётка, затем всё, что не пробел и не ещё одна решётка») или включите флаг <code>u</code> и напишите <code>#[\p{L}\d_]+</code>.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 07 · Очистка</span>
+                  <h3>Убрать лишние пробелы</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы     Қазақстанның    ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p>
+                    Шаблон: <span class="regex">\s+</span> — замена:
+                    <span class="token">" "</span>
+                  </p>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p style="margin-bottom: 0">
+                    Нормализация пробелов — один из самых первых шагов почти
+                    любого pipeline обработки текста.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>\s</dt>
+                      <dd>один пробельный символ — пробел, табуляция или перевод строки</dd>
+                      <dt>+</dt>
+                      <dd>один или более подряд, поэтому цепочка из десяти пробелов — одно совпадение</dd>
+                      <dt>" "</dt>
+                      <dd>замена: ровно один обычный пробел</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> заменить каждую цепочку пробелов одним пробелом.</p>
+                  </div>
+                  <p class="note"><strong>Почему здесь важен <code>+</code>:</strong> без него вы бы заменяли каждый пробел пробелом и ничего не меняли. С ним вся цепочка схлопывается сразу. В Python это <code>re.sub(r"\s+", " ", text)</code>, а последующий <code>.strip()</code> убирает оставшийся пробел в начале и в конце.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">Пример 08 · Email</span>
+                  <h3>Извлечь email-адреса</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Сұрақтарды info@example.kz адресіне жіберіңіз.</code></pre>
+                  </div>
+                  <p>Шаблон: <span class="regex">[\w.-]+@[\w.-]+\.\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>info@example.kz</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">По частям</span>
+                    <dl class="breakdown__list">
+                      <dt>[\w.-]</dt>
+                      <dd>один символ: символ слова, точка или дефис</dd>
+                      <dt>+</dt>
+                      <dd>один или более — часть до @</dd>
+                      <dt>@</dt>
+                      <dd>буквальный знак @</dd>
+                      <dt>[\w.-]+</dt>
+                      <dd>тот же набор снова — имя домена</dd>
+                      <dt>\.</dt>
+                      <dd>экранированная точка перед зоной</dd>
+                      <dt>\w+</dt>
+                      <dd>сама зона: <code>kz</code>, <code>com</code>, …</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Словами:</strong> несколько символов имени, @, несколько символов домена, точка и зона.</p>
+                  </div>
+                  <p class="note"><strong>Две детали, которые стоит знать.</strong> Внутри <code>[ ]</code> точка теряет особое значение, поэтому обратный слеш там не нужен — а вне скобок нужен. И дефис написан последним намеренно: в середине он создал бы диапазон, как в <code>a-z</code>.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    Это не полный, соответствующий RFC валидатор email. Но его
+                    достаточно, чтобы <em>находить</em> адреса в тексте — а обычно
+                    NLP pipeline нужно именно это.
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Интерактивный Regex playground
+               ========================================================== -->
+          <section class="section" aria-labelledby="playground">
+            <div class="container">
+              <span class="section__eyebrow">Интерактивное демо</span>
+              <h2 id="playground">Regex playground</h2>
+              <p class="narrow lead">
+                Введите шаблон (pattern) и сразу увидите подсвеченные совпадения.
+                Демо работает полностью в вашем браузере на нативном
+                <span class="token">RegExp</span> из JavaScript.
+              </p>
+
+              <div class="regex-playground" style="margin-top: 28px">
+                <div class="regex-playground__presets">
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\+7[\s\d]+"
+                    data-preset-text="Менің нөмірім +7 701 123 45 67.&#10;Кеңсе: +7 7172 55 44 33."
+                  >
+                    Номер телефона
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{2}\.\d{2}\.\d{4}\b"
+                    data-preset-text="Кездесу 24.08.2026 күні Астанада өтеді.&#10;Келесі дәріс 26.08.2026 күні."
+                  >
+                    Дата
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{4}\b"
+                    data-preset-text="Қазақстан тәуелсіздігін 1991 жылы алды.&#10;EXPO 2017 Астанада өтті."
+                  >
+                    Год
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b(?:[01]?\d|2[0-3]):[0-5]\d\b"
+                    data-preset-text="Кездесу сағат 15:00-де, кеші 9:05-те аяқталады."
+                  >
+                    Время
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\d+(?:\s\d{3})*\s*(?:теңге|тг)"
+                    data-preset-text="Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+                  >
+                    Цена
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#\w+"
+                    data-preset-text="Бүгін #Astana қаласында #AI туралы конференция өтті. #NLP"
+                  >
+                    Hashtag
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#[\p{L}\d_]+"
+                    data-preset-text="Бүгін #Astana және #Астана туралы жаздық."
+                    data-preset-unicode
+                  >
+                    Hashtag (Unicode)
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="[\w.-]+@[\w.-]+\.\w+"
+                    data-preset-text="Сұрақтарды info@example.kz адресіне жіберіңіз.&#10;Қосымша: nlp.course@example.kz"
+                  >
+                    Email
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="&lt;.+?&gt;"
+                    data-preset-text="&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;"
+                  >
+                    Ленивый и жадный
+                  </button>
+                </div>
+
+                <div class="field">
+                  <label for="regex-pattern">Pattern</label>
+                  <input
+                    id="regex-pattern"
+                    type="text"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    value="\b\d{4}\b"
+                    data-regex-pattern
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="regex-text">Текст</label>
+                  <textarea id="regex-text" spellcheck="false" data-regex-text>
+Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.
+Кездесу 24.08.2026 күні болады.</textarea
+                  >
+                </div>
+
+                <div class="regex-playground__controls">
+                  <button class="btn btn--primary" type="button" data-regex-run>
+                    Запустить Regex
+                  </button>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-flags />
+                    Игнорировать регистр (flag <code>i</code>)
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-unicode />
+                    Unicode (flag <code>u</code>) — включает <code>\p{L}</code>
+                  </label>
+                </div>
+
+                <h3 style="font-size: 1.1rem">Результат</h3>
+                <div
+                  class="regex-output"
+                  data-regex-output
+                  role="region"
+                  aria-live="polite"
+                  aria-label="Подсвеченные совпадения"
+                ></div>
+                <p class="regex-status" data-regex-status role="status"></p>
+                <ul
+                  class="regex-matches"
+                  data-regex-list
+                  aria-label="Список совпадений"
+                ></ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Практика на Python
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="python">
+            <div class="container">
+              <span class="section__eyebrow">Примеры кода</span>
+              <h2 id="python">Практика на Python</h2>
+              <p class="narrow lead">
+                В практической части работы с NLP мы используем Python. Каждый
+                вывод ниже — реальный результат кода над ним. Запустите их сами и
+                поменяйте текст.
+              </p>
+
+              <h3 style="margin-top: 40px">1 · findall — все совпадения сразу</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Қазақстан 1991 жылы тәуелсіз болды. EXPO 2017 Астанада өтті."
+years = re.findall(r"\b\d{4}\b", text)
+
+print(years)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1991', '2017']</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>findall</code> просматривает всю строку и возвращает все совпадения списком строк. Если ничего не найдено, вы получите пустой список, а не <code>None</code>, — поэтому по результату можно спокойно проходить циклом. <strong>Подвох:</strong> как только в шаблоне появляются захватывающие скобки, <code>findall</code> возвращает <em>содержимое скобок</em> вместо всего совпадения.</p>
+
+              <h3 style="margin-top: 40px">2 · search + группы — разобрать совпадение</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Кездесу 24.08.2026 күні өтеді."
+m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", text)
+
+print(m.group(0))
+print(m.groups())
+print("Year:", m.group(3))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>24.08.2026
+('24', '08', '2026')
+Year: 2026</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>search</code> ищет только первое совпадение и отдаёт Match-объект — <code>group(0)</code> это всё совпадение, а <code>group(1)</code>, <code>group(2)</code>, … — части в скобках, пронумерованные по открывающей скобке. <strong>Всегда проверяйте на <code>None</code>:</strong> если ничего не найдено, <code>search</code> вернёт <code>None</code>, и <code>m.group(0)</code> выбросит <code>AttributeError</code>.</p>
+
+              <h3 style="margin-top: 40px">3 · Именованные группы — читаемый код</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Курс 24.08.2026 күні басталады."
+m = re.search(
+    r"(?P&lt;day&gt;\d{2})\.(?P&lt;month&gt;\d{2})\.(?P&lt;year&gt;\d{4})",
+    text
+)
+
+print(m.groupdict())
+print(m.group("month"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>{'day': '24', 'month': '08', 'year': '2026'}
+08</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>(?P&lt;day&gt;…)</code> даёт группе имя, поэтому в коде пишется <code>m.group("month")</code>, а не <code>m.group(2)</code> — и код останется верным, даже если позже вы вставите ещё одни скобки. <code>groupdict()</code> отдаёт все именованные группы словарём. <strong>Разница синтаксиса:</strong> в Python это <code>(?P&lt;name&gt;…)</code>, в JavaScript — <code>(?&lt;name&gt;…)</code>.</p>
+
+              <h3 style="margin-top: 40px">4 · sub — очистить текст</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Алматы     Қазақстанның    ең ірі қалаларының бірі."
+clean = re.sub(r"\s+", " ", text).strip()
+
+print(clean)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>sub</code> заменяет <em>все</em> совпадения, а не только первое, и возвращает новую строку — исходная не меняется, потому что строки в Python неизменяемы. <code>\s+</code> схлопывает каждую цепочку пробелов в один, а <code>.strip()</code> затем убирает пробел, который мог остаться в самом начале и конце.</p>
+
+              <h3 style="margin-top: 40px">5 · sub — убрать пунктуацию перед tokenization</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Сәлем, әлем! Бүгін #NLP сабағы бар."
+words_only = re.sub(r"[^\w\s]", "", text)
+
+print(words_only)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Сәлем әлем Бүгін NLP сабағы бар</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>[^\w\s]</code> читается как «не символ слова и не пробел» — то есть знаки препинания и символы. Замена на пустую строку оставляет слова и пробелы между ними. <strong>Почему это работает с казахским:</strong> <code>\w</code> в Python учитывает Unicode, поэтому <code>Сәлем</code> считается символами слова. Та же строка в JavaScript удалила бы каждую кириллическую букву.</p>
+              <div class="callout">
+                Это работает с казахским текстом, потому что
+                <span class="token">\w</span> в Python учитывает Unicode. Тот же
+                шаблон в JavaScript удалил бы каждую кириллическую букву — всегда
+                проверяйте, в каком движке вы находитесь.
+              </div>
+
+              <h3 style="margin-top: 40px">6 · Цены — альтернация и необязательные блоки</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+prices = re.findall(r"\d+(?:\s\d{3})*\s*(?:теңге|тг)", text)
+
+print(prices)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1 500 теңге', '990 тг', '12 000 теңге']</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> все скобки — без захвата, поэтому <code>findall</code> возвращает цены целиком, а не их куски. Именно <code>(?:\s\d{3})*</code> — «ноль или больше блоков тысяч» — заставляет работать <code>1 500</code> и <code>12 000</code>, не теряя при этом простое <code>990</code>.</p>
+
+              <h3 style="margin-top: 40px">7 · finditer — совпадения вместе с позициями</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Бүгін #Astana қаласында #AI туралы конференция өтті."
+
+for m in re.finditer(r"#\w+", text):
+    print(m.group(), m.start(), m.end())</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>#Astana 6 13
+#AI 24 27</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>finditer</code> возвращает Match-объекты вместо строк, поэтому у вас есть <code>start()</code> и <code>end()</code> — позиции каждого совпадения в символах. Они нужны везде, где важна позиция: подсветить совпадение на странице, заменить его на месте или сохранить границы сущности для Named Entity Recognition — обучающие данные NER выглядят именно так.</p>
+              <p class="narrow">
+                Позиции становятся важны, как только нужно подсветить совпадение,
+                заменить его на месте или разметить для Named Entity Recognition.
+              </p>
+
+              <h3 style="margin-top: 40px">8 · split — разрезать текст на предложения</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Астана — астана. Алматы ірі қала! Шымкент те үлкен?"
+sentences = re.split(r"(?&lt;=[.!?])\s+", text)
+
+print(sentences)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['Астана — астана.', 'Алматы ірі қала!', 'Шымкент те үлкен?']</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>split</code> режет строку там, где сработал шаблон, и возвращает куски. Lookbehind <code>(?&lt;=[.!?])</code> проверяет, что прямо позади стоит знак конца предложения, не «съедая» его, поэтому пунктуация остаётся при своём предложении, а точкой разреза служит только пробел между предложениями.</p>
+              <div class="callout">
+                <span class="token">(?&lt;=…)</span> — это <em>lookbehind</em>:
+                разделить после <span class="token">.</span>,
+                <span class="token">!</span> или <span class="token">?</span>, не
+                «съедая» их. Такой наивный разделитель всё ещё ломается на
+                сокращениях — настоящее разбиение на предложения ждёт нас дальше в
+                курсе.
+              </div>
+
+              <h3 style="margin-top: 40px">9 · compile + flags — переиспользовать шаблон</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+nlp = re.compile(r"\bnlp\b", re.IGNORECASE)
+
+print(nlp.findall("NLP, nlp, Nlp курсы"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['NLP', 'nlp', 'Nlp']</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит:</strong> <code>re.compile</code> собирает шаблон один раз и даёт объект с теми же методами — <code>findall</code>, <code>search</code>, <code>sub</code>. Это полезно, когда один шаблон прогоняется по многим текстам, и держит флаги в одном месте. <code>re.IGNORECASE</code> находит и <code>NLP</code>, и <code>nlp</code>, и <code>Nlp</code>.</p>
+
+              <h3 style="margin-top: 40px">10 · Небольшой pipeline</h3>
+              <p class="narrow">
+                Regex редко используется в одиночку — это шаг очистки перед всем
+                остальным.
+              </p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+raw = "  Сәлем!!!   Менің нөмірім +7 701 123 45 67,   #NLP  "
+
+phones = re.findall(r"\+7[\s\d]+", raw)          # сохраняем нужное
+text = re.sub(r"\+7[\s\d]+", "&lt;PHONE&gt;", raw)     # затем обезличиваем
+text = re.sub(r"\s+", " ", text).strip()         # нормализуем пробелы
+
+print(phones)
+print(text)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['+7 701 123 45 67']
+Сәлем!!! Менің нөмірім &lt;PHONE&gt;, #NLP</code></pre>
+              </div>
+              <p class="note"><strong>Что здесь происходит и почему именно в таком порядке:</strong> сначала <code>findall</code> сохраняет копию номеров, потому что следующая строка их уничтожит; затем <code>sub</code> заменяет каждый номер на <code>&lt;PHONE&gt;</code> — именно так персональные данные убирают из набора перед обучением; и только потом нормализуются пробелы, чтобы исчезли и лишние пробелы, оставшиеся после замены. Поменяйте первые две строки местами — и номера будут потеряны.</p>
+              <div class="callout">
+                Этот шаблон всё ещё хрупкий. <span class="token">[\s\d]+</span> —
+                это «пробелы и цифры, как можно больше», поэтому в тексте
+                <span class="token">+7 701 123 45 67 2026 жылға дейін</span> он
+                захватит и год, вернув
+                <span class="token">+7 701 123 45 67 2026 </span>. Шаблон, который
+                считает цифры — <span class="regex">\+7(?:[\s-]?\d){10}</span> —
+                останавливается там, где нужно. Всегда смотрите, что ваш Regex
+                нашёл на самом деле.
+              </div>
+
+              <div class="callout">
+                Префикс <span class="token">r"..."</span> обозначает raw string,
+                поэтому обратные слеши доходят до Regex-движка без изменений. Без
+                него пришлось бы писать
+                <span class="token">"\\b\\d{4}\\b"</span>.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Проверка знаний — на лекции
+               ========================================================== -->
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">На лекции</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">
+                Пять вопросов, на которые мы отвечаем вместе перед завершением.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Прочитайте этот шаблон вслух, по частям:
+
+\b\d{2}\.\d{2}\.\d{4}\b</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Граница слова · две цифры · буквальная точка · две цифры ·
+                      буквальная точка · четыре цифры · граница слова. То есть
+                      дата вида <span class="token">24.08.2026</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">В чём разница между \d+ и \d* ?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> требует хотя бы одну цифру;
+                      <span class="token">*</span> согласен и на ноль, поэтому
+                      может совпасть с пустой строкой. Используйте
+                      <span class="token">*</span> только для тех частей, которых
+                      действительно может не быть.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Почему &lt;.+&gt; захватывает слишком много в
+
+&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;
+
+и как это исправить?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> жадный, поэтому он доходит до
+                      последнего <span class="token">&gt;</span> в тексте и
+                      возвращает одно огромное совпадение. Сделайте его ленивым —
+                      <span class="regex">&lt;.+?&gt;</span> — и получите четыре
+                      отдельных тега.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">В playground \bАстана\b ничего не находит. Почему?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Playground работает на JavaScript, где
+                      <span class="token">\b</span> определяется через ASCII-версию
+                      <span class="token">\w</span>. Кириллическая буква там не
+                      символ слова, поэтому границы просто нет. Уберите
+                      <span class="token">\b</span> или используйте флаг
+                      <span class="token">u</span> вместе с
+                      <span class="token">\p{L}</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.
+
+Какие части находит \+7[\s\d]+ и почему не время?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Он находит <span class="match">+7 7172 55 44 33</span>.
+                      Шаблон обязан начинаться с буквального
+                      <span class="token">+7</span>, а
+                      <span class="token">15:00</span> так не начинается — да и
+                      двоеточие не пробел и не цифра.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Практические задания — после лекции
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">После лекции</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Десять заданий для самостоятельной работы. Сначала напишите
+                шаблон в playground выше, потом откройте ответ. Обычно верных
+                шаблонов несколько — если ваш находит ровно нужные фрагменты, он
+                правильный.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Задание 1 — Все годы</h3>
+                  <p class="challenge__task">Қазақстан 1991 жылы тәуелсіз болды.
+Астана EXPO 2017 көрмесін қабылдады.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">\b\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1991</span>
+                      <span class="match">2017</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 2 — Все hashtag-и</h3>
+                  <p class="challenge__task">#Kazakhstan #Astana #NLP</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">#\w+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Kazakhstan</span>
+                      <span class="match">#Astana</span>
+                      <span class="match">#NLP</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 3 — Дата</h3>
+                  <p class="challenge__task">Курс 24.08.2026 күні басталады.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">24.08.2026</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 4 — Только номер телефона</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">\+7[\s\d]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">+7 7172 55 44 33</span> — время не
+                      находится, потому что не начинается с
+                      <span class="token">+7</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 5 — Время суток</h3>
+                  <p class="challenge__task">Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">\d{1,2}:\d{2}</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">15:00</span>
+                      <span class="match">9:05</span> — более строгий вариант,
+                      отбрасывающий <span class="token">25:99</span>:
+                      <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 6 — Цены в тенге</h3>
+                  <p class="challenge__task">Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1 500 теңге</span>
+                      <span class="match">990 тг</span>
+                      <span class="match">12 000 теңге</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 7 — Ссылки, http и https</h3>
+                  <p class="challenge__task">Сайт http://egov.kz және https://astana.kz ашық.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">https?://\S+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">http://egov.kz</span>
+                      <span class="match">https://astana.kz</span> —
+                      <span class="token">?</span> делает
+                      <span class="token">s</span> необязательной.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 8 — Слова с заглавной буквы</h3>
+                  <p class="challenge__task">Әлия Астанадан Алматыға ұшты, ал Қанат Шымкентте қалды.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p>
+                      <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ][а-яёәғқңөұүһі]+</span>
+                    </p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">Әлия</span>
+                      <span class="match">Астанадан</span>
+                      <span class="match">Алматыға</span>
+                      <span class="match">Қанат</span>
+                      <span class="match">Шымкентте</span> — обратите внимание:
+                      <span class="token">\b</span> здесь нет, он сломал бы шаблон
+                      в браузере. Это грубый первый шаг к Named Entity
+                      Recognition.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 9 — И казахские hashtag-и тоже</h3>
+                  <p class="challenge__task">Бүгін #Astana және #Астана туралы жаздық.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">#[^\s#]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Astana</span>
+                      <span class="match">#Астана</span> — «#, затем всё, что не
+                      пробел и не ещё одна #». С флагом
+                      <span class="token">u</span> точнее всего
+                      <span class="regex">#[\p{L}\d_]+</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Задание 10 — День, месяц и год отдельно</h3>
+                  <p class="challenge__task">Кездесу 24.08.2026 күні өтеді.
+
+Захватите три части, а не только всю дату.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p><span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                    <p style="margin-bottom: 0">
+                      Группа 1 = <span class="match">24</span>, группа 2 =
+                      <span class="match">08</span>, группа 3 =
+                      <span class="match">2026</span>. В Python:
+                      <span class="token">m.group(3)</span> или, с именованными
+                      группами, <span class="token">m.group("year")</span>.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Итоги
+               ========================================================== -->
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы изучили</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Классы символов — какой символ</li>
+                <li>Квантификаторы — сколько раз, жадные и ленивые</li>
+                <li>Альтернацию и группы — это или то, и захват</li>
+                <li>Якоря — где именно в тексте</li>
+                <li>Экранирование специальных символов</li>
+                <li>Извлечение телефонов, дат, времени, цен, hashtag-ов, email</li>
+                <li>findall, search, sub, finditer, split, compile в Python</li>
+                <li>Почему <span class="token">\b</span> и <span class="token">\w</span> требуют осторожности с казахским текстом</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Лекция 1 · 24 августа 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

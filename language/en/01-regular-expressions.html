@@ -1,0 +1,1784 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Regular Expressions | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 1: Regular Expressions pattern by pattern — character classes, quantifiers, alternation, groups, anchors — with Kazakhstan examples, Python practice and an interactive playground."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Mobile bar (visible below 1024px) ------------------------------- -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/01-regular-expressions.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/01-regular-expressions.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/01-regular-expressions.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar: table of contents ------------------------------------ -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          From Text Processing to Large Language Models
+        </p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/01-regular-expressions.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/01-regular-expressions.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/01-regular-expressions.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Close contents"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 1</span>
+              <h1>Regular Expressions</h1>
+              <p class="hero__subtitle">
+                Before models understand language, we first need to work with
+                text. We build the patterns piece by piece: character classes,
+                quantifiers, alternation, groups, anchors.
+              </p>
+              <p class="hero__date">24 August 2026</p>
+              <ul class="topic-chips">
+                <li>Character classes</li>
+                <li>Quantifiers</li>
+                <li>Alternation &amp; groups</li>
+                <li>Anchors</li>
+                <li>Python <span class="token">re</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Learning goals
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Read any basic pattern</h3>
+                  <p>
+                    Break a Regex into its parts and say what each one matches.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Write patterns yourself</h3>
+                  <p>
+                    Combine classes, quantifiers, groups, and anchors to describe
+                    the shape of the text you want.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Extract and clean</h3>
+                  <p>
+                    Pull phones, dates, prices, and hashtags out of Kazakhstan
+                    text and normalise the noise around them.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Know the traps</h3>
+                  <p>
+                    Greedy quantifiers, unescaped dots, and word boundaries that
+                    quietly fail on Cyrillic text.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Why text first
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="why-text-first"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Motivation</span>
+              <h2 id="why-text-first">
+                Before models understand language, we first need to work with
+                text.
+              </h2>
+              <p class="narrow lead">
+                Every NLP pipeline starts with plain, messy text: extra spaces,
+                phone numbers, dates, hashtags, mixed languages. The oldest and
+                still the most used tool for that first pass is:
+              </p>
+              <p>
+                <span class="diagram__node diagram__node--accent"
+                  >Regular Expressions — Regex</span
+                >
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               What are Regular Expressions?
+               ========================================================== -->
+          <section class="section" aria-labelledby="what-regex">
+            <div class="container">
+              <span class="section__eyebrow">Definition</span>
+              <h2 id="what-regex">What are Regular Expressions?</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Regular Expressions</strong> are patterns used to find,
+                  extract, validate, split, or replace text.
+                </p>
+              </div>
+
+              <ul
+                class="diagram"
+                style="margin-top: 32px"
+                aria-label="Text plus pattern equals match"
+              >
+                <li>
+                  <span class="diagram__node">Text</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">Pattern</span>
+                  <span class="diagram__arrow" aria-hidden="true">=</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent">Match</span>
+                </li>
+              </ul>
+
+              <p class="narrow">
+                A Regex does not understand meaning. It only describes
+                <strong>shape</strong>. And every pattern is built from just four
+                kinds of piece — which is exactly how we will go through them:
+              </p>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="topic-card">
+                  <span class="topic-card__num">1</span>
+                  <h3>What character?</h3>
+                  <p>Character classes: <span class="token">\d</span>, <span class="token">\w</span>, <span class="token">[абв]</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">2</span>
+                  <h3>How many times?</h3>
+                  <p>Quantifiers: <span class="token">+</span>, <span class="token">*</span>, <span class="token">?</span>, <span class="token">{n}</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">3</span>
+                  <h3>This or that?</h3>
+                  <p>Alternation and groups: <span class="token">|</span>, <span class="token">( )</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">4</span>
+                  <h3>Where exactly?</h3>
+                  <p>Anchors: <span class="token">^</span>, <span class="token">$</span>, <span class="token">\b</span></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               1. Character classes
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="character-classes"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Building block 1</span>
+              <h2 id="character-classes">Character classes — what character?</h2>
+              <p class="narrow lead">
+                A character class matches <strong>one</strong> character. This is
+                the smallest piece of every pattern.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Character classes with examples
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Pattern</th>
+                      <th scope="col">Matches one…</th>
+                      <th scope="col">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>digit <code>0-9</code></td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\D</code></td>
+                      <td>character that is <em>not</em> a digit</td>
+                      <td><code>\D</code> → the space in <code>+7 701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>word character (letter, digit, <code>_</code>)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>whitespace: space, tab, newline</td>
+                      <td><code>\s</code> → the gap between words</td>
+                    </tr>
+                    <tr>
+                      <td><code>\S</code></td>
+                      <td>anything that is not whitespace</td>
+                      <td><code>\S+</code> → one whole word</td>
+                    </tr>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>any character at all</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[абв]</code></td>
+                      <td>one of the listed characters</td>
+                      <td><code>[АӘ]</code> → <code>А</code> or <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^абв]</code></td>
+                      <td>anything <em>except</em> those</td>
+                      <td><code>[^0-9]</code> → any non-digit</td>
+                    </tr>
+                    <tr>
+                      <td><code>[а-я]</code></td>
+                      <td>a range of characters</td>
+                      <td><code>[A-Z]</code> → <code>K</code> in <code>KZK</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Kazakh letters are a range too</span>
+                <p>
+                  The Kazakh alphabet adds letters that plain
+                  <span class="token">[а-я]</span> does not cover. Write them in
+                  explicitly:
+                </p>
+                <p><span class="regex">[а-яёәғқңөұүһі]</span></p>
+                <p style="margin-bottom: 0">
+                  Capital letters:
+                  <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ]</span>
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>Careful with <span class="token">\w</span>.</strong> In
+                JavaScript it means only
+                <span class="token">[A-Za-z0-9_]</span> — Cyrillic letters are not
+                included. In Python 3 it is Unicode-aware and does match
+                <span class="token">Астана</span>. We come back to this in the
+                section on anchors.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               2. Quantifiers
+               ========================================================== -->
+          <section class="section" aria-labelledby="quantifiers">
+            <div class="container">
+              <span class="section__eyebrow">Building block 2</span>
+              <h2 id="quantifiers">Quantifiers — how many times?</h2>
+              <p class="narrow lead">
+                A quantifier repeats the piece written directly before it.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">Quantifiers with examples</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Pattern</th>
+                      <th scope="col">Means</th>
+                      <th scope="col">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>one or more</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>zero or more</td>
+                      <td><code>\s*</code> → matches even if there is no space</td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>zero or one — optional</td>
+                      <td><code>https?</code> → <code>http</code> and <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{4}</code></td>
+                      <td>exactly four times</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{2,4}</code></td>
+                      <td>from two to four times</td>
+                      <td><code>\d{2,4}</code> → <code>12</code>, <code>123</code>, <code>1234</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{3,}</code></td>
+                      <td>three or more times</td>
+                      <td><code>\d{3,}</code> → <code>7172</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 44px">The optional <span class="token">?</span> in practice</h3>
+              <div class="example">
+                <span class="example__label">One pattern, two spellings</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Сайт http://egov.kz және https://astana.kz ашық.</code></pre>
+                </div>
+                <p>Pattern: <span class="regex">https?://\S+</span></p>
+                <p>Result:</p>
+                <ul class="regex-matches">
+                  <li>http://egov.kz</li>
+                  <li>https://astana.kz</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  The <span class="token">?</span> applies only to the
+                  <span class="token">s</span> right before it — “an s may or may
+                  not be here”.
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>http</dt>
+                    <dd>these four letters, exactly as written</dd>
+                    <dt>s?</dt>
+                    <dd>an optional s — <code>?</code> means “zero or one”, and it applies only to the single character in front of it</dd>
+                    <dt>://</dt>
+                    <dd>three more literal characters</dd>
+                    <dt>\S+</dt>
+                    <dd>one or more characters that are not whitespace — the rest of the address</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>In words:</strong> http, maybe an s, then <code>://</code>, then everything up to the next space.</p>
+                </div>
+                <p class="note"><strong>Detail:</strong> <code>\S+</code> stops only at a space, so in <code>Сайт https://astana.kz. Келесі…</code> it also swallows the final dot and returns <code>https://astana.kz.</code> — a good reminder that “until the next space” is not the same as “until the end of the link”.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">Greedy by default</h3>
+              <p class="narrow">
+                <span class="token">+</span> and <span class="token">*</span> take
+                as much text as they possibly can. Adding
+                <span class="token">?</span> after them makes them
+                <strong>lazy</strong> — they stop at the first opportunity.
+              </p>
+              <div class="example">
+                <span class="example__label">Greedy vs lazy</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</code></pre>
+                </div>
+                <p>
+                  <span class="regex">&lt;.+&gt;</span> — greedy, one huge match:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-top: 16px">
+                  <span class="regex">&lt;.+?&gt;</span> — lazy, four small
+                  matches:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  This single character is one of the most common sources of
+                  “my Regex matches too much”.
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>&lt;</dt>
+                    <dd>a literal left angle bracket</dd>
+                    <dt>.+</dt>
+                    <dd>any characters, one or more — <code>.</code> is “anything”, <code>+</code> is “at least one”</dd>
+                    <dt>&gt;</dt>
+                    <dd>a literal right angle bracket</dd>
+                    <dt>.+?</dt>
+                    <dd>the same, but lazy: the <code>?</code> after <code>+</code> tells it to stop as early as it can</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>In words:</strong> find a <code>&lt;</code>, then some characters, then a <code>&gt;</code> — and the only difference is <em>how far</em> “some characters” reaches.</p>
+                </div>
+                <p class="note"><strong>Why it happens:</strong> a greedy <code>+</code> first runs to the very end of the text, then walks backwards until the rest of the pattern fits. The last <code>&gt;</code> in the line fits, so it keeps everything. The lazy version starts short and grows only when it has to, so it settles on the first <code>&gt;</code>.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               3. Alternation and groups
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="groups">
+            <div class="container">
+              <span class="section__eyebrow">Building block 3</span>
+              <h2 id="groups">Alternation and groups — this or that?</h2>
+
+              <h3>Alternation: <span class="token">|</span> means OR</h3>
+              <div class="example">
+                <span class="example__label">Any of several cities</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Астана, Алматы және Шымкент — үлкен қалалар.</code></pre>
+                </div>
+                <p>Pattern: <span class="regex">Астана|Алматы|Шымкент</span></p>
+                <p>Result:</p>
+                <ul class="regex-matches">
+                  <li>Астана</li>
+                  <li>Алматы</li>
+                  <li>Шымкент</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>Астана</dt>
+                    <dd>the first alternative</dd>
+                    <dt>|</dt>
+                    <dd>OR — the engine tries the alternatives left to right and takes the first one that fits at that position</dd>
+                    <dt>Алматы</dt>
+                    <dd>the second alternative</dd>
+                    <dt>Шымкент</dt>
+                    <dd>the third alternative</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>In words:</strong> at this position, match Астана, or Алматы, or Шымкент.</p>
+                </div>
+                <p class="note"><strong>Watch the scope:</strong> <code>|</code> splits the <em>whole</em> pattern, not just the word next to it. <code>^Астана|Алматы</code> means “Астана at the start” OR “Алматы anywhere”, so in <code>Астанада Алматы бар</code> it finds both. Wrap the alternatives in brackets — <code>^(?:Астана|Алматы)</code> — and only <code>Астана</code> at the start matches.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">Groups: <span class="token">( )</span> keep things together</h3>
+              <p class="narrow">
+                Brackets do two jobs at once: they decide what a quantifier or an
+                <span class="token">|</span> applies to, and they
+                <strong>capture</strong> the matched piece so you can read it back.
+              </p>
+
+              <div class="example">
+                <span class="example__label">Capturing the parts of a date</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Кездесу 24.08.2026 күні өтеді.</code></pre>
+                </div>
+                <p>Pattern: <span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                <dl class="kv">
+                  <dt>whole match</dt>
+                  <dd>24.08.2026</dd>
+                  <dt>group 1 — day</dt>
+                  <dd>24</dd>
+                  <dt>group 2 — month</dt>
+                  <dd>08</dd>
+                  <dt>group 3 — year</dt>
+                  <dd>2026</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Groups turn “find a date” into “find a date <em>and take it
+                  apart</em>”.
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>(</dt>
+                    <dd>opens group 1 — groups are numbered by the order of their opening brackets</dd>
+                    <dt>\d{2}</dt>
+                    <dd>exactly two digits — the day</dd>
+                    <dt>)</dt>
+                    <dd>closes group 1</dd>
+                    <dt>\.</dt>
+                    <dd>an escaped dot: a real dot character, not “any character”</dd>
+                    <dt>(\d{2})</dt>
+                    <dd>group 2 — the month</dd>
+                    <dt>(\d{4})</dt>
+                    <dd>group 3 — the year</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>In words:</strong> two digits, a dot, two digits, a dot, four digits — and remember each number block separately.</p>
+                </div>
+                <p class="note"><strong>Detail:</strong> the whole match is always available as group 0, and the captured pieces start at 1. In Python that is <code>m.group(0)</code>, <code>m.group(1)</code>, … — but careful: <code>re.findall</code> returns the <em>groups</em> instead of the whole match as soon as the pattern has any, which is why the next example uses non-capturing brackets.</p>
+              </div>
+
+              <div class="example">
+                <span class="example__label">Grouping without capturing</span>
+                <p>
+                  <span class="regex">(?:…)</span> groups without keeping the
+                  result — useful when you only need the brackets for structure:
+                </p>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</code></pre>
+                </div>
+                <p>
+                  Pattern:
+                  <span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span>
+                </p>
+                <p>Result:</p>
+                <ul class="regex-matches">
+                  <li>1 500 теңге</li>
+                  <li>990 тг</li>
+                  <li>12 000 теңге</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>\d+</dt>
+                    <dd>one or more digits — matches <code>990</code>, or the <code>1</code> of <code>1 500</code></dd>
+                    <dt>(?:</dt>
+                    <dd>opens a group that is <em>not</em> captured — brackets used only for structure</dd>
+                    <dt>\s\d{3}</dt>
+                    <dd>a space followed by exactly three digits — one thousands block, like <code>&nbsp;500</code></dd>
+                    <dt>)*</dt>
+                    <dd>zero or more of those blocks: none for <code>990</code>, one for <code>1 500</code>, one for <code>12 000</code></dd>
+                    <dt>\s*</dt>
+                    <dd>an optional space before the currency word</dd>
+                    <dt>(?:теңге|тг)</dt>
+                    <dd>either spelling of the currency, again without capturing</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>In words:</strong> a number, possibly written with spaces between thousands, followed by теңге or тг.</p>
+                </div>
+                <p class="note"><strong>Why <code>(?:…)</code> and not <code>(…)</code>:</strong> with plain brackets, <code>re.findall</code> would return only what the brackets caught — <code>['теңге', 'тг']</code> — instead of the whole price. Non-capturing brackets give the grouping without changing what you get back.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               4. Anchors
+               ========================================================== -->
+          <section class="section" aria-labelledby="anchors">
+            <div class="container">
+              <span class="section__eyebrow">Building block 4</span>
+              <h2 id="anchors">Anchors and boundaries — where exactly?</h2>
+              <p class="narrow lead">
+                Anchors match a <strong>position</strong>, not a character. They
+                consume nothing; they only say “here”.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3><span class="token">^</span> start of the text</h3>
+                  <p>
+                    <span class="regex">^Астана</span> matches only if the text
+                    begins with that word.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">$</span> end of the text</h3>
+                  <p>
+                    <span class="regex">\.$</span> matches a final full stop.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\b</span> word boundary</h3>
+                  <p>
+                    <span class="regex">\b\d{4}\b</span> matches
+                    <span class="match">2017</span> as a standalone number, not
+                    four digits inside a longer one.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\B</span> not a boundary</h3>
+                  <p>
+                    The opposite of <span class="token">\b</span> — useful for
+                    finding something inside a word.
+                  </p>
+                </div>
+              </div>
+
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>A trap worth remembering.</strong> In JavaScript
+                <span class="token">\b</span> is defined through
+                <span class="token">\w</span>, which is ASCII only. So
+                <span class="regex">\bАстана\b</span> matches
+                <strong>nothing</strong> in a browser, while the same pattern
+                works in Python. With Kazakh or Russian text, either drop the
+                <span class="token">\b</span>, or switch on the
+                <span class="token">u</span> flag and use
+                <span class="token">\p{L}</span> for “any letter”.
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Unicode-safe patterns</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Бүгін #Astana және #Астана туралы жаздық.</code></pre>
+                </div>
+                <dl class="kv">
+                  <dt>#\w+</dt>
+                  <dd>#Astana — the Cyrillic hashtag is missed</dd>
+                  <dt>#[^\s#]+</dt>
+                  <dd>#Astana, #Астана — works everywhere</dd>
+                  <dt>#[\p{L}\d_]+ with flag u</dt>
+                  <dd>#Astana, #Астана — the precise way</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Try all three in the playground below: the
+                  <strong>Unicode (u)</strong> switch turns on
+                  <span class="token">\p{L}</span>.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               5. Escaping
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="escaping">
+            <div class="container">
+              <span class="section__eyebrow">Building block 5</span>
+              <h2 id="escaping">Escaping — when a character means itself</h2>
+              <p class="narrow lead">
+                These characters have a special job inside a pattern:
+              </p>
+              <p>
+                <span class="regex">. + * ? ( ) [ ] { } | ^ $ \</span>
+              </p>
+              <p class="narrow">
+                To match one of them literally, put a backslash in front of it.
+              </p>
+
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Escaped characters</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Wrong</th>
+                      <th scope="col">Right</th>
+                      <th scope="col">Why</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d{2}.\d{2}</code></td>
+                      <td><code>\d{2}\.\d{2}</code></td>
+                      <td>a bare <code>.</code> matches any character, so <code>24x08</code> would pass</td>
+                    </tr>
+                    <tr>
+                      <td><code>+7</code></td>
+                      <td><code>\+7</code></td>
+                      <td>a bare <code>+</code> means “one or more” and needs something before it</td>
+                    </tr>
+                    <tr>
+                      <td><code>(2026)</code></td>
+                      <td><code>\(2026\)</code></td>
+                      <td>brackets create a group instead of matching brackets</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="callout">
+                Inside <span class="token">[ ]</span> most characters lose their
+                special meaning, which is why
+                <span class="regex">[\w.-]</span> needs no escaping for the dot.
+                In Python, <span class="token">re.escape("+7 (701)")</span> escapes
+                a string for you.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Cheat sheet
+               ========================================================== -->
+          <section class="section" aria-labelledby="cheatsheet">
+            <div class="container">
+              <span class="section__eyebrow">Reference</span>
+              <h2 id="cheatsheet">Regex syntax cheat sheet</h2>
+              <p class="narrow lead">Everything above on one card.</p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Regular Expression syntax with Kazakhstan-related examples
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Syntax</th>
+                      <th scope="col">Meaning</th>
+                      <th scope="col">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>any character</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>digit</td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>word character (ASCII in JavaScript)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>whitespace</td>
+                      <td><code>\s+</code> → the gap in <code>Алматы&nbsp;&nbsp;&nbsp;қаласы</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>one or more</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>zero or more</td>
+                      <td><code>ab*</code> matches <code>a</code> too</td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>optional</td>
+                      <td><code>https?</code> → <code>http</code>, <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+?</code> <code>*?</code></td>
+                      <td>lazy — match as little as possible</td>
+                      <td><code>&lt;.+?&gt;</code> → <code>&lt;b&gt;</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{n}</code> <code>{n,m}</code></td>
+                      <td>exactly n / between n and m times</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[abc]</code></td>
+                      <td>one of these characters</td>
+                      <td><code>[АӘ]</code> → <code>А</code> or <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^abc]</code></td>
+                      <td>anything except these</td>
+                      <td><code>[^0-9]</code> → any non-digit</td>
+                    </tr>
+                    <tr>
+                      <td><code>|</code></td>
+                      <td>OR</td>
+                      <td><code>Астана|Алматы</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>(...)</code></td>
+                      <td>group, captured</td>
+                      <td><code>(\d{2})\.(\d{2})</code> → day, month</td>
+                    </tr>
+                    <tr>
+                      <td><code>(?:...)</code></td>
+                      <td>group, not captured</td>
+                      <td><code>(?:теңге|тг)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>^</code> <code>$</code></td>
+                      <td>start / end of text</td>
+                      <td><code>^Астана</code>, <code>\.$</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\b</code></td>
+                      <td>word boundary (ASCII in JavaScript)</td>
+                      <td><code>\b\d{4}\b</code> → <code>2017</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\p{L}</code></td>
+                      <td>any letter — needs the <code>u</code> flag</td>
+                      <td><code>#[\p{L}\d_]+</code> → <code>#Астана</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Putting it together — Kazakhstan examples
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="regex-examples"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Putting it together</span>
+              <h2 id="regex-examples">Regex with Kazakhstan data</h2>
+              <p class="narrow lead">
+                Every pattern below is only the building blocks from above, put
+                next to each other.
+              </p>
+
+              <div class="stack" style="margin-top: 36px">
+                <!-- Phone numbers -->
+                <article class="example">
+                  <span class="example__label">Example 01 · Phone numbers</span>
+                  <h3>Kazakhstan phone numbers</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Менің нөмірім +7 701 123 45 67.
+Кеңсе: +7 7172 55 44 33.</code></pre>
+                  </div>
+                  <p>Pattern: <span class="regex">\+7[\s\d]+</span></p>
+                  <ul class="regex-matches">
+                    <li>+7 701 123 45 67</li>
+                    <li>+7 7172 55 44 33</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>\+</dt>
+                      <dd>an escaped plus — a bare <code>+</code> would mean “one or more” and would need something in front of it</dd>
+                      <dt>7</dt>
+                      <dd>the digit 7, literally</dd>
+                      <dt>[\s\d]</dt>
+                      <dd>one character that is either whitespace or a digit</dd>
+                      <dt>+</dt>
+                      <dd>one or more of those characters</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> a literal <code>+7</code>, then any run of digits and spaces.</p>
+                  </div>
+                  <p class="note"><strong>Where it stops:</strong> at the first character that is neither a space nor a digit — the full stop after <code>67</code>, or the comma after <code>33</code>. <strong>Its weakness:</strong> it never counts digits, so <code>+7 701 123 45 67 2026 жылға</code> gives <code>+7 701 123 45 67 2026 </code> — the year gets swallowed. <code>\+7(?:[\s-]?\d){10}</code> counts ten digits and stops in the right place.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    Production-grade validation would need stricter rules — this
+                    pattern happily accepts nonsense like
+                    <span class="token">+7 999999999999</span>.
+                  </div>
+                </article>
+
+                <!-- Years -->
+                <article class="example">
+                  <span class="example__label">Example 02 · Years</span>
+                  <h3>Extract years</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.</code></pre>
+                  </div>
+                  <p>Pattern: <span class="regex">\b\d{4}\b</span></p>
+                  <ul class="regex-matches">
+                    <li>1991</li>
+                    <li>2017</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Boundary + class + quantifier: three pieces, one useful
+                    pattern.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>a word boundary — the position between a word character and a non-word character</dd>
+                      <dt>\d{4}</dt>
+                      <dd>exactly four digits</dd>
+                      <dt>\b</dt>
+                      <dd>another word boundary, on the other side</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> four digits standing on their own.</p>
+                  </div>
+                  <p class="note"><strong>Why the boundaries matter:</strong> without them, <code>\d{4}</code> applied to <code>нөмір 12345</code> happily returns <code>1234</code> — the first four digits of a longer number. With <code>\b</code> on both sides there is no match at all, which is what you want when you are looking for years.</p>
+                </article>
+
+                <!-- Dates -->
+                <article class="example">
+                  <span class="example__label">Example 03 · Dates</span>
+                  <h3>Extract dates</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу 24.08.2026 күні Астанада өтеді.</code></pre>
+                  </div>
+                  <p>
+                    Pattern: <span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span>
+                  </p>
+                  <ul class="regex-matches">
+                    <li>24.08.2026</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>word boundary, so we do not start in the middle of a longer number</dd>
+                      <dt>\d{2}</dt>
+                      <dd>the day — exactly two digits</dd>
+                      <dt>\.</dt>
+                      <dd>an escaped dot: the separator itself</dd>
+                      <dt>\d{2}</dt>
+                      <dd>the month</dd>
+                      <dt>\.</dt>
+                      <dd>the second separator</dd>
+                      <dt>\d{4}</dt>
+                      <dd>the year — exactly four digits</dd>
+                      <dt>\b</dt>
+                      <dd>closing word boundary</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> two digits, dot, two digits, dot, four digits — the Kazakhstan date format.</p>
+                  </div>
+                  <p class="note"><strong>The classic mistake:</strong> writing <code>\d{2}.\d{2}.\d{4}</code> without escaping. A bare <code>.</code> matches <em>any</em> character, so that pattern also accepts <code>24x08y2026</code>. <strong>Also note:</strong> the pattern checks the shape, not the calendar — <code>99.99.2026</code> would pass.</p>
+                </article>
+
+                <!-- Time -->
+                <article class="example">
+                  <span class="example__label">Example 04 · Time</span>
+                  <h3>Extract times of day</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</code></pre>
+                  </div>
+                  <p>
+                    Pattern:
+                    <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>
+                  </p>
+                  <ul class="regex-matches">
+                    <li>15:00</li>
+                    <li>9:05</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Alternation inside a non-capturing group lets us say “00–19 or
+                    20–23”, so <span class="token">25:99</span> is rejected.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>(?:</dt>
+                      <dd>a non-capturing group holding the two hour options</dd>
+                      <dt>[01]?\d</dt>
+                      <dd>an optional 0 or 1, then any digit → covers 0–9 and 00–19</dd>
+                      <dt>|</dt>
+                      <dd>or</dd>
+                      <dt>2[0-3]</dt>
+                      <dd>a 2 followed by 0–3 → covers 20–23</dd>
+                      <dt>:</dt>
+                      <dd>the literal colon</dd>
+                      <dt>[0-5]\d</dt>
+                      <dd>minutes: first digit 0–5, then any digit → 00–59</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> an hour from 0 to 23, a colon, then minutes from 00 to 59.</p>
+                  </div>
+                  <p class="note"><strong>What the ranges buy you:</strong> a lazy <code>\d{1,2}:\d{2}</code> would also accept <code>25:99</code>. Here the alternation encodes the real rule, so <code>25:99</code> is rejected while both <code>15:00</code> and the single-digit <code>9:05</code> are accepted.</p>
+                </article>
+
+                <!-- Vehicle plates -->
+                <article class="example">
+                  <span class="example__label">Example 05 · Vehicle plates</span>
+                  <h3>Kazakhstan vehicle plates</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>123 ABC 01
+777 KZK 02</code></pre>
+                  </div>
+                  <p>Pattern: <span class="regex">\d{3}\s[A-Z]{3}\s\d{2}</span></p>
+                  <ul class="regex-matches">
+                    <li>123 ABC 01</li>
+                    <li>777 KZK 02</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Real plate formats and their validation rules are more complex
+                    than this; the pattern shows fixed-length groups.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>\d{3}</dt>
+                      <dd>exactly three digits</dd>
+                      <dt>\s</dt>
+                      <dd>exactly one whitespace character</dd>
+                      <dt>[A-Z]{3}</dt>
+                      <dd>exactly three capital Latin letters</dd>
+                      <dt>\s</dt>
+                      <dd>another single space</dd>
+                      <dt>\d{2}</dt>
+                      <dd>exactly two digits — the region code</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> three digits, space, three capital letters, space, two digits.</p>
+                  </div>
+                  <p class="note"><strong>Detail:</strong> <code>{3}</code> is strict — no more, no less. And <code>[A-Z]</code> is Latin only, so a plate typed with Cyrillic <code>А</code> or <code>В</code> (which look identical on screen) will not match. Confusable letters are a genuine, everyday problem in Kazakhstan text data.</p>
+                </article>
+
+                <!-- Hashtags -->
+                <article class="example">
+                  <span class="example__label">Example 06 · Hashtags</span>
+                  <h3>Find hashtags</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Бүгін #Astana қаласында #AI туралы конференция өтті.</code></pre>
+                  </div>
+                  <p>Pattern: <span class="regex">#\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>#Astana</li>
+                    <li>#AI</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    For Kazakh hashtags use
+                    <span class="regex">#[^\s#]+</span> — see the anchors section.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>#</dt>
+                      <dd>a literal hash character</dd>
+                      <dt>\w</dt>
+                      <dd>one word character — a letter, a digit or an underscore</dd>
+                      <dt>+</dt>
+                      <dd>one or more of them, so the tag runs until the first space or punctuation</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> a hash, then the run of word characters after it.</p>
+                  </div>
+                  <p class="note"><strong>The Kazakh catch:</strong> in JavaScript <code>\w</code> is only <code>[A-Za-z0-9_]</code>, so <code>#Астана</code> is missed entirely. Use <code>#[^\s#]+</code> (“a hash, then anything that is not a space or another hash”), or switch on the <code>u</code> flag and write <code>#[\p{L}\d_]+</code>.</p>
+                </article>
+
+                <!-- Whitespace -->
+                <article class="example">
+                  <span class="example__label">Example 07 · Cleaning</span>
+                  <h3>Clean extra spaces</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы     Қазақстанның    ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p>
+                    Pattern: <span class="regex">\s+</span> — replacement:
+                    <span class="token">" "</span>
+                  </p>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p style="margin-bottom: 0">
+                    Normalising whitespace is one of the very first steps of
+                    almost every text-processing pipeline.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>\s</dt>
+                      <dd>one whitespace character — a space, a tab, or a newline</dd>
+                      <dt>+</dt>
+                      <dd>one or more in a row, so a run of ten spaces is a single match</dd>
+                      <dt>" "</dt>
+                      <dd>the replacement: exactly one ordinary space</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> replace every run of whitespace with a single space.</p>
+                  </div>
+                  <p class="note"><strong>Why <code>+</code> matters here:</strong> without it you would replace each space with a space and change nothing. With it, the whole run collapses at once. In Python this is <code>re.sub(r"\s+", " ", text)</code>, and <code>.strip()</code> afterwards removes the leftover space at the start and end.</p>
+                </article>
+
+                <!-- Emails -->
+                <article class="example">
+                  <span class="example__label">Example 08 · Emails</span>
+                  <h3>Extract email addresses</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Сұрақтарды info@example.kz адресіне жіберіңіз.</code></pre>
+                  </div>
+                  <p>Pattern: <span class="regex">[\w.-]+@[\w.-]+\.\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>info@example.kz</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Piece by piece</span>
+                    <dl class="breakdown__list">
+                      <dt>[\w.-]</dt>
+                      <dd>one character that is a word character, a dot, or a hyphen</dd>
+                      <dt>+</dt>
+                      <dd>one or more of them — the part before the @</dd>
+                      <dt>@</dt>
+                      <dd>the literal at sign</dd>
+                      <dt>[\w.-]+</dt>
+                      <dd>the same set again — the domain name</dd>
+                      <dt>\.</dt>
+                      <dd>an escaped dot before the zone</dd>
+                      <dt>\w+</dt>
+                      <dd>the zone itself: <code>kz</code>, <code>com</code>, …</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>In words:</strong> some name characters, an @, some domain characters, a dot, and a zone.</p>
+                  </div>
+                  <p class="note"><strong>Two details worth knowing.</strong> Inside <code>[ ]</code> the dot loses its special meaning, so it needs no backslash there — but outside the brackets it does. And the hyphen is written last on purpose: in the middle it would create a range, as in <code>a-z</code>.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    This is not a complete, RFC-compliant email validator. It is
+                    good enough to <em>find</em> addresses in text, which is
+                    usually what an NLP pipeline actually needs.
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Interactive Regex playground
+               ========================================================== -->
+          <section class="section" aria-labelledby="playground">
+            <div class="container">
+              <span class="section__eyebrow">Interactive demo</span>
+              <h2 id="playground">Regex playground</h2>
+              <p class="narrow lead">
+                Type a pattern and see the matches highlighted immediately. The
+                demo runs entirely in your browser with the native JavaScript
+                <span class="token">RegExp</span>.
+              </p>
+
+              <div class="regex-playground" style="margin-top: 28px">
+                <div class="regex-playground__presets">
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\+7[\s\d]+"
+                    data-preset-text="Менің нөмірім +7 701 123 45 67.&#10;Кеңсе: +7 7172 55 44 33."
+                  >
+                    Phone Number
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{2}\.\d{2}\.\d{4}\b"
+                    data-preset-text="Кездесу 24.08.2026 күні Астанада өтеді.&#10;Келесі дәріс 26.08.2026 күні."
+                  >
+                    Date
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{4}\b"
+                    data-preset-text="Қазақстан тәуелсіздігін 1991 жылы алды.&#10;EXPO 2017 Астанада өтті."
+                  >
+                    Year
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b(?:[01]?\d|2[0-3]):[0-5]\d\b"
+                    data-preset-text="Кездесу сағат 15:00-де, кеші 9:05-те аяқталады."
+                  >
+                    Time
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\d+(?:\s\d{3})*\s*(?:теңге|тг)"
+                    data-preset-text="Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+                  >
+                    Price
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#\w+"
+                    data-preset-text="Бүгін #Astana қаласында #AI туралы конференция өтті. #NLP"
+                  >
+                    Hashtag
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#[\p{L}\d_]+"
+                    data-preset-text="Бүгін #Astana және #Астана туралы жаздық."
+                    data-preset-unicode
+                  >
+                    Hashtag (Unicode)
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="[\w.-]+@[\w.-]+\.\w+"
+                    data-preset-text="Сұрақтарды info@example.kz адресіне жіберіңіз.&#10;Қосымша: nlp.course@example.kz"
+                  >
+                    Email
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="&lt;.+?&gt;"
+                    data-preset-text="&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;"
+                  >
+                    Lazy vs greedy
+                  </button>
+                </div>
+
+                <div class="field">
+                  <label for="regex-pattern">Pattern</label>
+                  <input
+                    id="regex-pattern"
+                    type="text"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    value="\b\d{4}\b"
+                    data-regex-pattern
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="regex-text">Text</label>
+                  <textarea id="regex-text" spellcheck="false" data-regex-text>
+Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.
+Кездесу 24.08.2026 күні болады.</textarea
+                  >
+                </div>
+
+                <div class="regex-playground__controls">
+                  <button class="btn btn--primary" type="button" data-regex-run>
+                    Run Regex
+                  </button>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-flags />
+                    Ignore case (flag <code>i</code>)
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-unicode />
+                    Unicode (flag <code>u</code>) — enables <code>\p{L}</code>
+                  </label>
+                </div>
+
+                <h3 style="font-size: 1.1rem">Result</h3>
+                <div
+                  class="regex-output"
+                  data-regex-output
+                  role="region"
+                  aria-live="polite"
+                  aria-label="Highlighted matches"
+                ></div>
+                <p class="regex-status" data-regex-status role="status"></p>
+                <ul
+                  class="regex-matches"
+                  data-regex-list
+                  aria-label="List of matches"
+                ></ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Python practice
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="python">
+            <div class="container">
+              <span class="section__eyebrow">Code examples</span>
+              <h2 id="python">Practising in Python</h2>
+              <p class="narrow lead">
+                In the practical part of NLP work we use Python. Every output
+                below is the real output of the code above it — run them yourself
+                and change the text.
+              </p>
+
+              <h3 style="margin-top: 40px">1 · findall — every match at once</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Қазақстан 1991 жылы тәуелсіз болды. EXPO 2017 Астанада өтті."
+years = re.findall(r"\b\d{4}\b", text)
+
+print(years)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1991', '2017']</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>findall</code> scans the whole string and returns every match as a list of strings. If nothing matches you get an empty list, not <code>None</code> — so you can loop over the result safely. <strong>The gotcha:</strong> as soon as your pattern contains capturing brackets, <code>findall</code> returns the <em>contents of the brackets</em> instead of the whole match.</p>
+
+              <h3 style="margin-top: 40px">2 · search + groups — take a match apart</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Кездесу 24.08.2026 күні өтеді."
+m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", text)
+
+print(m.group(0))
+print(m.groups())
+print("Year:", m.group(3))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>24.08.2026
+('24', '08', '2026')
+Year: 2026</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>search</code> looks for the first match only and gives you a Match object — <code>group(0)</code> is everything that matched, <code>group(1)</code>, <code>group(2)</code>, … are the bracketed pieces, numbered by their opening bracket. <strong>Always check for <code>None</code>:</strong> if nothing matches, <code>search</code> returns <code>None</code> and <code>m.group(0)</code> raises <code>AttributeError</code>.</p>
+
+              <h3 style="margin-top: 40px">3 · Named groups — readable code</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Курс 24.08.2026 күні басталады."
+m = re.search(
+    r"(?P&lt;day&gt;\d{2})\.(?P&lt;month&gt;\d{2})\.(?P&lt;year&gt;\d{4})",
+    text
+)
+
+print(m.groupdict())
+print(m.group("month"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>{'day': '24', 'month': '08', 'year': '2026'}
+08</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>(?P&lt;day&gt;…)</code> gives a group a name, so the code says <code>m.group("month")</code> instead of <code>m.group(2)</code> — and stays correct even if you later insert another bracket. <code>groupdict()</code> hands you all named groups as a dictionary, ready to build a date object. <strong>Note the syntax difference:</strong> Python writes <code>(?P&lt;name&gt;…)</code>, JavaScript writes <code>(?&lt;name&gt;…)</code>.</p>
+
+              <h3 style="margin-top: 40px">4 · sub — clean the text</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Алматы     Қазақстанның    ең ірі қалаларының бірі."
+clean = re.sub(r"\s+", " ", text).strip()
+
+print(clean)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>sub</code> replaces <em>every</em> match, not just the first, and returns a new string — the original is untouched, because Python strings are immutable. <code>\s+</code> collapses each run of whitespace into one space; <code>.strip()</code> then removes the space that may be left at the very start and end.</p>
+
+              <h3 style="margin-top: 40px">5 · sub — remove punctuation before tokenizing</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Сәлем, әлем! Бүгін #NLP сабағы бар."
+words_only = re.sub(r"[^\w\s]", "", text)
+
+print(words_only)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Сәлем әлем Бүгін NLP сабағы бар</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>[^\w\s]</code> reads as “not a word character and not whitespace” — that is, punctuation and symbols. Replacing it with an empty string leaves words and the spaces between them. <strong>Why it works on Kazakh:</strong> Python’s <code>\w</code> is Unicode-aware, so <code>Сәлем</code> counts as word characters. The same line in JavaScript would delete every Cyrillic letter instead.</p>
+              <div class="callout">
+                This works on Kazakh text because Python’s
+                <span class="token">\w</span> is Unicode-aware. The same pattern
+                in JavaScript would delete every Cyrillic letter — always check
+                which engine you are in.
+              </div>
+
+              <h3 style="margin-top: 40px">6 · Prices — alternation and optional blocks</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+prices = re.findall(r"\d+(?:\s\d{3})*\s*(?:теңге|тг)", text)
+
+print(prices)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1 500 теңге', '990 тг', '12 000 теңге']</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> all the brackets are non-capturing, so <code>findall</code> returns whole prices rather than pieces of them. <code>(?:\s\d{3})*</code> is what makes <code>1 500</code> and <code>12 000</code> work while still matching plain <code>990</code> — “zero or more thousands blocks”.</p>
+
+              <h3 style="margin-top: 40px">7 · finditer — matches with their positions</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Бүгін #Astana қаласында #AI туралы конференция өтті."
+
+for m in re.finditer(r"#\w+", text):
+    print(m.group(), m.start(), m.end())</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>#Astana 6 13
+#AI 24 27</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>finditer</code> returns Match objects instead of strings, so you also get <code>start()</code> and <code>end()</code> — the character positions of each match. You need those whenever the position matters: highlighting a match in a page, replacing it in place, or storing an entity span for Named Entity Recognition, which is exactly the format NER training data uses.</p>
+              <p class="narrow">
+                Positions matter as soon as you want to highlight a match, replace
+                it in place, or label it for Named Entity Recognition.
+              </p>
+
+              <h3 style="margin-top: 40px">8 · split — cut text into sentences</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Астана — астана. Алматы ірі қала! Шымкент те үлкен?"
+sentences = re.split(r"(?&lt;=[.!?])\s+", text)
+
+print(sentences)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['Астана — астана.', 'Алматы ірі қала!', 'Шымкент те үлкен?']</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>split</code> cuts the string wherever the pattern matches and returns the pieces. The lookbehind <code>(?&lt;=[.!?])</code> checks that a sentence mark is directly behind the current position without consuming it, so the punctuation stays attached to its sentence and only the space between sentences is used as the cut point.</p>
+              <div class="callout">
+                <span class="token">(?&lt;=…)</span> is a <em>lookbehind</em>: split
+                after a <span class="token">.</span>,
+                <span class="token">!</span> or <span class="token">?</span>
+                without consuming it. This naive splitter still breaks on
+                abbreviations — real sentence splitting is a Lecture 2 topic.
+              </div>
+
+              <h3 style="margin-top: 40px">9 · compile + flags — reuse one pattern</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+nlp = re.compile(r"\bnlp\b", re.IGNORECASE)
+
+print(nlp.findall("NLP, nlp, Nlp курсы"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['NLP', 'nlp', 'Nlp']</code></pre>
+              </div>
+              <p class="note"><strong>What happens here:</strong> <code>re.compile</code> builds the pattern once and gives you an object with the same methods — <code>findall</code>, <code>search</code>, <code>sub</code>. Use it when the same pattern runs over many texts; it also keeps the flags in one place. <code>re.IGNORECASE</code> makes <code>NLP</code>, <code>nlp</code> and <code>Nlp</code> all match.</p>
+
+              <h3 style="margin-top: 40px">10 · A small pipeline</h3>
+              <p class="narrow">
+                Regex is rarely used alone — it is the cleaning step in front of
+                everything else.
+              </p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+raw = "  Сәлем!!!   Менің нөмірім +7 701 123 45 67,   #NLP  "
+
+phones = re.findall(r"\+7[\s\d]+", raw)          # keep what we need
+text = re.sub(r"\+7[\s\d]+", "&lt;PHONE&gt;", raw)     # then anonymise it
+text = re.sub(r"\s+", " ", text).strip()         # normalise whitespace
+
+print(phones)
+print(text)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['+7 701 123 45 67']
+Сәлем!!! Менің нөмірім &lt;PHONE&gt;, #NLP</code></pre>
+              </div>
+              <p class="note"><strong>What happens here — and why in this order:</strong> first <code>findall</code> keeps a copy of the phone numbers, because the next line destroys them; then <code>sub</code> replaces each number with <code>&lt;PHONE&gt;</code>, which is how personal data is removed from a dataset before training; only then is the whitespace normalised, so the extra spaces left behind by the replacement disappear too. Swap the first two lines and you lose the numbers.</p>
+              <div class="callout">
+                That pattern is still fragile. <span class="token">[\s\d]+</span>
+                means “spaces and digits, as many as possible”, so in
+                <span class="token">+7 701 123 45 67 2026 жылға дейін</span> it
+                swallows the year as well and returns
+                <span class="token">+7 701 123 45 67 2026 </span>. A pattern that
+                counts the digits —
+                <span class="regex">\+7(?:[\s-]?\d){10}</span> — stops in the
+                right place. Always look at what your Regex
+                <em>actually</em> matched.
+              </div>
+
+              <div class="callout">
+                The <span class="token">r"..."</span> prefix marks a raw string,
+                so the backslashes reach the Regex engine unchanged. Without it
+                you would have to write
+                <span class="token">"\\b\\d{4}\\b"</span>.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Knowledge check — asked in class
+               ========================================================== -->
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">
+                Five questions to answer together before we finish.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">Read this pattern out loud, piece by piece:
+
+\b\d{2}\.\d{2}\.\d{4}\b</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Word boundary · two digits · a literal dot · two digits · a
+                      literal dot · four digits · word boundary. In other words: a
+                      date written as <span class="token">24.08.2026</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">What is the difference between \d+ and \d* ?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> requires at least one digit;
+                      <span class="token">*</span> is happy with none, so it can
+                      match an empty string. Use <span class="token">*</span> only
+                      for parts that really are allowed to be missing.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">Why does &lt;.+&gt; match too much in
+
+&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;
+
+and how do you fix it?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> is greedy, so it runs to the
+                      last <span class="token">&gt;</span> in the text and returns
+                      one huge match. Make it lazy —
+                      <span class="regex">&lt;.+?&gt;</span> — and you get the four
+                      separate tags.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">In the playground, \bАстана\b finds nothing. Why?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The playground runs JavaScript, where
+                      <span class="token">\b</span> is defined through the ASCII
+                      <span class="token">\w</span>. A Cyrillic letter is not a
+                      word character there, so no boundary exists. Drop the
+                      <span class="token">\b</span>, or use the
+                      <span class="token">u</span> flag with
+                      <span class="token">\p{L}</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.
+
+Which parts does \+7[\s\d]+ match, and why not the time?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      It matches <span class="match">+7 7172 55 44 33</span>. The
+                      pattern must start with a literal
+                      <span class="token">+7</span>, and
+                      <span class="token">15:00</span> does not — the colon is
+                      neither a space nor a digit either.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Practice tasks — after the lecture
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Ten tasks to do on your own. Write the pattern in the playground
+                above first, then open the answer. There is usually more than one
+                correct pattern — if yours finds exactly the right fragments, it
+                is right.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Task 1 — Every year</h3>
+                  <p class="challenge__task">Қазақстан 1991 жылы тәуелсіз болды.
+Астана EXPO 2017 көрмесін қабылдады.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">\b\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1991</span>
+                      <span class="match">2017</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 2 — All hashtags</h3>
+                  <p class="challenge__task">#Kazakhstan #Astana #NLP</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">#\w+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Kazakhstan</span>
+                      <span class="match">#Astana</span>
+                      <span class="match">#NLP</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 3 — The date</h3>
+                  <p class="challenge__task">Курс 24.08.2026 күні басталады.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">24.08.2026</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 4 — Only the phone number</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">\+7[\s\d]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">+7 7172 55 44 33</span> — the time is
+                      not matched because it does not start with
+                      <span class="token">+7</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 5 — Times of day</h3>
+                  <p class="challenge__task">Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">\d{1,2}:\d{2}</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">15:00</span>
+                      <span class="match">9:05</span> — a stricter version that
+                      rejects <span class="token">25:99</span> is
+                      <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 6 — Prices in tenge</h3>
+                  <p class="challenge__task">Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1 500 теңге</span>
+                      <span class="match">990 тг</span>
+                      <span class="match">12 000 теңге</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 7 — Links, http and https</h3>
+                  <p class="challenge__task">Сайт http://egov.kz және https://astana.kz ашық.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">https?://\S+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">http://egov.kz</span>
+                      <span class="match">https://astana.kz</span> — the
+                      <span class="token">?</span> makes the
+                      <span class="token">s</span> optional.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 8 — Capitalised words</h3>
+                  <p class="challenge__task">Әлия Астанадан Алматыға ұшты, ал Қанат Шымкентте қалды.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p>
+                      <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ][а-яёәғқңөұүһі]+</span>
+                    </p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">Әлия</span>
+                      <span class="match">Астанадан</span>
+                      <span class="match">Алматыға</span>
+                      <span class="match">Қанат</span>
+                      <span class="match">Шымкентте</span> — note there is no
+                      <span class="token">\b</span>: it would break the pattern in
+                      the browser. This is the crude first step behind Named
+                      Entity Recognition.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 9 — Kazakh hashtags too</h3>
+                  <p class="challenge__task">Бүгін #Astana және #Астана туралы жаздық.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">#[^\s#]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Astana</span>
+                      <span class="match">#Астана</span> — “a #, then anything
+                      that is not a space or another #”. With the
+                      <span class="token">u</span> flag,
+                      <span class="regex">#[\p{L}\d_]+</span> is the precise
+                      version.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 10 — Day, month and year separately</h3>
+                  <p class="challenge__task">Кездесу 24.08.2026 күні өтеді.
+
+Capture the three parts, not just the whole date.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p><span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                    <p style="margin-bottom: 0">
+                      Group 1 = <span class="match">24</span>, group 2 =
+                      <span class="match">08</span>, group 3 =
+                      <span class="match">2026</span>. In Python:
+                      <span class="token">m.group(3)</span> or, with named groups,
+                      <span class="token">m.group("year")</span>.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Key takeaways
+               ========================================================== -->
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Character classes — which character</li>
+                <li>Quantifiers — how many, greedy vs lazy</li>
+                <li>Alternation and groups — this or that, and capturing</li>
+                <li>Anchors — where in the text</li>
+                <li>Escaping special characters</li>
+                <li>Extracting phones, dates, times, prices, hashtags, emails</li>
+                <li>findall, search, sub, finditer, split, compile in Python</li>
+                <li>Why <span class="token">\b</span> and <span class="token">\w</span> need care with Kazakh text</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Lecture 1 · 24 August 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

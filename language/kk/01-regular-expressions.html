@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Regular Expressions | NLP Course</title>
+    <meta
+      name="description"
+      content="1-дәріс: Regular Expressions үлгі-үлгімен — таңба кластары, квантификаторлар, баламалау, топтар, зәкірлер; қазақстандық мысалдар, Python практикасы және интерактивті playground."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Мобильді панель (1024px-тен төмен) ------------------------------ -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Тіл">
+        <a href="../en/01-regular-expressions.html" data-lang-link="en">EN</a>
+        <a href="../kk/01-regular-expressions.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/01-regular-expressions.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Бүйірлік панель: мазмұны -------------------------------------- -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          Мәтінді өңдеуден Large Language Models дейін
+        </p>
+        <div class="lang-switch" role="group" aria-label="Тіл">
+          <a href="../en/01-regular-expressions.html" data-lang-link="en">EN</a>
+          <a href="../kk/01-regular-expressions.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/01-regular-expressions.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс жоспары</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Мазмұнды жабу"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">1-дәріс</span>
+              <h1>Regular Expressions</h1>
+              <p class="hero__subtitle">
+                Модельдер тілді түсінбес бұрын, біз алдымен мәтінмен жұмыс
+                істеуіміз керек. Үлгілерді бөлшектеп құрастырамыз: таңба
+                кластары, квантификаторлар, баламалау, топтар, зәкірлер.
+              </p>
+              <p class="hero__date">24 тамыз 2026</p>
+              <ul class="topic-chips">
+                <li>Таңба кластары</li>
+                <li>Квантификаторлар</li>
+                <li>Баламалау және топтар</li>
+                <li>Зәкірлер</li>
+                <li>Python <span class="token">re</span></li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Оқу мақсаттары
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістен кейін сіз…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Кез келген негізгі үлгіні оқисыз</h3>
+                  <p>
+                    Regex-ті бөліктерге жіктеп, әрқайсысы нені табатынын
+                    айтасыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Үлгіні өзіңіз жазасыз</h3>
+                  <p>
+                    Кластарды, квантификаторларды, топтарды және зәкірлерді
+                    біріктіріп, керекті мәтіннің пішінін сипаттайсыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Шығарып аласыз және тазалайсыз</h3>
+                  <p>
+                    Қазақстандық мәтіннен телефон, күн, баға, hashtag аласыз және
+                    айналасындағы шуды қалыпқа келтіресіз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Тұзақтарды білесіз</h3>
+                  <p>
+                    Ашкөз квантификаторлар, экрандалмаған нүкте және кириллицада
+                    үнсіз істемей қалатын сөз шекаралары.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Неге алдымен мәтін
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="why-text-first"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Мотивация</span>
+              <h2 id="why-text-first">
+                Модельдер тілді түсінбес бұрын, біз алдымен мәтінмен жұмыс
+                істеуіміз керек.
+              </h2>
+              <p class="narrow lead">
+                Кез келген NLP pipeline қарапайым әрі шашыраңқы мәтіннен
+                басталады: артық бос орындар, телефон нөмірлері, күндер,
+                hashtag-тар, аралас тілдер. Осы алғашқы кезеңге арналған ең көне
+                әрі әлі күнге дейін ең көп қолданылатын құрал:
+              </p>
+              <p>
+                <span class="diagram__node diagram__node--accent"
+                  >Regular Expressions — Regex</span
+                >
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Regular Expressions дегеніміз не?
+               ========================================================== -->
+          <section class="section" aria-labelledby="what-regex">
+            <div class="container">
+              <span class="section__eyebrow">Анықтама</span>
+              <h2 id="what-regex">Regular Expressions дегеніміз не?</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Regular Expressions</strong> — мәтінді табу, шығарып
+                  алу, тексеру, бөлу немесе ауыстыру үшін қолданылатын үлгілер
+                  (patterns).
+                </p>
+              </div>
+
+              <ul
+                class="diagram"
+                style="margin-top: 32px"
+                aria-label="Мәтін плюс үлгі теңдеу сәйкестік"
+              >
+                <li>
+                  <span class="diagram__node">Text</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">Pattern</span>
+                  <span class="diagram__arrow" aria-hidden="true">=</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent">Match</span>
+                </li>
+              </ul>
+
+              <p class="narrow">
+                Regex мағынаны түсінбейді. Ол тек <strong>пішінді</strong>
+                сипаттайды. Ал кез келген үлгі небәрі төрт түрлі бөліктен
+                құралады — біз оларды дәл осы ретпен қарастырамыз:
+              </p>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="topic-card">
+                  <span class="topic-card__num">1</span>
+                  <h3>Қандай таңба?</h3>
+                  <p>Таңба кластары: <span class="token">\d</span>, <span class="token">\w</span>, <span class="token">[абв]</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">2</span>
+                  <h3>Неше рет?</h3>
+                  <p>Квантификаторлар: <span class="token">+</span>, <span class="token">*</span>, <span class="token">?</span>, <span class="token">{n}</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">3</span>
+                  <h3>Бұл ма, әлде ол ма?</h3>
+                  <p>Баламалау және топтар: <span class="token">|</span>, <span class="token">( )</span></p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">4</span>
+                  <h3>Дәл қай жерде?</h3>
+                  <p>Зәкірлер: <span class="token">^</span>, <span class="token">$</span>, <span class="token">\b</span></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               1. Таңба кластары
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="character-classes"
+          >
+            <div class="container">
+              <span class="section__eyebrow">1-құрылыс блогы</span>
+              <h2 id="character-classes">Таңба кластары — қандай таңба?</h2>
+              <p class="narrow lead">
+                Таңба класы <strong>бір</strong> таңбаға сәйкес келеді. Бұл — кез
+                келген үлгінің ең кіші бөлігі.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Таңба кластары және мысалдар
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Үлгі</th>
+                      <th scope="col">Бір … табады</th>
+                      <th scope="col">Мысал</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>цифр <code>0-9</code></td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\D</code></td>
+                      <td>цифр <em>емес</em> таңба</td>
+                      <td><code>\D</code> → <code>+7 701</code> ішіндегі бос орын</td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>сөз таңбасы (әріп, цифр, <code>_</code>)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>бос орын, tab, жаңа жол</td>
+                      <td><code>\s</code> → сөздер арасындағы аралық</td>
+                    </tr>
+                    <tr>
+                      <td><code>\S</code></td>
+                      <td>бос орын емес кез келген таңба</td>
+                      <td><code>\S+</code> → тұтас бір сөз</td>
+                    </tr>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>кез келген таңба</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[абв]</code></td>
+                      <td>тізімдегі таңбалардың бірі</td>
+                      <td><code>[АӘ]</code> → <code>А</code> немесе <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^абв]</code></td>
+                      <td>олардан <em>басқасының</em> бәрі</td>
+                      <td><code>[^0-9]</code> → цифр емес таңба</td>
+                    </tr>
+                    <tr>
+                      <td><code>[а-я]</code></td>
+                      <td>таңбалар ауқымы</td>
+                      <td><code>[A-Z]</code> → <code>KZK</code> ішіндегі <code>K</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Қазақ әріптері де — ауқым</span>
+                <p>
+                  Қазақ әліпбиінде жай <span class="token">[а-я]</span>
+                  қамтымайтын әріптер бар. Оларды тікелей жазып қою керек:
+                </p>
+                <p><span class="regex">[а-яёәғқңөұүһі]</span></p>
+                <p style="margin-bottom: 0">
+                  Бас әріптер:
+                  <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ]</span>
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong><span class="token">\w</span> туралы абай болыңыз.</strong>
+                JavaScript-те ол тек
+                <span class="token">[A-Za-z0-9_]</span> дегенді білдіреді —
+                кириллица кірмейді. Python 3-те ол Unicode-ты ескереді және
+                <span class="token">Астана</span> сөзін де табады. Бұған зәкірлер
+                бөлімінде қайта ораламыз.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               2. Квантификаторлар
+               ========================================================== -->
+          <section class="section" aria-labelledby="quantifiers">
+            <div class="container">
+              <span class="section__eyebrow">2-құрылыс блогы</span>
+              <h2 id="quantifiers">Квантификаторлар — неше рет?</h2>
+              <p class="narrow lead">
+                Квантификатор дәл алдында тұрған бөлікті қайталайды.
+              </p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">Квантификаторлар және мысалдар</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Үлгі</th>
+                      <th scope="col">Мағынасы</th>
+                      <th scope="col">Мысал</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>бір немесе одан көп</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>нөл немесе одан көп</td>
+                      <td><code>\s*</code> → бос орын болмаса да келеді</td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>нөл немесе бір — міндетті емес</td>
+                      <td><code>https?</code> → <code>http</code> және <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{4}</code></td>
+                      <td>дәл төрт рет</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{2,4}</code></td>
+                      <td>екіден төртке дейін</td>
+                      <td><code>\d{2,4}</code> → <code>12</code>, <code>123</code>, <code>1234</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{3,}</code></td>
+                      <td>үш немесе одан көп</td>
+                      <td><code>\d{3,}</code> → <code>7172</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 44px">Практикадағы <span class="token">?</span></h3>
+              <div class="example">
+                <span class="example__label">Бір үлгі — екі жазылым</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Сайт http://egov.kz және https://astana.kz ашық.</code></pre>
+                </div>
+                <p>Үлгі: <span class="regex">https?://\S+</span></p>
+                <p>Нәтиже:</p>
+                <ul class="regex-matches">
+                  <li>http://egov.kz</li>
+                  <li>https://astana.kz</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  <span class="token">?</span> тек дәл алдындағы
+                  <span class="token">s</span> әрпіне қатысты — «мұнда s болуы да,
+                  болмауы да мүмкін».
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Бөлік-бөлігімен</span>
+                  <dl class="breakdown__list">
+                    <dt>http</dt>
+                    <dd>дәл осылай жазылған төрт әріп</dd>
+                    <dt>s?</dt>
+                    <dd>міндетті емес s — <code>?</code> «нөл немесе бір» дегенді білдіреді әрі тек дәл алдындағы бір таңбаға қатысты</dd>
+                    <dt>://</dt>
+                    <dd>тағы үш нақ таңба</dd>
+                    <dt>\S+</dt>
+                    <dd>бос орын емес бір немесе одан көп таңба — адрестің қалған бөлігі</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> http, мүмкін s, содан кейін <code>://</code>, содан кейін келесі бос орынға дейінгінің бәрі.</p>
+                </div>
+                <p class="note"><strong>Мәнісі:</strong> <code>\S+</code> тек бос орында тоқтайды, сондықтан <code>Сайт https://astana.kz. Келесі…</code> дегенде ол соңғы нүктені де қосып, <code>https://astana.kz.</code> қайтарады — «келесі бос орынға дейін» деген «сілтеменің соңына дейін» дегенмен бірдей емес.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">Әдепкі күйде — ашкөз (greedy)</h3>
+              <p class="narrow">
+                <span class="token">+</span> және <span class="token">*</span>
+                мүмкіндігінше көп мәтінді алады. Олардан кейін
+                <span class="token">?</span> қойсаңыз, олар
+                <strong>жалқау (lazy)</strong> болады — бірінші мүмкіндікте
+                тоқтайды.
+              </p>
+              <div class="example">
+                <span class="example__label">Ашкөз және жалқау</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</code></pre>
+                </div>
+                <p>
+                  <span class="regex">&lt;.+&gt;</span> — ашкөз, бір ғана үлкен
+                  сәйкестік:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-top: 16px">
+                  <span class="regex">&lt;.+?&gt;</span> — жалқау, төрт кіші
+                  сәйкестік:
+                </p>
+                <ul class="regex-matches">
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                  <li>&lt;b&gt;</li>
+                  <li>&lt;/b&gt;</li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  Осы бір таңба — «Regex тым көп нәрсені алып кетті» деген
+                  мәселенің ең жиі себебі.
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Бөлік-бөлігімен</span>
+                  <dl class="breakdown__list">
+                    <dt>&lt;</dt>
+                    <dd>нақ сол сол жақ бұрыштық жақша</dd>
+                    <dt>.+</dt>
+                    <dd>кез келген таңбалар, бір немесе одан көп — <code>.</code> «кез келгені», <code>+</code> «кемінде бірі»</dd>
+                    <dt>&gt;</dt>
+                    <dd>нақ сол оң жақ бұрыштық жақша</dd>
+                    <dt>.+?</dt>
+                    <dd>дәл сол, бірақ жалқау: <code>+</code> артындағы <code>?</code> «мүмкіндігінше ерте тоқта» дейді</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> <code>&lt;</code> тап, содан кейін бірнеше таңба, содан кейін <code>&gt;</code> — айырмашылық тек «бірнеше таңбаның» <em>қаншалық алысқа</em> баруында.</p>
+                </div>
+                <p class="note"><strong>Неге олай:</strong> ашкөз <code>+</code> алдымен мәтіннің ең соңына дейін жүгіріп барады, содан кейін үлгінің қалғаны сыйғанша кері шегінеді. Жолдағы соңғы <code>&gt;</code> сыяды, сондықтан бәрін ұстап қалады. Жалқау нұсқасы қысқадан бастап, тек қажет болса ғана ұзарады, сондықтан бірінші <code>&gt;</code> таңбасында тоқтайды.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               3. Баламалау және топтар
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="groups">
+            <div class="container">
+              <span class="section__eyebrow">3-құрылыс блогы</span>
+              <h2 id="groups">Баламалау және топтар — бұл ма, әлде ол ма?</h2>
+
+              <h3>Баламалау: <span class="token">|</span> — НЕМЕСЕ</h3>
+              <div class="example">
+                <span class="example__label">Бірнеше қаланың кез келгені</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Астана, Алматы және Шымкент — үлкен қалалар.</code></pre>
+                </div>
+                <p>Үлгі: <span class="regex">Астана|Алматы|Шымкент</span></p>
+                <p>Нәтиже:</p>
+                <ul class="regex-matches">
+                  <li>Астана</li>
+                  <li>Алматы</li>
+                  <li>Шымкент</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">Бөлік-бөлігімен</span>
+                  <dl class="breakdown__list">
+                    <dt>Астана</dt>
+                    <dd>бірінші балама</dd>
+                    <dt>|</dt>
+                    <dd>НЕМЕСЕ — қозғалтқыш баламаларды солдан оңға қарай сынап, осы орында бірінші сәйкес келгенін алады</dd>
+                    <dt>Алматы</dt>
+                    <dd>екінші балама</dd>
+                    <dt>Шымкент</dt>
+                    <dd>үшінші балама</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> осы орында Астана, немесе Алматы, немесе Шымкент сөзін тап.</p>
+                </div>
+                <p class="note"><strong>Ауқымына абай болыңыз:</strong> <code>|</code> қасындағы сөзді ғана емес, <em>бүкіл</em> үлгіні бөледі. <code>^Астана|Алматы</code> дегеніміз «басындағы Астана» НЕМЕСЕ «кез келген жердегі Алматы», сондықтан <code>Астанада Алматы бар</code> дегеннен екеуін де табады. Баламаларды жақшаға алсаңыз — <code>^(?:Астана|Алматы)</code> — тек басындағы <code>Астана</code> ғана табылады.</p>
+              </div>
+
+              <h3 style="margin-top: 40px">Топтар: <span class="token">( )</span> бөліктерді біріктіреді</h3>
+              <p class="narrow">
+                Жақшалар бір мезгілде екі жұмыс атқарады: квантификатор мен
+                <span class="token">|</span> нақты неге қатысты екенін
+                анықтайды әрі табылған бөлікті <strong>сақтап</strong> қояды,
+                кейін оны бөлек оқып алуға болады.
+              </p>
+
+              <div class="example">
+                <span class="example__label">Күннің бөліктерін сақтау</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Кездесу 24.08.2026 күні өтеді.</code></pre>
+                </div>
+                <p>Үлгі: <span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                <dl class="kv">
+                  <dt>толық сәйкестік</dt>
+                  <dd>24.08.2026</dd>
+                  <dt>1-топ — күн</dt>
+                  <dd>24</dd>
+                  <dt>2-топ — ай</dt>
+                  <dd>08</dd>
+                  <dt>3-топ — жыл</dt>
+                  <dd>2026</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Топтар «күнді тап» дегенді «күнді тап <em>және оны бөлшекте</em>»
+                  дегенге айналдырады.
+                </p>
+                <div class="breakdown">
+                  <span class="breakdown__label">Бөлік-бөлігімен</span>
+                  <dl class="breakdown__list">
+                    <dt>(</dt>
+                    <dd>1-топты ашады — топтар ашылатын жақшаның реті бойынша нөмірленеді</dd>
+                    <dt>\d{2}</dt>
+                    <dd>дәл екі цифр — күн</dd>
+                    <dt>)</dt>
+                    <dd>1-топты жабады</dd>
+                    <dt>\.</dt>
+                    <dd>экрандалған нүкте: «кез келген таңба» емес, нағыз нүкте таңбасы</dd>
+                    <dt>(\d{2})</dt>
+                    <dd>2-топ — ай</dd>
+                    <dt>(\d{4})</dt>
+                    <dd>3-топ — жыл</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> екі цифр, нүкте, екі цифр, нүкте, төрт цифр — және әр сан блогын бөлек есте сақта.</p>
+                </div>
+                <p class="note"><strong>Мәнісі:</strong> толық сәйкестік әрқашан 0-топ ретінде қолжетімді, ал сақталған бөліктер 1-ден басталады. Python-да бұл <code>m.group(0)</code>, <code>m.group(1)</code>, … Бірақ абай болыңыз: үлгіде жақша пайда болса, <code>re.findall</code> толық сәйкестіктің орнына <em>топтарды</em> қайтарады — сондықтан келесі мысалда сақтамайтын жақшалар қолданылған.</p>
+              </div>
+
+              <div class="example">
+                <span class="example__label">Сақтамайтын топ</span>
+                <p>
+                  <span class="regex">(?:…)</span> нәтижені сақтамай топтайды —
+                  жақшалар тек құрылым үшін керек болғанда ыңғайлы:
+                </p>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</code></pre>
+                </div>
+                <p>
+                  Үлгі:
+                  <span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span>
+                </p>
+                <p>Нәтиже:</p>
+                <ul class="regex-matches">
+                  <li>1 500 теңге</li>
+                  <li>990 тг</li>
+                  <li>12 000 теңге</li>
+                </ul>
+                <div class="breakdown">
+                  <span class="breakdown__label">Бөлік-бөлігімен</span>
+                  <dl class="breakdown__list">
+                    <dt>\d+</dt>
+                    <dd>бір немесе одан көп цифр — <code>990</code> немесе <code>1 500</code> ішіндегі <code>1</code></dd>
+                    <dt>(?:</dt>
+                    <dd>сақталмайтын топты ашады — жақшалар тек құрылым үшін</dd>
+                    <dt>\s\d{3}</dt>
+                    <dd>бос орын, содан кейін дәл үш цифр — бір мыңдық блок, мысалы <code>&nbsp;500</code></dd>
+                    <dt>)*</dt>
+                    <dd>сондай блоктың нөлі не одан көбі: <code>990</code> үшін жоқ, <code>1 500</code> үшін біреу, <code>12 000</code> үшін біреу</dd>
+                    <dt>\s*</dt>
+                    <dd>валюта сөзінің алдындағы міндетті емес бос орын</dd>
+                    <dt>(?:теңге|тг)</dt>
+                    <dd>валютаның кез келген жазылымы, тағы да сақтамай</dd>
+                  </dl>
+                  <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> сан, мүмкін мыңдықтары бос орынмен жазылған, содан кейін теңге не тг.</p>
+                </div>
+                <p class="note"><strong>Неге <code>(?:…)</code>, <code>(…)</code> емес:</strong> жай жақшамен <code>re.findall</code> тек жақша ұстағанын — <code>['теңге', 'тг']</code> — қайтарар еді, бағаны толық емес. Сақтамайтын жақшалар топтауды береді, бірақ нәтижені өзгертпейді.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               4. Зәкірлер
+               ========================================================== -->
+          <section class="section" aria-labelledby="anchors">
+            <div class="container">
+              <span class="section__eyebrow">4-құрылыс блогы</span>
+              <h2 id="anchors">Зәкірлер мен шекаралар — дәл қай жерде?</h2>
+              <p class="narrow lead">
+                Зәкірлер таңбаны емес, <strong>орынды</strong> табады. Олар ешнәрсе
+                «жемейді», тек «осы жерде» деп көрсетеді.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3><span class="token">^</span> мәтіннің басы</h3>
+                  <p>
+                    <span class="regex">^Астана</span> — мәтін дәл сол сөзден
+                    басталса ғана сәйкес келеді.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">$</span> мәтіннің соңы</h3>
+                  <p>
+                    <span class="regex">\.$</span> — соңғы нүктені табады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\b</span> сөз шекарасы</h3>
+                  <p>
+                    <span class="regex">\b\d{4}\b</span> —
+                    <span class="match">2017</span> дербес сан ретінде табылады,
+                    ұзынырақ санның ішінен емес.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3><span class="token">\B</span> шекара емес</h3>
+                  <p>
+                    <span class="token">\b</span> дегеннің кері мағынасы — бірдеңені
+                    сөздің ішінен іздегенде пайдалы.
+                  </p>
+                </div>
+              </div>
+
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Есте сақтауға тұрарлық тұзақ.</strong> JavaScript-те
+                <span class="token">\b</span> ASCII
+                <span class="token">\w</span> арқылы анықталады. Сондықтан
+                браузерде <span class="regex">\bАстана\b</span>
+                <strong>ештеңе</strong> таппайды, ал дәл сол үлгі Python-да
+                жұмыс істейді. Қазақша немесе орысша мәтінмен жұмыс істегенде
+                <span class="token">\b</span> қоспаңыз, немесе
+                <span class="token">u</span> flag-ын қосып,
+                «кез келген әріп» үшін <span class="token">\p{L}</span>
+                қолданыңыз.
+              </div>
+
+              <div class="kz-example">
+                <span class="kz-example__label">Unicode-қа қауіпсіз үлгілер</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>Бүгін #Astana және #Астана туралы жаздық.</code></pre>
+                </div>
+                <dl class="kv">
+                  <dt>#\w+</dt>
+                  <dd>#Astana — кириллицадағы hashtag табылмайды</dd>
+                  <dt>#[^\s#]+</dt>
+                  <dd>#Astana, #Астана — барлық жерде жұмыс істейді</dd>
+                  <dt>#[\p{L}\d_]+ (u flag)</dt>
+                  <dd>#Astana, #Астана — ең дәл нұсқасы</dd>
+                </dl>
+                <p style="margin: 16px 0 0">
+                  Үшеуін де төмендегі playground-та байқап көріңіз:
+                  <strong>Unicode (u)</strong> қосқышы
+                  <span class="token">\p{L}</span> мүмкіндігін іске қосады.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               5. Экрандау
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="escaping">
+            <div class="container">
+              <span class="section__eyebrow">5-құрылыс блогы</span>
+              <h2 id="escaping">Экрандау — таңба өзін-өзі білдіргенде</h2>
+              <p class="narrow lead">
+                Мына таңбалардың үлгі ішінде арнайы қызметі бар:
+              </p>
+              <p>
+                <span class="regex">. + * ? ( ) [ ] { } | ^ $ \</span>
+              </p>
+              <p class="narrow">
+                Оларды нақ өзі ретінде табу үшін алдына кері қиғаш сызық қойыңыз.
+              </p>
+
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Экрандалған таңбалар</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Қате</th>
+                      <th scope="col">Дұрыс</th>
+                      <th scope="col">Себебі</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>\d{2}.\d{2}</code></td>
+                      <td><code>\d{2}\.\d{2}</code></td>
+                      <td>жай <code>.</code> кез келген таңбаға келеді, сондықтан <code>24x08</code> та өтеді</td>
+                    </tr>
+                    <tr>
+                      <td><code>+7</code></td>
+                      <td><code>\+7</code></td>
+                      <td>жай <code>+</code> «бір немесе одан көп» дегенді білдіреді және алдында бірдеңе керек</td>
+                    </tr>
+                    <tr>
+                      <td><code>(2026)</code></td>
+                      <td><code>\(2026\)</code></td>
+                      <td>жақшалар жақшаны емес, топты жасайды</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="callout">
+                <span class="token">[ ]</span> ішінде көптеген таңба арнайы
+                мағынасын жоғалтады, сондықтан
+                <span class="regex">[\w.-]</span> ішіндегі нүктені экрандаудың
+                қажеті жоқ. Python-да
+                <span class="token">re.escape("+7 (701)")</span> жолды сіз үшін
+                экрандап береді.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Cheat sheet
+               ========================================================== -->
+          <section class="section" aria-labelledby="cheatsheet">
+            <div class="container">
+              <span class="section__eyebrow">Анықтамалық</span>
+              <h2 id="cheatsheet">Regex синтаксисі — cheat sheet</h2>
+              <p class="narrow lead">Жоғарыдағының бәрі бір картада.</p>
+
+              <div class="table-wrap" style="margin-top: 28px">
+                <table>
+                  <caption class="visually-hidden">
+                    Regular Expression синтаксисі және Қазақстанға қатысты мысалдар
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Синтаксис</th>
+                      <th scope="col">Мағынасы</th>
+                      <th scope="col">Мысал</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>.</code></td>
+                      <td>кез келген таңба</td>
+                      <td><code>А.тана</code> → <code>Астана</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\d</code></td>
+                      <td>цифр</td>
+                      <td><code>\d\d\d</code> → <code>701</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\w</code></td>
+                      <td>сөз таңбасы (JavaScript-те ASCII)</td>
+                      <td><code>#\w+</code> → <code>#Astana</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\s</code></td>
+                      <td>бос орын</td>
+                      <td><code>\s+</code> → <code>Алматы&nbsp;&nbsp;&nbsp;қаласы</code> ішіндегі аралық</td>
+                    </tr>
+                    <tr>
+                      <td><code>+</code></td>
+                      <td>бір немесе одан көп</td>
+                      <td><code>\d+</code> → <code>2026</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>*</code></td>
+                      <td>нөл немесе одан көп</td>
+                      <td><code>ab*</code> тек <code>a</code>-ға да келеді</td>
+                    </tr>
+                    <tr>
+                      <td><code>?</code></td>
+                      <td>міндетті емес</td>
+                      <td><code>https?</code> → <code>http</code>, <code>https</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>+?</code> <code>*?</code></td>
+                      <td>жалқау — мүмкіндігінше аз алады</td>
+                      <td><code>&lt;.+?&gt;</code> → <code>&lt;b&gt;</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>{n}</code> <code>{n,m}</code></td>
+                      <td>дәл n рет / n мен m аралығында</td>
+                      <td><code>\d{4}</code> → <code>1991</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[abc]</code></td>
+                      <td>осы таңбалардың бірі</td>
+                      <td><code>[АӘ]</code> → <code>А</code> немесе <code>Ә</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>[^abc]</code></td>
+                      <td>олардан басқасының бәрі</td>
+                      <td><code>[^0-9]</code> → цифр емес таңба</td>
+                    </tr>
+                    <tr>
+                      <td><code>|</code></td>
+                      <td>НЕМЕСЕ</td>
+                      <td><code>Астана|Алматы</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>(...)</code></td>
+                      <td>топ, сақталады</td>
+                      <td><code>(\d{2})\.(\d{2})</code> → күн, ай</td>
+                    </tr>
+                    <tr>
+                      <td><code>(?:...)</code></td>
+                      <td>топ, сақталмайды</td>
+                      <td><code>(?:теңге|тг)</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>^</code> <code>$</code></td>
+                      <td>мәтіннің басы / соңы</td>
+                      <td><code>^Астана</code>, <code>\.$</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\b</code></td>
+                      <td>сөз шекарасы (JavaScript-те ASCII)</td>
+                      <td><code>\b\d{4}\b</code> → <code>2017</code></td>
+                    </tr>
+                    <tr>
+                      <td><code>\p{L}</code></td>
+                      <td>кез келген әріп — <code>u</code> flag қажет</td>
+                      <td><code>#[\p{L}\d_]+</code> → <code>#Астана</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Бәрін біріктіру — Қазақстан мысалдары
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="regex-examples"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Бәрін біріктіру</span>
+              <h2 id="regex-examples">Қазақстан деректеріндегі Regex</h2>
+              <p class="narrow lead">
+                Төмендегі әрбір үлгі — жоғарыдағы құрылыс блоктарының қатар қойылған
+                түрі ғана.
+              </p>
+
+              <div class="stack" style="margin-top: 36px">
+                <article class="example">
+                  <span class="example__label">01-мысал · Телефон нөмірлері</span>
+                  <h3>Қазақстандық телефон нөмірлері</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Менің нөмірім +7 701 123 45 67.
+Кеңсе: +7 7172 55 44 33.</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">\+7[\s\d]+</span></p>
+                  <ul class="regex-matches">
+                    <li>+7 701 123 45 67</li>
+                    <li>+7 7172 55 44 33</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>\+</dt>
+                      <dd>экрандалған плюс — жай <code>+</code> «бір немесе одан көп» болар еді және алдында бірдеңені талап етер еді</dd>
+                      <dt>7</dt>
+                      <dd>нақ 7 цифры</dd>
+                      <dt>[\s\d]</dt>
+                      <dd>бос орын не цифр болып табылатын бір таңба</dd>
+                      <dt>+</dt>
+                      <dd>сондай таңбаның бірі не одан көбі</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> нақ <code>+7</code>, содан кейін цифрлар мен бос орындардың кез келген тізбегі.</p>
+                  </div>
+                  <p class="note"><strong>Қай жерде тоқтайды:</strong> бос орын да, цифр да емес бірінші таңбада — <code>67</code> кейінгі нүктеде немесе <code>33</code> кейінгі үтірде. <strong>Әлсіз тұсы:</strong> ол цифрларды санамайды, сондықтан <code>+7 701 123 45 67 2026 жылға</code> дегенде <code>+7 701 123 45 67 2026 </code> шығады — жыл жұтылып кетеді. <code>\+7(?:[\s-]?\d){10}</code> он цифрды санап, дұрыс жерде тоқтайды.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    Өндірістік тексеру қатаңырақ ережелерді талап етеді — бұл үлгі
+                    <span class="token">+7 999999999999</span> сияқты мағынасыз
+                    жолды да қабылдайды.
+                  </div>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">02-мысал · Жылдар</span>
+                  <h3>Жылдарды шығарып алу</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">\b\d{4}\b</span></p>
+                  <ul class="regex-matches">
+                    <li>1991</li>
+                    <li>2017</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Шекара + класс + квантификатор: үш бөлік, бір пайдалы үлгі.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>сөз шекарасы — сөз таңбасы мен сөз таңбасы емес таңбаның арасындағы орын</dd>
+                      <dt>\d{4}</dt>
+                      <dd>дәл төрт цифр</dd>
+                      <dt>\b</dt>
+                      <dd>екінші жағындағы тағы бір сөз шекарасы</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> жеке тұрған төрт цифр.</p>
+                  </div>
+                  <p class="note"><strong>Шекаралар неге керек:</strong> оларсыз <code>\d{4}</code> үлгісі <code>нөмір 12345</code> дегеннен <code>1234</code> қайтарады — ұзын санның алғашқы төрт цифры. Екі жағында <code>\b</code> болса, сәйкестік мүлде болмайды — жыл іздегенде дәл осы керек.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">03-мысал · Күндер</span>
+                  <h3>Күндерді шығарып алу</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу 24.08.2026 күні Астанада өтеді.</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span></p>
+                  <ul class="regex-matches">
+                    <li>24.08.2026</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>\b</dt>
+                      <dd>сөз шекарасы, ұзын санның ортасынан бастамау үшін</dd>
+                      <dt>\d{2}</dt>
+                      <dd>күн — дәл екі цифр</dd>
+                      <dt>\.</dt>
+                      <dd>экрандалған нүкте: бөлгіштің өзі</dd>
+                      <dt>\d{2}</dt>
+                      <dd>ай</dd>
+                      <dt>\.</dt>
+                      <dd>екінші бөлгіш</dd>
+                      <dt>\d{4}</dt>
+                      <dd>жыл — дәл төрт цифр</dd>
+                      <dt>\b</dt>
+                      <dd>жабатын сөз шекарасы</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> екі цифр, нүкте, екі цифр, нүкте, төрт цифр — Қазақстандағы күн форматы.</p>
+                  </div>
+                  <p class="note"><strong>Классикалық қате:</strong> экрандамай <code>\d{2}.\d{2}.\d{4}</code> деп жазу. Жай <code>.</code> <em>кез келген</em> таңбаға келеді, сондықтан ондай үлгі <code>24x08y2026</code> дегенді де қабылдайды. <strong>Тағы бір жайт:</strong> үлгі пішінді тексереді, күнтізбені емес — <code>99.99.2026</code> та өтіп кетеді.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">04-мысал · Уақыт</span>
+                  <h3>Тәулік уақытын шығарып алу</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</code></pre>
+                  </div>
+                  <p>
+                    Үлгі:
+                    <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>
+                  </p>
+                  <ul class="regex-matches">
+                    <li>15:00</li>
+                    <li>9:05</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Сақтамайтын топ ішіндегі баламалау «00–19 немесе 20–23» деуге
+                    мүмкіндік береді, сондықтан
+                    <span class="token">25:99</span> қабылданбайды.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>(?:</dt>
+                      <dd>сағаттың екі нұсқасын ұстап тұрған сақталмайтын топ</dd>
+                      <dt>[01]?\d</dt>
+                      <dd>міндетті емес 0 не 1, содан кейін кез келген цифр → 0–9 және 00–19</dd>
+                      <dt>|</dt>
+                      <dd>немесе</dd>
+                      <dt>2[0-3]</dt>
+                      <dd>2, содан кейін 0–3 → 20–23</dd>
+                      <dt>:</dt>
+                      <dd>нақ қос нүкте</dd>
+                      <dt>[0-5]\d</dt>
+                      <dd>минут: бірінші цифр 0–5, содан кейін кез келген цифр → 00–59</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> 0-ден 23-ке дейінгі сағат, қос нүкте, содан кейін 00–59 минут.</p>
+                  </div>
+                  <p class="note"><strong>Ауқымдар не береді:</strong> жеңіл <code>\d{1,2}:\d{2}</code> үлгісі <code>25:99</code> дегенді де қабылдар еді. Мұнда баламалау нақты ережені кодтайды, сондықтан <code>25:99</code> қабылданбайды, ал <code>15:00</code> та, бір цифрлы <code>9:05</code> те қабылданады.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">05-мысал · Автокөлік нөмірлері</span>
+                  <h3>Қазақстандық автокөлік нөмірлері</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>123 ABC 01
+777 KZK 02</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">\d{3}\s[A-Z]{3}\s\d{2}</span></p>
+                  <ul class="regex-matches">
+                    <li>123 ABC 01</li>
+                    <li>777 KZK 02</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Нақты нөмір форматтары мен оларды тексеру ережелері бұдан
+                    күрделірек; үлгі белгіленген ұзындықтағы топтарды көрсетеді.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>\d{3}</dt>
+                      <dd>дәл үш цифр</dd>
+                      <dt>\s</dt>
+                      <dd>дәл бір бос орын таңбасы</dd>
+                      <dt>[A-Z]{3}</dt>
+                      <dd>дәл үш бас латын әрпі</dd>
+                      <dt>\s</dt>
+                      <dd>тағы бір бос орын</dd>
+                      <dt>\d{2}</dt>
+                      <dd>дәл екі цифр — өңір коды</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> үш цифр, бос орын, үш бас әріп, бос орын, екі цифр.</p>
+                  </div>
+                  <p class="note"><strong>Мәнісі:</strong> <code>{3}</code> қатаң — артық та, кем де емес. Ал <code>[A-Z]</code> тек латын, сондықтан кириллицадағы <code>А</code> не <code>В</code> әріптерімен терілген нөмір (экранда бірдей көрінеді) табылмайды. Ұқсас әріптер — қазақстандық мәтін деректеріндегі нағыз, күнделікті мәселе.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">06-мысал · Hashtag</span>
+                  <h3>Hashtag-тарды табу</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Бүгін #Astana қаласында #AI туралы конференция өтті.</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">#\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>#Astana</li>
+                    <li>#AI</li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Қазақша hashtag үшін
+                    <span class="regex">#[^\s#]+</span> қолданыңыз — зәкірлер
+                    бөлімін қараңыз.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>#</dt>
+                      <dd>нақ тор таңбасы</dd>
+                      <dt>\w</dt>
+                      <dd>бір сөз таңбасы — әріп, цифр немесе астыңғы сызық</dd>
+                      <dt>+</dt>
+                      <dd>олардың бірі не одан көбі, сондықтан тег бірінші бос орынға не тыныс белгісіне дейін созылады</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> тор таңбасы, содан кейін одан кейінгі сөз таңбаларының тізбегі.</p>
+                  </div>
+                  <p class="note"><strong>Қазақша тұсаукесері:</strong> JavaScript-те <code>\w</code> тек <code>[A-Za-z0-9_]</code>, сондықтан <code>#Астана</code> мүлде табылмайды. <code>#[^\s#]+</code> («тор, содан кейін бос орын да, тағы бір тор да емес кез келген нәрсе») қолданыңыз немесе <code>u</code> flag-ын қосып, <code>#[\p{L}\d_]+</code> деп жазыңыз.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">07-мысал · Тазалау</span>
+                  <h3>Артық бос орындарды тазалау</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы     Қазақстанның    ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p>
+                    Үлгі: <span class="regex">\s+</span> — ауыстыру:
+                    <span class="token">" "</span>
+                  </p>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+                  </div>
+                  <p style="margin-bottom: 0">
+                    Бос орындарды қалыпқа келтіру — кез келген мәтінді өңдеу
+                    pipeline-ының алғашқы қадамдарының бірі.
+                  </p>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>\s</dt>
+                      <dd>бір бос орын таңбасы — бос орын, tab немесе жаңа жол</dd>
+                      <dt>+</dt>
+                      <dd>қатарынан бірі не одан көбі, сондықтан он бос орын — бір ғана сәйкестік</dd>
+                      <dt>" "</dt>
+                      <dd>ауыстыратын мән: дәл бір қарапайым бос орын</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> бос орындардың әр тізбегін бір бос орынға ауыстыр.</p>
+                  </div>
+                  <p class="note"><strong>Мұнда <code>+</code> неге маңызды:</strong> онсыз әр бос орынды бос орынға ауыстырып, ештеңе өзгертпес едіңіз. Онымен бүкіл тізбек бірден жиырылады. Python-да бұл <code>re.sub(r"\s+", " ", text)</code>, ал одан кейінгі <code>.strip()</code> басы мен соңындағы артық бос орынды алып тастайды.</p>
+                </article>
+
+                <article class="example">
+                  <span class="example__label">08-мысал · Email</span>
+                  <h3>Email адрестерін шығарып алу</h3>
+                  <div class="code-block" data-lang="text">
+                    <pre><code>Сұрақтарды info@example.kz адресіне жіберіңіз.</code></pre>
+                  </div>
+                  <p>Үлгі: <span class="regex">[\w.-]+@[\w.-]+\.\w+</span></p>
+                  <ul class="regex-matches">
+                    <li>info@example.kz</li>
+                  </ul>
+                  <div class="breakdown">
+                    <span class="breakdown__label">Бөлік-бөлігімен</span>
+                    <dl class="breakdown__list">
+                      <dt>[\w.-]</dt>
+                      <dd>сөз таңбасы, нүкте немесе дефис болып табылатын бір таңба</dd>
+                      <dt>+</dt>
+                      <dd>олардың бірі не одан көбі — @ таңбасына дейінгі бөлік</dd>
+                      <dt>@</dt>
+                      <dd>нақ ат таңбасы</dd>
+                      <dt>[\w.-]+</dt>
+                      <dd>дәл сол жиын қайтадан — домен атауы</dd>
+                      <dt>\.</dt>
+                      <dd>аймақ алдындағы экрандалған нүкте</dd>
+                      <dt>\w+</dt>
+                      <dd>аймақтың өзі: <code>kz</code>, <code>com</code>, …</dd>
+                    </dl>
+                    <p class="breakdown__reading"><strong>Сөзбен айтқанда:</strong> бірнеше атау таңбасы, @, бірнеше домен таңбасы, нүкте және аймақ.</p>
+                  </div>
+                  <p class="note"><strong>Білуге тұрарлық екі жайт.</strong> <code>[ ]</code> ішінде нүкте арнайы мағынасын жоғалтады, сондықтан онда кері қиғаш сызық қажет емес — ал жақшадан тыс қажет. Ал дефис әдейі соңында тұр: ортасында тұрса, <code>a-z</code> сияқты ауқым жасар еді.</p>
+                  <div class="callout" style="margin-top: 20px">
+                    Бұл толық, RFC стандартына сай email валидаторы емес. Бірақ ол
+                    мәтіннен адрестерді <em>табуға</em> жеткілікті — NLP
+                    pipeline-ға әдетте дәл осы қажет.
+                  </div>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Интерактивті Regex playground
+               ========================================================== -->
+          <section class="section" aria-labelledby="playground">
+            <div class="container">
+              <span class="section__eyebrow">Интерактивті демо</span>
+              <h2 id="playground">Regex playground</h2>
+              <p class="narrow lead">
+                Үлгіні (pattern) теріңіз де, сәйкестіктердің бірден белгіленгенін
+                көріңіз. Демо толықтай браузеріңізде, JavaScript-тің өз
+                <span class="token">RegExp</span> құралымен жұмыс істейді.
+              </p>
+
+              <div class="regex-playground" style="margin-top: 28px">
+                <div class="regex-playground__presets">
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\+7[\s\d]+"
+                    data-preset-text="Менің нөмірім +7 701 123 45 67.&#10;Кеңсе: +7 7172 55 44 33."
+                  >
+                    Телефон нөмірі
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{2}\.\d{2}\.\d{4}\b"
+                    data-preset-text="Кездесу 24.08.2026 күні Астанада өтеді.&#10;Келесі дәріс 26.08.2026 күні."
+                  >
+                    Күн
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b\d{4}\b"
+                    data-preset-text="Қазақстан тәуелсіздігін 1991 жылы алды.&#10;EXPO 2017 Астанада өтті."
+                  >
+                    Жыл
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\b(?:[01]?\d|2[0-3]):[0-5]\d\b"
+                    data-preset-text="Кездесу сағат 15:00-де, кеші 9:05-те аяқталады."
+                  >
+                    Уақыт
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="\d+(?:\s\d{3})*\s*(?:теңге|тг)"
+                    data-preset-text="Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+                  >
+                    Баға
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#\w+"
+                    data-preset-text="Бүгін #Astana қаласында #AI туралы конференция өтті. #NLP"
+                  >
+                    Hashtag
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="#[\p{L}\d_]+"
+                    data-preset-text="Бүгін #Astana және #Астана туралы жаздық."
+                    data-preset-unicode
+                  >
+                    Hashtag (Unicode)
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="[\w.-]+@[\w.-]+\.\w+"
+                    data-preset-text="Сұрақтарды info@example.kz адресіне жіберіңіз.&#10;Қосымша: nlp.course@example.kz"
+                  >
+                    Email
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-preset-pattern="&lt;.+?&gt;"
+                    data-preset-text="&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;"
+                  >
+                    Жалқау және ашкөз
+                  </button>
+                </div>
+
+                <div class="field">
+                  <label for="regex-pattern">Pattern</label>
+                  <input
+                    id="regex-pattern"
+                    type="text"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    value="\b\d{4}\b"
+                    data-regex-pattern
+                  />
+                </div>
+
+                <div class="field">
+                  <label for="regex-text">Мәтін</label>
+                  <textarea id="regex-text" spellcheck="false" data-regex-text>
+Қазақстан тәуелсіздігін 1991 жылы алды.
+EXPO 2017 Астанада өтті.
+Кездесу 24.08.2026 күні болады.</textarea
+                  >
+                </div>
+
+                <div class="regex-playground__controls">
+                  <button class="btn btn--primary" type="button" data-regex-run>
+                    Regex-ті іске қосу
+                  </button>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-flags />
+                    Регистрді ескермеу (<code>i</code> flag)
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-regex-unicode />
+                    Unicode (<code>u</code> flag) — <code>\p{L}</code> қосады
+                  </label>
+                </div>
+
+                <h3 style="font-size: 1.1rem">Нәтиже</h3>
+                <div
+                  class="regex-output"
+                  data-regex-output
+                  role="region"
+                  aria-live="polite"
+                  aria-label="Белгіленген сәйкестіктер"
+                ></div>
+                <p class="regex-status" data-regex-status role="status"></p>
+                <ul
+                  class="regex-matches"
+                  data-regex-list
+                  aria-label="Сәйкестіктер тізімі"
+                ></ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Python практикасы
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="python">
+            <div class="container">
+              <span class="section__eyebrow">Код мысалдары</span>
+              <h2 id="python">Python-да жаттығу</h2>
+              <p class="narrow lead">
+                NLP жұмысының практикалық бөлігінде біз Python қолданамыз.
+                Төмендегі әрбір нәтиже — жоғарыдағы кодтың нақты шығысы. Өзіңіз
+                іске қосып, мәтінді өзгертіп көріңіз.
+              </p>
+
+              <h3 style="margin-top: 40px">1 · findall — барлық сәйкестік бірден</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Қазақстан 1991 жылы тәуелсіз болды. EXPO 2017 Астанада өтті."
+years = re.findall(r"\b\d{4}\b", text)
+
+print(years)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1991', '2017']</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>findall</code> бүкіл жолды қарап шығып, барлық сәйкестікті жолдар тізімі ретінде қайтарады. Ештеңе табылмаса, <code>None</code> емес, бос тізім шығады — сондықтан нәтижені қауіпсіз айналдыруға болады. <strong>Тұзағы:</strong> үлгіде сақтайтын жақша пайда болса, <code>findall</code> толық сәйкестіктің орнына <em>жақша ішіндегіні</em> қайтарады.</p>
+
+              <h3 style="margin-top: 40px">2 · search + топтар — сәйкестікті бөлшектеу</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Кездесу 24.08.2026 күні өтеді."
+m = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", text)
+
+print(m.group(0))
+print(m.groups())
+print("Year:", m.group(3))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>24.08.2026
+('24', '08', '2026')
+Year: 2026</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>search</code> тек бірінші сәйкестікті тауып, Match нысанын береді — <code>group(0)</code> толық сәйкестік, ал <code>group(1)</code>, <code>group(2)</code>, … ашылатын жақшаның реті бойынша нөмірленген бөліктер. <strong>Әрқашан <code>None</code> тексеріңіз:</strong> ештеңе табылмаса, <code>search</code> <code>None</code> қайтарады, ал <code>m.group(0)</code> <code>AttributeError</code> береді.</p>
+
+              <h3 style="margin-top: 40px">3 · Аталған топтар — оқуға ыңғайлы код</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Курс 24.08.2026 күні басталады."
+m = re.search(
+    r"(?P&lt;day&gt;\d{2})\.(?P&lt;month&gt;\d{2})\.(?P&lt;year&gt;\d{4})",
+    text
+)
+
+print(m.groupdict())
+print(m.group("month"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>{'day': '24', 'month': '08', 'year': '2026'}
+08</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>(?P&lt;day&gt;…)</code> топқа ат береді, сондықтан код <code>m.group(2)</code> емес, <code>m.group("month")</code> деп жазылады — және кейін тағы бір жақша қоссаңыз да дұрыс күйінде қалады. <code>groupdict()</code> барлық аталған топты сөздік түрінде береді. <strong>Синтаксис айырмашылығы:</strong> Python <code>(?P&lt;name&gt;…)</code>, ал JavaScript <code>(?&lt;name&gt;…)</code> деп жазады.</p>
+
+              <h3 style="margin-top: 40px">4 · sub — мәтінді тазалау</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Алматы     Қазақстанның    ең ірі қалаларының бірі."
+clean = re.sub(r"\s+", " ", text).strip()
+
+print(clean)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Алматы Қазақстанның ең ірі қалаларының бірі.</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>sub</code> тек бірінші емес, <em>барлық</em> сәйкестікті ауыстырады және жаңа жол қайтарады — түпнұсқа өзгермейді, себебі Python-да жолдар өзгермейтін. <code>\s+</code> әр бос орын тізбегін бір бос орынға жинайды, ал <code>.strip()</code> басы мен соңында қалуы мүмкін бос орынды алып тастайды.</p>
+
+              <h3 style="margin-top: 40px">5 · sub — tokenization алдында тыныс белгілерін алып тастау</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Сәлем, әлем! Бүгін #NLP сабағы бар."
+words_only = re.sub(r"[^\w\s]", "", text)
+
+print(words_only)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Сәлем әлем Бүгін NLP сабағы бар</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>[^\w\s]</code> «сөз таңбасы да емес, бос орын да емес» деп оқылады — яғни тыныс белгілері мен таңбалар. Оны бос жолға ауыстырғанда сөздер мен олардың арасындағы бос орындар қалады. <strong>Қазақ тілінде неге жұмыс істейді:</strong> Python-ның <code>\w</code> таңбасы Unicode-ты ескереді, сондықтан <code>Сәлем</code> сөз таңбалары болып саналады. Дәл сол жол JavaScript-те әрбір кириллица әрпін өшірер еді.</p>
+              <div class="callout">
+                Бұл қазақ мәтінінде жұмыс істейді, себебі Python-ның
+                <span class="token">\w</span> таңбасы Unicode-ты ескереді. Дәл сол
+                үлгі JavaScript-те әрбір кириллица әрпін өшіріп жіберер еді —
+                қай қозғалтқышта екеніңізді әрқашан тексеріңіз.
+              </div>
+
+              <h3 style="margin-top: 40px">6 · Бағалар — баламалау және міндетті емес блоктар</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге."
+prices = re.findall(r"\d+(?:\s\d{3})*\s*(?:теңге|тг)", text)
+
+print(prices)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['1 500 теңге', '990 тг', '12 000 теңге']</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> жақшалардың бәрі сақтамайтын, сондықтан <code>findall</code> бөліктерді емес, толық бағаларды қайтарады. <code>(?:\s\d{3})*</code> дәл осы — «мыңдық блоктың нөлі не одан көбі» — <code>1 500</code> мен <code>12 000</code> дегенді жұмыс істетеді әрі жай <code>990</code> дегенді де жіберіп алмайды.</p>
+
+              <h3 style="margin-top: 40px">7 · finditer — сәйкестіктер және олардың орны</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Бүгін #Astana қаласында #AI туралы конференция өтті."
+
+for m in re.finditer(r"#\w+", text):
+    print(m.group(), m.start(), m.end())</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>#Astana 6 13
+#AI 24 27</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>finditer</code> жолдардың орнына Match нысандарын қайтарады, сондықтан сізде <code>start()</code> және <code>end()</code> — әр сәйкестіктің таңбадағы орны — болады. Олар орын маңызды болғанда керек: беттегі сәйкестікті белгілеу, орнында ауыстыру немесе Named Entity Recognition үшін нысан аралығын сақтау — NER оқыту деректері дәл осы форматта болады.</p>
+              <p class="narrow">
+                Сәйкестікті белгілеу, орнында ауыстыру немесе Named Entity
+                Recognition үшін таңбалау керек болса, орын бірден маңызды болады.
+              </p>
+
+              <h3 style="margin-top: 40px">8 · split — мәтінді сөйлемдерге бөлу</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Астана — астана. Алматы ірі қала! Шымкент те үлкен?"
+sentences = re.split(r"(?&lt;=[.!?])\s+", text)
+
+print(sentences)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['Астана — астана.', 'Алматы ірі қала!', 'Шымкент те үлкен?']</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>split</code> үлгі сәйкес келген жерде жолды кесіп, бөліктерін қайтарады. <code>(?&lt;=[.!?])</code> lookbehind таңбаны «жемей», дәл артында сөйлем белгісі тұрғанын тексереді, сондықтан тыныс белгісі өз сөйлемімен қалады да, кесу нүктесі ретінде тек сөйлемдер арасындағы бос орын қолданылады.</p>
+              <div class="callout">
+                <span class="token">(?&lt;=…)</span> — бұл <em>lookbehind</em>:
+                <span class="token">.</span>, <span class="token">!</span> немесе
+                <span class="token">?</span> таңбасынан кейін бөледі, бірақ оны
+                «жемейді». Бұл қарапайым бөлгіш қысқартуларда әлі де қателеседі —
+                сөйлемге нақты бөлу келесі дәрістердің тақырыбы.
+              </div>
+
+              <h3 style="margin-top: 40px">9 · compile + flags — бір үлгіні қайта пайдалану</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+nlp = re.compile(r"\bnlp\b", re.IGNORECASE)
+
+print(nlp.findall("NLP, nlp, Nlp курсы"))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['NLP', 'nlp', 'Nlp']</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр:</strong> <code>re.compile</code> үлгіні бір рет құрастырып, сол әдістері бар нысан береді — <code>findall</code>, <code>search</code>, <code>sub</code>. Бір үлгі көп мәтінге қолданылғанда пайдалы әрі flag-тарды бір жерде ұстайды. <code>re.IGNORECASE</code> <code>NLP</code>, <code>nlp</code> және <code>Nlp</code> нұсқаларының бәрін табады.</p>
+
+              <h3 style="margin-top: 40px">10 · Шағын pipeline</h3>
+              <p class="narrow">
+                Regex сирек жалғыз қолданылады — ол қалғанының алдындағы тазалау
+                қадамы.
+              </p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+raw = "  Сәлем!!!   Менің нөмірім +7 701 123 45 67,   #NLP  "
+
+phones = re.findall(r"\+7[\s\d]+", raw)          # керектісін сақтаймыз
+text = re.sub(r"\+7[\s\d]+", "&lt;PHONE&gt;", raw)     # содан кейін жасырамыз
+text = re.sub(r"\s+", " ", text).strip()         # бос орындарды қалыпқа келтіреміз
+
+print(phones)
+print(text)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['+7 701 123 45 67']
+Сәлем!!! Менің нөмірім &lt;PHONE&gt;, #NLP</code></pre>
+              </div>
+              <p class="note"><strong>Мұнда не болып жатыр және реті неге маңызды:</strong> алдымен <code>findall</code> телефон нөмірлерінің көшірмесін сақтайды, себебі келесі жол оларды жойып жібереді; содан кейін <code>sub</code> әр нөмірді <code>&lt;PHONE&gt;</code> дегенге ауыстырады — жеке деректер оқытуға дейін дәл осылай алынып тасталады; тек содан кейін бос орындар қалыпқа келтіріледі, сондықтан ауыстырудан қалған артық бос орындар да жоғалады. Алғашқы екі жолды алмастырсаңыз, нөмірлерден айырыласыз.</p>
+              <div class="callout">
+                Бұл үлгі әлі де сынғыш. <span class="token">[\s\d]+</span> «бос
+                орындар мен цифрлар, мүмкіндігінше көп» дегенді білдіреді,
+                сондықтан <span class="token">+7 701 123 45 67 2026 жылға дейін</span>
+                деген мәтінде ол жылды да жұтып қойып,
+                <span class="token">+7 701 123 45 67 2026 </span> қайтарады.
+                Цифрларды санайтын үлгі —
+                <span class="regex">\+7(?:[\s-]?\d){10}</span> — дұрыс жерде
+                тоқтайды. Regex <em>шын мәнінде</em> нені тапқанын әрқашан
+                қараңыз.
+              </div>
+
+              <div class="callout">
+                <span class="token">r"..."</span> префиксі raw string дегенді
+                білдіреді, сондықтан кері қиғаш сызықтар Regex қозғалтқышына
+                өзгеріссіз жетеді. Онсыз
+                <span class="token">"\\b\\d{4}\\b"</span> деп жазуға тура келер
+                еді.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Білімді тексеру — дәріс кезінде
+               ========================================================== -->
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Дәрісте</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">
+                Аяқтар алдында бірге жауап беретін бес сұрақ.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">Мына үлгіні бөлік-бөлігімен дауыстап оқыңыз:
+
+\b\d{2}\.\d{2}\.\d{4}\b</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Сөз шекарасы · екі цифр · нақ нүкте · екі цифр · нақ нүкте ·
+                      төрт цифр · сөз шекарасы. Яғни:
+                      <span class="token">24.08.2026</span> түріндегі күн.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">\d+ пен \d* арасындағы айырмашылық неде?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> кемінде бір цифрды талап етеді;
+                      <span class="token">*</span> цифр мүлде болмаса да келіседі,
+                      сондықтан бос жолға да сәйкес келе алады.
+                      <span class="token">*</span> таңбасын шынымен болмауы мүмкін
+                      бөліктерге ғана қолданыңыз.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">&lt;.+&gt; неге мына мәтінде тым көп нәрсені алады:
+
+&lt;b&gt;Астана&lt;/b&gt; және &lt;b&gt;Алматы&lt;/b&gt;
+
+және оны қалай түзетеміз?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      <span class="token">+</span> ашкөз, сондықтан ол мәтіндегі
+                      соңғы <span class="token">&gt;</span> таңбасына дейін барып,
+                      бір үлкен сәйкестік қайтарады. Оны жалқау етіңіз —
+                      <span class="regex">&lt;.+?&gt;</span> — сонда төрт бөлек тег
+                      шығады.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Playground-та \bАстана\b ештеңе таппайды. Неліктен?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Playground JavaScript-те жұмыс істейді, ал ондағы
+                      <span class="token">\b</span> ASCII
+                      <span class="token">\w</span> арқылы анықталады. Кириллица
+                      әрпі ол жерде сөз таңбасы емес, сондықтан шекара да жоқ.
+                      <span class="token">\b</span> қоспаңыз немесе
+                      <span class="token">u</span> flag-пен
+                      <span class="token">\p{L}</span> қолданыңыз.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.
+
+\+7[\s\d]+ қай бөлікті табады және уақытты неге алмайды?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Ол <span class="match">+7 7172 55 44 33</span> дегенді
+                      табады. Үлгі нақ <span class="token">+7</span> таңбаларынан
+                      басталуы керек, ал <span class="token">15:00</span> олай
+                      басталмайды — қос нүкте де бос орын да, цифр да емес.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Практикалық тапсырмалар — дәрістен кейін
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Дәрістен кейін</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                Өз бетіңізше орындайтын он тапсырма. Алдымен үлгіні жоғарыдағы
+                playground-та жазып көріңіз, содан кейін жауабын ашыңыз. Әдетте
+                бірнеше дұрыс үлгі болады — сіздікі дәл керекті үзінділерді тапса,
+                ол дұрыс.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>1-тапсырма — Барлық жыл</h3>
+                  <p class="challenge__task">Қазақстан 1991 жылы тәуелсіз болды.
+Астана EXPO 2017 көрмесін қабылдады.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">\b\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1991</span>
+                      <span class="match">2017</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>2-тапсырма — Барлық hashtag</h3>
+                  <p class="challenge__task">#Kazakhstan #Astana #NLP</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">#\w+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Kazakhstan</span>
+                      <span class="match">#Astana</span>
+                      <span class="match">#NLP</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>3-тапсырма — Күн</h3>
+                  <p class="challenge__task">Курс 24.08.2026 күні басталады.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">\b\d{2}\.\d{2}\.\d{4}\b</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">24.08.2026</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>4-тапсырма — Тек телефон нөмірі</h3>
+                  <p class="challenge__task">Кеңсе: +7 7172 55 44 33, сағат 15:00-ден кейін.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">\+7[\s\d]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">+7 7172 55 44 33</span> — уақыт табылмайды,
+                      себебі ол <span class="token">+7</span> таңбаларынан
+                      басталмайды.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>5-тапсырма — Тәулік уақыты</h3>
+                  <p class="challenge__task">Кездесу сағат 15:00-де, кеші 9:05-те аяқталады.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">\d{1,2}:\d{2}</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">15:00</span>
+                      <span class="match">9:05</span> —
+                      <span class="token">25:99</span> дегенді қабылдамайтын
+                      қатаңырақ нұсқасы:
+                      <span class="regex">\b(?:[01]?\d|2[0-3]):[0-5]\d\b</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>6-тапсырма — Теңгедегі бағалар</h3>
+                  <p class="challenge__task">Билет 1 500 теңге, кофе 990 тг, тағы бірі 12 000 теңге.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">\d+(?:\s\d{3})*\s*(?:теңге|тг)</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">1 500 теңге</span>
+                      <span class="match">990 тг</span>
+                      <span class="match">12 000 теңге</span>
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>7-тапсырма — Сілтемелер: http және https</h3>
+                  <p class="challenge__task">Сайт http://egov.kz және https://astana.kz ашық.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">https?://\S+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">http://egov.kz</span>
+                      <span class="match">https://astana.kz</span> —
+                      <span class="token">?</span>
+                      <span class="token">s</span> әрпін міндетті емес етеді.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>8-тапсырма — Бас әріптен басталатын сөздер</h3>
+                  <p class="challenge__task">Әлия Астанадан Алматыға ұшты, ал Қанат Шымкентте қалды.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p>
+                      <span class="regex">[А-ЯЁӘҒҚҢӨҰҮҺІ][а-яёәғқңөұүһі]+</span>
+                    </p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">Әлия</span>
+                      <span class="match">Астанадан</span>
+                      <span class="match">Алматыға</span>
+                      <span class="match">Қанат</span>
+                      <span class="match">Шымкентте</span> — мұнда
+                      <span class="token">\b</span> жоқ екеніне назар аударыңыз:
+                      ол браузерде үлгіні бұзып жіберер еді. Бұл — Named Entity
+                      Recognition-ның алдындағы ең қарапайым қадам.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>9-тапсырма — Қазақша hashtag-тар да</h3>
+                  <p class="challenge__task">Бүгін #Astana және #Астана туралы жаздық.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">#[^\s#]+</span></p>
+                    <p style="margin-bottom: 0">
+                      <span class="match">#Astana</span>
+                      <span class="match">#Астана</span> — «#, содан кейін бос
+                      орын да, тағы бір # те емес кез келген нәрсе».
+                      <span class="token">u</span> flag-пен ең дәл нұсқасы —
+                      <span class="regex">#[\p{L}\d_]+</span>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>10-тапсырма — Күн, ай және жыл бөлек</h3>
+                  <p class="challenge__task">Кездесу 24.08.2026 күні өтеді.
+
+Тек толық күнді емес, үш бөлікті бөлек сақтаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p><span class="regex">(\d{2})\.(\d{2})\.(\d{4})</span></p>
+                    <p style="margin-bottom: 0">
+                      1-топ = <span class="match">24</span>, 2-топ =
+                      <span class="match">08</span>, 3-топ =
+                      <span class="match">2026</span>. Python-да:
+                      <span class="token">m.group(3)</span> немесе аталған
+                      топтармен <span class="token">m.group("year")</span>.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Негізгі қорытынды
+               ========================================================== -->
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Қорытынды</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Таңба кластары — қандай таңба</li>
+                <li>Квантификаторлар — неше рет, ашкөз және жалқау</li>
+                <li>Баламалау мен топтар — бұл ма, ол ма, және сақтау</li>
+                <li>Зәкірлер — мәтіннің қай жерінде</li>
+                <li>Арнайы таңбаларды экрандау</li>
+                <li>Телефон, күн, уақыт, баға, hashtag, email шығарып алу</li>
+                <li>Python-дағы findall, search, sub, finditer, split, compile</li>
+                <li>Қазақ мәтінінде <span class="token">\b</span> мен <span class="token">\w</span> неге абайлықты қажет етеді</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · 1-дәріс · 24 тамыз 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

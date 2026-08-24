@@ -8,7 +8,7 @@
       name="description"
       content="Lecture 0: what Natural Language Processing is, why human language is difficult for computers, and where NLP is used in Kazakhstan."
     />
-    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -651,6 +651,252 @@
               </ul>
             </div>
           </section>
+
+          <!-- ==========================================================
+               Knowledge check — asked in class
+               ========================================================== -->
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">
+                Five questions to answer together before we finish. Try them
+                first, then open the answer.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">In your own words: what is Natural Language Processing?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The field of Artificial Intelligence that studies how
+                      computers process, understand, analyze, and generate human
+                      language — text and speech produced by people.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">Why is “Ол банкте отыр” difficult for a computer?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      It is ambiguous: the person may <strong>work</strong> at a
+                      bank or be <strong>physically sitting</strong> inside one.
+                      Only the surrounding context decides, and the model has to
+                      learn that context.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">Name the four families of NLP tasks from this lecture.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Understanding, Classification, Search, and Generation.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">кітап · кітаптар · кітаптарым · кітаптарымыздан
+
+Why is this a problem for a program that compares strings?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Kazakh is agglutinative, so one root produces many surface
+                      forms. To a program these are four unrelated strings, even
+                      though they share a meaning. Tokenization and Lemmatization
+                      exist to make them comparable.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">Name one NLP use case for Kazakhstan that we did not discuss, and say which task family it belongs to.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p>
+                      Open question — any well-argued answer works. Examples:
+                    </p>
+                    <ul style="margin-bottom: 0">
+                      <li>
+                        subtitles for Kazakh-language TV → Speech + Generation
+                      </li>
+                      <li>
+                        sorting university applications by topic → Classification
+                      </li>
+                      <li>
+                        a court-decision search system → Search
+                      </li>
+                    </ul>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Self-check quiz — for students after the lecture
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="self-check">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="self-check">Self-check quiz</h2>
+              <p class="narrow lead">
+                Ten questions to test yourself. Choose one answer per question —
+                you get the result immediately.
+              </p>
+
+              <ol class="quiz" data-quiz style="margin-top: 32px">
+                <li class="quiz__item">
+                  <p class="quiz__question">Natural Language Processing is a field of…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">computer networking</button>
+                    <button class="quiz__option" type="button" data-correct>Artificial Intelligence</button>
+                    <button class="quiz__option" type="button">database administration</button>
+                    <button class="quiz__option" type="button">computer graphics</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    NLP is the part of Artificial Intelligence concerned with human language.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">A system labels “Ұлттық банк” as ORGANIZATION. Which task is this?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Machine Translation</button>
+                    <button class="quiz__option" type="button">Sentiment Analysis</button>
+                    <button class="quiz__option" type="button" data-correct>Named Entity Recognition</button>
+                    <button class="quiz__option" type="button">Summarization</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Named Entity Recognition finds names in text and assigns them a type:
+                    PERSON, LOCATION, ORGANIZATION, COUNTRY.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Which property of language does “Ол банкте отыр” demonstrate?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button" data-correct>Ambiguity</button>
+                    <button class="quiz__option" type="button">Morphological richness</button>
+                    <button class="quiz__option" type="button">Code-switching</button>
+                    <button class="quiz__option" type="button">Toxicity</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    One sentence, two possible readings — that is ambiguity. Context resolves it.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">“Kazakh is an agglutinative language” means that…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">words never change their form</button>
+                    <button class="quiz__option" type="button" data-correct>suffixes are attached one after another to a root</button>
+                    <button class="quiz__option" type="button">it has no grammar rules</button>
+                    <button class="quiz__option" type="button">it is written in two alphabets</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    кітап → кітаптар → кітаптарым → кітаптарымыздан: each suffix adds meaning,
+                    which is why one root yields very many surface forms.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">“Сәлем, meeting сағат 15:00-де болады” is an example of…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">a translation error</button>
+                    <button class="quiz__option" type="button">a spelling mistake</button>
+                    <button class="quiz__option" type="button" data-correct>code-switching between languages in one message</button>
+                    <button class="quiz__option" type="button">a Regular Expression</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Kazakh grammar with English terminology inside it — completely normal in
+                    Kazakhstan, and a real difficulty for NLP systems.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">What is the correct pipeline for a voice assistant?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Speech → TTS → NLP → ASR → Response</button>
+                    <button class="quiz__option" type="button" data-correct>Speech → ASR → Text → NLP → Response → TTS</button>
+                    <button class="quiz__option" type="button">Text → ASR → Speech → NLP → TTS</button>
+                    <button class="quiz__option" type="button">Speech → NLP → ASR → Text → TTS</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    ASR turns speech into text at the start; TTS turns the answer back into
+                    speech at the end. NLP works in between, on text.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">A system reads “Бүгін Астанада ауа райы керемет екен!” and outputs Sentiment: Positive. Which task family is that?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Generation</button>
+                    <button class="quiz__option" type="button">Search</button>
+                    <button class="quiz__option" type="button" data-correct>Understanding</button>
+                    <button class="quiz__option" type="button">Translation</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Sentiment Analysis is an Understanding task: the system extracts meaning
+                    from the text rather than producing new text.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Which of these is <em>not</em> an NLP task?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">classifying a citizen’s question by topic</button>
+                    <button class="quiz__option" type="button" data-correct>compressing a photo to make the file smaller</button>
+                    <button class="quiz__option" type="button">summarizing a news article</button>
+                    <button class="quiz__option" type="button">detecting the language of a message</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Image compression works on pixels, not on language. The other three all
+                    take human language as input.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">In the evolution of NLP, which came first?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button" data-correct>Bag of Words</button>
+                    <button class="quiz__option" type="button">Transformers</button>
+                    <button class="quiz__option" type="button">Large Language Models</button>
+                    <button class="quiz__option" type="button">RAG and Agents</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Rules → Bag of Words → Machine Learning → word2vec → RNN / LSTM →
+                    Transformers → BERT / GPT → Large Language Models → RAG / Agents.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">How do modern Machine Translation systems work?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">they replace each word using a dictionary</button>
+                    <button class="quiz__option" type="button" data-correct>they encode the whole sentence and generate the translation from that representation</button>
+                    <button class="quiz__option" type="button">they only work between English and Russian</button>
+                    <button class="quiz__option" type="button">they require the two languages to have the same word order</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Word-by-word replacement loses meaning. Modern systems represent the
+                    sentence as a whole — the mechanism behind Transformers.
+                  </p>
+                </li>
+              </ol>
+            </div>
+          </section>
         </main>
 
         <footer class="site-footer">
@@ -661,7 +907,7 @@
       </div>
     </div>
 
-    <script src="../js/course.js"></script>
-    <script src="../js/main.js"></script>
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
   </body>
 </html>

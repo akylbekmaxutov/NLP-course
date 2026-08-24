@@ -1,20 +1,20 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>План курса | NLP Course</title>
+    <title>Course Roadmap | NLP Course</title>
     <meta
       name="description"
-      content="План курса Natural Language Processing: лекции от основ NLP до Large Language Models."
+      content="Natural Language Processing course roadmap: lectures from the basics of NLP to Large Language Models."
     />
-    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
   </head>
   <body>
-    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <a class="skip-link" href="#main">Skip to content</a>
     <div class="progress-bar" aria-hidden="true"></div>
 
-    <!-- Мобильная панель (ниже 1024px) ---------------------------------- -->
+    <!-- Mobile bar (visible below 1024px) ------------------------------- -->
     <header class="mobile-bar">
       <button
         class="nav-toggle"
@@ -22,34 +22,34 @@
         aria-expanded="false"
         aria-controls="sidebar"
       >
-        ☰ Содержание
+        ☰ Contents
       </button>
       <a class="mobile-bar__brand" href="index.html">NLP Course</a>
-      <div class="lang-switch" role="group" aria-label="Язык">
-        <a href="../en/index.html" data-lang-link="en">EN</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/index.html" aria-current="true" data-lang-link="en">EN</a>
         <a href="../kk/index.html" data-lang-link="kk">KZ</a>
-        <a href="../ru/index.html" aria-current="true" data-lang-link="ru">RU</a>
+        <a href="../ru/index.html" data-lang-link="ru">RU</a>
       </div>
     </header>
 
     <div class="layout">
-      <!-- Боковая панель: содержание ------------------------------------ -->
+      <!-- Sidebar: table of contents ------------------------------------ -->
       <aside class="sidebar" id="sidebar">
         <a class="sidebar__brand" href="index.html">NLP Course</a>
         <p class="sidebar__tagline">
-          От обработки текста до Large Language Models
+          From Text Processing to Large Language Models
         </p>
-        <div class="lang-switch" role="group" aria-label="Язык">
-          <a href="../en/index.html" data-lang-link="en">EN</a>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/index.html" aria-current="true" data-lang-link="en">EN</a>
           <a href="../kk/index.html" data-lang-link="kk">KZ</a>
-          <a href="../ru/index.html" aria-current="true" data-lang-link="ru">RU</a>
+          <a href="../ru/index.html" data-lang-link="ru">RU</a>
         </div>
-        <span class="sidebar__section-label">Содержание</span>
-        <nav data-toc aria-label="Содержание курса">
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
           <noscript>
-            <a href="00-basics-nlp.html">Лекция 0 · Основы NLP</a><br />
+            <a href="00-basics-nlp.html">Lecture 0 · Basics of NLP</a><br />
             <a href="01-regular-expressions.html"
-              >Лекция 1 · Regular Expressions</a
+              >Lecture 1 · Regular Expressions</a
             >
           </noscript>
         </nav>
@@ -57,7 +57,7 @@
       <button
         class="sidebar-backdrop"
         type="button"
-        aria-label="Закрыть содержание"
+        aria-label="Close contents"
         tabindex="-1"
       ></button>
 
@@ -67,78 +67,79 @@
           <section class="hero">
             <div class="container">
               <span class="hero__kicker">Natural Language Processing</span>
-              <h1>От обработки текста до Large Language Models</h1>
+              <h1>From Text Processing to Large Language Models</h1>
               <p class="hero__subtitle">
-                Курс о том, как компьютеры обрабатывают, понимают и генерируют
-                человеческий язык — с примерами из казахстанского контекста на
-                казахском, русском и английском языках.
+                A course on how computers process, understand, and generate
+                human language — built around Kazakhstan-first examples in
+                Kazakh, Russian, and English.
               </p>
               <a class="btn btn--primary" href="00-basics-nlp.html"
-                >Начать с лекции 0 →</a
+                >Start with Lecture 0 →</a
               >
             </div>
           </section>
 
-          <!-- О курсе --------------------------------------------------- -->
+          <!-- What the course covers ------------------------------------ -->
           <section class="section" aria-labelledby="about">
             <div class="container">
-              <span class="section__eyebrow">О курсе</span>
-              <h2 id="about">Что мы разберём</h2>
+              <span class="section__eyebrow">About the course</span>
+              <h2 id="about">What this course covers</h2>
               <p class="narrow lead">
-                Мы начинаем с сырого текста и простых шаблонов, проходим через
-                классический Machine Learning и Word Embeddings и заканчиваем
-                Transformers, Large Language Models, RAG, Agents и Speech
+                We start from raw text and simple patterns, move through
+                classical Machine Learning and Word Embeddings, and finish with
+                Transformers, Large Language Models, RAG, Agents, and Speech
                 Processing.
               </p>
 
               <div class="grid" style="margin-top: 32px">
                 <div class="topic-card">
-                  <span class="topic-card__num">Часть 1</span>
-                  <h3>Работа с текстом</h3>
+                  <span class="topic-card__num">Part 1</span>
+                  <h3>Working with text</h3>
                   <p>
                     Regular Expressions, Tokenization, Lemmatization, Bag of
-                    Words и классический Machine Learning для текстовых данных.
+                    Words, and classical Machine Learning for text data.
                   </p>
                 </div>
                 <div class="topic-card">
-                  <span class="topic-card__num">Часть 2</span>
-                  <h3>Изучение смысла</h3>
+                  <span class="topic-card__num">Part 2</span>
+                  <h3>Learning meaning</h3>
                   <p>
-                    Word Embeddings, word2vec, Text Classification и механизм
-                    Attention, лежащий в основе Transformer.
+                    Word Embeddings, word2vec, Text Classification, and the
+                    Attention mechanism behind the Transformer.
                   </p>
                 </div>
                 <div class="topic-card">
-                  <span class="topic-card__num">Часть 3</span>
-                  <h3>Современные модели</h3>
+                  <span class="topic-card__num">Part 3</span>
+                  <h3>Modern models</h3>
                   <p>
                     BERT, RoBERTa, Fine-tuning, Generative Models, Prompting,
-                    RAG, Agents, LLM, ASR и TTS.
+                    RAG, Agents, LLM, ASR, and TTS.
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
-          <!-- План ------------------------------------------------------ -->
+          <!-- Roadmap --------------------------------------------------- -->
           <section class="section section--surface" aria-labelledby="roadmap">
             <div class="container">
-              <span class="section__eyebrow">Календарь</span>
-              <h2 id="roadmap">План курса</h2>
+              <span class="section__eyebrow">Calendar</span>
+              <h2 id="roadmap">Course roadmap</h2>
               <p class="narrow lead">
-                У каждой лекции своя страница, и она всегда доступна из
-                содержания слева. Страницы публикуются по ходу курса.
+                Every lecture has its own page and stays reachable from the
+                table of contents on the left. Pages are published as the course
+                goes on.
               </p>
 
               <div data-roadmap style="margin-top: 36px"></div>
             </div>
           </section>
 
-          <!-- Эволюция -------------------------------------------------- -->
+          <!-- Evolution -------------------------------------------------- -->
           <section class="section" aria-labelledby="evolution">
             <div class="container">
-              <span class="section__eyebrow">Общая картина</span>
-              <h2 id="evolution">Курс следует эволюции NLP</h2>
+              <span class="section__eyebrow">Big picture</span>
+              <h2 id="evolution">The course follows the evolution of NLP</h2>
               <ul class="evolution" style="margin-top: 28px">
                 <li><span class="evolution__step">Rules</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
                 <li><span class="evolution__step">Bag of Words</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
@@ -156,13 +157,13 @@
 
         <footer class="site-footer">
           <div class="container">
-            <p>NLP Course · Учебный материал · EN / KZ / RU</p>
+            <p>NLP Course · Teaching material · EN / KZ / RU</p>
           </div>
         </footer>
       </div>
     </div>
 
-    <script src="../js/course.js"></script>
-    <script src="../js/main.js"></script>
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
   </body>
 </html>

@@ -8,7 +8,7 @@
       name="description"
       content="Лекция 0: что такое Natural Language Processing, почему человеческий язык труден для компьютеров и где NLP применяется в Казахстане."
     />
-    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
   </head>
   <body>
     <a class="skip-link" href="#main">Перейти к содержанию</a>
@@ -651,6 +651,248 @@
               </ul>
             </div>
           </section>
+
+          <!-- ==========================================================
+               Проверка знаний — на лекции
+               ========================================================== -->
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">На лекции</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">
+                Пять вопросов, на которые мы отвечаем вместе перед завершением.
+                Сначала подумайте сами, потом откройте ответ.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Своими словами: что такое Natural Language Processing?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Область Artificial Intelligence, которая изучает, как
+                      компьютеры обрабатывают, понимают, анализируют и генерируют
+                      человеческий язык — текст и речь, созданные людьми.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">Почему «Ол банкте отыр» сложно для компьютера?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Фраза многозначна: человек может <strong>работать</strong> в
+                      банке или <strong>физически сидеть</strong> внутри него.
+                      Решает только контекст, и модель должна научиться его
+                      учитывать.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Назовите четыре группы задач NLP из этой лекции.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Understanding, Classification, Search и Generation.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">кітап · кітаптар · кітаптарым · кітаптарымыздан
+
+Почему это проблема для программы, которая сравнивает строки?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Казахский — агглютинативный язык, поэтому один корень даёт
+                      множество словоформ. Для программы это четыре никак не
+                      связанные строки, хотя смысл у них общий. Именно для этого
+                      нужны Tokenization и Lemmatization.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Назовите один сценарий применения NLP в Казахстане, который мы не обсуждали, и скажите, к какой группе задач он относится.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p>Открытый вопрос — подойдёт любой обоснованный ответ. Примеры:</p>
+                    <ul style="margin-bottom: 0">
+                      <li>субтитры для телевидения на казахском → Speech + Generation</li>
+                      <li>
+                        сортировка заявлений в университет по темам →
+                        Classification
+                      </li>
+                      <li>система поиска по судебным решениям → Search</li>
+                    </ul>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Самопроверка — после лекции
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="self-check">
+            <div class="container">
+              <span class="section__eyebrow">После лекции</span>
+              <h2 id="self-check">Тест для самопроверки</h2>
+              <p class="narrow lead">
+                Десять вопросов, чтобы проверить себя. Выберите один ответ на
+                вопрос — результат появится сразу.
+              </p>
+
+              <ol class="quiz" data-quiz style="margin-top: 32px">
+                <li class="quiz__item">
+                  <p class="quiz__question">Natural Language Processing — это область…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">компьютерных сетей</button>
+                    <button class="quiz__option" type="button" data-correct>Artificial Intelligence</button>
+                    <button class="quiz__option" type="button">администрирования баз данных</button>
+                    <button class="quiz__option" type="button">компьютерной графики</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    NLP — та часть Artificial Intelligence, которая занимается человеческим языком.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Система пометила «Ұлттық банк» как ORGANIZATION. Что это за задача?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Machine Translation</button>
+                    <button class="quiz__option" type="button">Sentiment Analysis</button>
+                    <button class="quiz__option" type="button" data-correct>Named Entity Recognition</button>
+                    <button class="quiz__option" type="button">Summarization</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Named Entity Recognition находит в тексте имена и присваивает им тип:
+                    PERSON, LOCATION, ORGANIZATION, COUNTRY.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Какое свойство языка показывает «Ол банкте отыр»?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button" data-correct>многозначность (ambiguity)</button>
+                    <button class="quiz__option" type="button">морфологическое богатство</button>
+                    <button class="quiz__option" type="button">смешение языков</button>
+                    <button class="quiz__option" type="button">токсичность</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Одно предложение — два возможных прочтения. Это многозначность, и
+                    разрешает её контекст.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">«Казахский — агглютинативный язык» означает, что…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">слова никогда не меняют форму</button>
+                    <button class="quiz__option" type="button" data-correct>суффиксы присоединяются к корню один за другим</button>
+                    <button class="quiz__option" type="button">в нём нет грамматических правил</button>
+                    <button class="quiz__option" type="button">он записывается двумя алфавитами</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    кітап → кітаптар → кітаптарым → кітаптарымыздан: каждый суффикс добавляет
+                    смысл, поэтому один корень даёт очень много словоформ.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">«Сәлем, meeting сағат 15:00-де болады» — пример чего?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">ошибки перевода</button>
+                    <button class="quiz__option" type="button">орфографической ошибки</button>
+                    <button class="quiz__option" type="button" data-correct>смешения языков в одном сообщении</button>
+                    <button class="quiz__option" type="button">Regular Expression</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Казахская грамматика с английской терминологией внутри — совершенно
+                    обычное дело в Казахстане и настоящая сложность для NLP-систем.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Какая цепочка у голосового ассистента верна?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Speech → TTS → NLP → ASR → Response</button>
+                    <button class="quiz__option" type="button" data-correct>Speech → ASR → Text → NLP → Response → TTS</button>
+                    <button class="quiz__option" type="button">Text → ASR → Speech → NLP → TTS</button>
+                    <button class="quiz__option" type="button">Speech → NLP → ASR → Text → TTS</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    В начале ASR превращает речь в текст, в конце TTS превращает ответ обратно
+                    в речь. Между ними NLP работает с текстом.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Система читает «Бүгін Астанада ауа райы керемет екен!» и выдаёт Sentiment: Positive. К какой группе относится задача?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Generation</button>
+                    <button class="quiz__option" type="button">Search</button>
+                    <button class="quiz__option" type="button" data-correct>Understanding</button>
+                    <button class="quiz__option" type="button">Translation</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Sentiment Analysis относится к Understanding: система извлекает смысл из
+                    текста, а не создаёт новый текст.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Что из перечисленного <em>не</em> является задачей NLP?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">классификация вопроса гражданина по теме</button>
+                    <button class="quiz__option" type="button" data-correct>сжатие фотографии, чтобы уменьшить файл</button>
+                    <button class="quiz__option" type="button">краткое изложение новостной статьи</button>
+                    <button class="quiz__option" type="button">определение языка сообщения</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Сжатие изображения работает с пикселями, а не с языком. Остальные три
+                    получают на вход человеческий язык.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Что в эволюции NLP появилось раньше?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button" data-correct>Bag of Words</button>
+                    <button class="quiz__option" type="button">Transformers</button>
+                    <button class="quiz__option" type="button">Large Language Models</button>
+                    <button class="quiz__option" type="button">RAG и Agents</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Rules → Bag of Words → Machine Learning → word2vec → RNN / LSTM →
+                    Transformers → BERT / GPT → Large Language Models → RAG / Agents.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Как работают современные системы Machine Translation?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">заменяют каждое слово по словарю</button>
+                    <button class="quiz__option" type="button" data-correct>кодируют предложение целиком и генерируют перевод из этого представления</button>
+                    <button class="quiz__option" type="button">работают только между английским и русским</button>
+                    <button class="quiz__option" type="button">требуют одинакового порядка слов в обоих языках</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Пословесная замена теряет смысл. Современные системы представляют
+                    предложение целиком — это механизм, лежащий в основе Transformers.
+                  </p>
+                </li>
+              </ol>
+            </div>
+          </section>
         </main>
 
         <footer class="site-footer">
@@ -661,7 +903,7 @@
       </div>
     </div>
 
-    <script src="../js/course.js"></script>
-    <script src="../js/main.js"></script>
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
   </body>
 </html>

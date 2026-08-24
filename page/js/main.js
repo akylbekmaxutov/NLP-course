@@ -28,7 +28,11 @@
       matches: function (n) {
         return n === 1 ? "1 match" : n + " matches";
       },
-      emptyPattern: "Enter a pattern to see matches."
+      emptyPattern: "Enter a pattern to see matches.",
+      reset: "Reset",
+      score: function (right, done, total) {
+        return done ? right + " / " + done + " correct (" + done + " of " + total + " answered)" : "Answer the questions to see your score.";
+      }
     },
     kk: {
       copy: "Көшіру",
@@ -39,7 +43,11 @@
       matches: function (n) {
         return n + " сәйкестік";
       },
-      emptyPattern: "Сәйкестіктерді көру үшін pattern енгізіңіз."
+      emptyPattern: "Сәйкестіктерді көру үшін pattern енгізіңіз.",
+      reset: "Қайта бастау",
+      score: function (right, done, total) {
+        return done ? right + " / " + done + " дұрыс (" + total + " сұрақтың " + done + "-не жауап берілді)" : "Ұпайды көру үшін сұрақтарға жауап беріңіз.";
+      }
     },
     ru: {
       copy: "Копировать",
@@ -50,7 +58,11 @@
       matches: function (n) {
         return n + " совпадений";
       },
-      emptyPattern: "Введите pattern, чтобы увидеть совпадения."
+      emptyPattern: "Введите pattern, чтобы увидеть совпадения.",
+      reset: "Сбросить",
+      score: function (right, done, total) {
+        return done ? right + " / " + done + " верно (отвечено " + done + " из " + total + ")" : "Ответьте на вопросы, чтобы увидеть результат.";
+      }
     }
   };
 
@@ -385,6 +397,7 @@
 
     var patternInput = $("[data-regex-pattern]", root);
     var flagsInput = $("[data-regex-flags]", root);
+    var unicodeInput = $("[data-regex-unicode]", root);
     var textInput = $("[data-regex-text]", root);
     var output = $("[data-regex-output]", root);
     var status = $("[data-regex-status]", root);
@@ -396,6 +409,8 @@
     function buildFlags() {
       var flags = "g";
       if (flagsInput && flagsInput.checked) flags += "i";
+      // The u flag enables \p{L} and friends — needed for Kazakh/Russian letters.
+      if (unicodeInput && unicodeInput.checked) flags += "u";
       return flags;
     }
 
@@ -459,6 +474,7 @@
     patternInput.addEventListener("input", run);
     textInput.addEventListener("input", run);
     if (flagsInput) flagsInput.addEventListener("change", run);
+    if (unicodeInput) unicodeInput.addEventListener("change", run);
     if (runBtn) runBtn.addEventListener("click", run);
 
     $$("[data-preset-pattern]", root).forEach(function (button) {
@@ -466,6 +482,9 @@
         patternInput.value = button.getAttribute("data-preset-pattern") || "";
         var presetText = button.getAttribute("data-preset-text");
         if (presetText) textInput.value = presetText;
+        if (unicodeInput) {
+          unicodeInput.checked = button.getAttribute("data-preset-unicode") !== null;
+        }
         run();
         patternInput.focus();
       });
@@ -479,6 +498,90 @@
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  }
+
+  /* ------------------------------------------------------------------
+     Quiz — self-check questions with immediate feedback
+     ------------------------------------------------------------------ */
+
+  function initQuizzes() {
+    $$("[data-quiz]").forEach(setUpQuiz);
+  }
+
+  function setUpQuiz(quiz) {
+    var strings = t();
+    var items = $$(".quiz__item", quiz);
+    if (!items.length) return;
+
+    var score = document.createElement("p");
+    score.className = "quiz__score";
+    score.setAttribute("role", "status");
+
+    var reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "btn";
+    reset.textContent = strings.reset;
+
+    var actions = document.createElement("div");
+    actions.className = "quiz__actions";
+    actions.appendChild(score);
+    actions.appendChild(reset);
+    quiz.parentNode.insertBefore(actions, quiz.nextSibling);
+
+    var answered = 0;
+    var correct = 0;
+
+    function paintScore() {
+      score.textContent = strings.score(correct, answered, items.length);
+      score.classList.toggle("is-complete", answered === items.length);
+    }
+
+    items.forEach(function (item) {
+      var options = $$(".quiz__option", item);
+      var feedback = $(".quiz__feedback", item);
+
+      options.forEach(function (option, index) {
+        option.setAttribute("data-key", String.fromCharCode(65 + index));
+
+        option.addEventListener("click", function () {
+          if (item.getAttribute("data-answered")) return;
+          item.setAttribute("data-answered", "true");
+          answered += 1;
+
+          var isCorrect = option.getAttribute("data-correct") !== null;
+          if (isCorrect) correct += 1;
+
+          options.forEach(function (other) {
+            other.disabled = true;
+            if (other.getAttribute("data-correct") !== null) {
+              other.classList.add("is-correct");
+            }
+          });
+          if (!isCorrect) option.classList.add("is-wrong");
+
+          if (feedback) feedback.hidden = false;
+          paintScore();
+        });
+      });
+    });
+
+    reset.addEventListener("click", function () {
+      answered = 0;
+      correct = 0;
+      items.forEach(function (item) {
+        item.removeAttribute("data-answered");
+        var feedback = $(".quiz__feedback", item);
+        if (feedback) feedback.hidden = true;
+        $$(".quiz__option", item).forEach(function (option) {
+          option.disabled = false;
+          option.classList.remove("is-correct");
+          option.classList.remove("is-wrong");
+        });
+      });
+      paintScore();
+    });
+
+    paintScore();
   }
 
   /* ------------------------------------------------------------------
@@ -561,6 +664,7 @@
     initSidebarDrawer();
     initCodeBlocks();
     initRegexPlayground();
+    initQuizzes();
     initProgressBar();
     initLanguageMemory();
   }

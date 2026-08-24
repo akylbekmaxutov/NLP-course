@@ -1196,7 +1196,222 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   14. Takeaways + footer
+   14. Quiz (knowledge check + self-check)
+   -------------------------------------------------------------------------- */
+
+.quiz {
+  list-style: none;
+  counter-reset: quiz;
+  margin: 0 0 24px;
+  padding: 0;
+  max-width: var(--text-width);
+}
+
+.quiz__item {
+  counter-increment: quiz;
+  margin: 0 0 18px;
+  padding: 22px 24px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.quiz__question {
+  font-weight: 650;
+  font-size: 1.1rem;
+  margin: 0 0 14px;
+  max-width: none;
+}
+
+.quiz__question::before {
+  content: counter(quiz) ". ";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.quiz__options {
+  display: grid;
+  gap: 8px;
+}
+
+.quiz__option {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 11px 16px 11px 44px;
+  cursor: pointer;
+}
+
+.quiz__option::before {
+  content: attr(data-key);
+  position: absolute;
+  left: 14px;
+  top: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.quiz__option:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.quiz__option:disabled {
+  cursor: default;
+}
+
+/* Marks use a symbol as well as color — never color alone. */
+.quiz__option.is-correct {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.quiz__option.is-correct::before {
+  content: "✓";
+  color: #15803d;
+}
+
+.quiz__option.is-wrong {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.quiz__option.is-wrong::before {
+  content: "✗";
+  color: #b91c1c;
+}
+
+.quiz__feedback {
+  margin: 12px 0 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  font-size: 0.98rem;
+  max-width: none;
+}
+
+.quiz__score {
+  position: sticky;
+  bottom: 16px;
+  display: inline-block;
+  margin-top: 8px;
+  padding: 10px 18px;
+  font-weight: 650;
+  font-size: 1.05rem;
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.quiz__score.is-complete {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.quiz__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   15. Pattern breakdown (piece-by-piece explanation under an example)
+   -------------------------------------------------------------------------- */
+
+.breakdown {
+  margin: 20px 0 0;
+  padding: 18px 22px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.breakdown__label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.breakdown__list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 10px 20px;
+  margin: 0;
+  align-items: baseline;
+}
+
+.breakdown__list dt {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 5px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  justify-self: start;
+}
+
+.breakdown__list dd {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.breakdown__reading {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 1rem;
+  max-width: none;
+}
+
+.breakdown__reading strong {
+  color: var(--accent);
+}
+
+.note {
+  margin: 16px 0 0;
+  font-size: 1rem;
+  color: var(--muted);
+  max-width: none;
+}
+
+.note strong {
+  color: var(--text);
+}
+
+@media (max-width: 620px) {
+  .breakdown__list {
+    grid-template-columns: 1fr;
+    gap: 4px 0;
+  }
+
+  .breakdown__list dd {
+    margin-bottom: 10px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   16. Takeaways + footer
    -------------------------------------------------------------------------- */
 
 .takeaways {
@@ -1240,7 +1455,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   15. Responsive
+   17. Responsive
    -------------------------------------------------------------------------- */
 
 @media (max-width: 1100px) {
@@ -1323,7 +1538,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   16. Print / motion preferences
+   18. Print / motion preferences
    -------------------------------------------------------------------------- */
 
 @media print {
