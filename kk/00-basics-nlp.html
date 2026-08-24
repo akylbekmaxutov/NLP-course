@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NLP негіздері | NLP Course</title>
+    <meta
+      name="description"
+      content="0-дәріс: Natural Language Processing дегеніміз не, адам тілі компьютер үшін неге қиын және Қазақстанда NLP қайда қолданылады."
+    />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Мобильді панель (1024px-тен төмен) ------------------------------ -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Тіл">
+        <a href="../en/00-basics-nlp.html" data-lang-link="en">EN</a>
+        <a href="../kk/00-basics-nlp.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/00-basics-nlp.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Бүйірлік панель: мазмұны -------------------------------------- -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          Мәтінді өңдеуден Large Language Models дейін
+        </p>
+        <div class="lang-switch" role="group" aria-label="Тіл">
+          <a href="../en/00-basics-nlp.html" data-lang-link="en">EN</a>
+          <a href="../kk/00-basics-nlp.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/00-basics-nlp.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс жоспары</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Мазмұнды жабу"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">0-дәріс</span>
+              <h1>Natural Language Processing негіздері</h1>
+              <p class="hero__subtitle">
+                NLP дегеніміз не, адам тілі компьютер үшін неге қиын және оны
+                Қазақстанда қайда қолданамыз.
+              </p>
+              <p class="hero__date">24 тамыз 2026</p>
+              <ul class="topic-chips">
+                <li>NLP дегеніміз не</li>
+                <li>Тіл неге қиын</li>
+                <li>Қазақстандағы NLP</li>
+                <li>NLP эволюциясы</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Оқу мақсаттары
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістен кейін сіз…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>NLP-ті түсіндіресіз</h3>
+                  <p>
+                    Natural Language Processing дегеніміз не және оған қандай
+                    тапсырмалар жататынын айта аласыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Қиындықтарды атайсыз</h3>
+                  <p>
+                    Қазақ және орыс тілдеріндегі мысалдар арқылы адам тілінің
+                    компьютер үшін неге күрделі екенін көрсетесіз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Қолдану салаларын танисыз</h3>
+                  <p>
+                    Қазақстанда NLP қай жерде қолданылуы мүмкін екенін
+                    көрсетесіз — мемлекеттік қызметтер, банк ісі, медиа, білім
+                    беру, іздеу.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Саланы уақыт бойынша орналастырасыз</h3>
+                  <p>
+                    Ережеге негізделген жүйелерден Large Language Models дейінгі
+                    жолды бақылап, курстың келесі бағытын көресіз.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               NLP дегеніміз не?
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="what-is-nlp"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Кіріспе</span>
+              <h2 id="what-is-nlp">Natural Language Processing дегеніміз не?</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Natural Language Processing (NLP)</strong> —
+                  компьютерлер адам тілін қалай өңдей, түсіне, талдай және
+                  генерациялай алатынын зерттейтін Artificial Intelligence
+                  саласы.
+                </p>
+              </div>
+
+              <p class="narrow">
+                Адам тілі — сандар кестесі емес. Бұл адамдар жасайтын мәтін мен
+                дыбыс: хабарламалар, сұрақтар, жаңалықтар, құжаттар, пікірлер,
+                дауыстық командалар. NLP — осы материалды компьютер жұмыс істей
+                алатын түрге айналдыратын, содан кейін нәтижені адам оқи алатын
+                тілге қайта түрлендіретін әдістер жиынтығы.
+              </p>
+
+              <h3 style="margin-top: 40px">Негізгі ағын</h3>
+              <ul class="diagram" aria-label="Адам тілінен NLP нәтижесіне дейін">
+                <li>
+                  <span class="diagram__node">Human Language</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent"
+                    >Natural Language Processing</span
+                  >
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft"
+                    >Understanding / Classification / Search / Generation</span
+                  >
+                </li>
+              </ul>
+
+              <div class="grid" style="margin-top: 36px">
+                <div class="topic-card">
+                  <span class="topic-card__num">Understanding</span>
+                  <h3>Бұл мәтін нені білдіреді?</h3>
+                  <p>
+                    Intent Detection, Named Entity Recognition, Sentiment
+                    Analysis.
+                  </p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Classification</span>
+                  <h3>Ол қай санатқа жатады?</h3>
+                  <p>Тақырып белгілері, spam сүзгілері, шағымдарды бағыттау.</p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Search</span>
+                  <h3>Жауап қайда?</h3>
+                  <p>Semantic Search, Retrieval, Ranking, Question Answering.</p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Generation</span>
+                  <h3>Қалай жауап береміз?</h3>
+                  <p>
+                    Machine Translation, Summarization, диалог, Large Language
+                    Models.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               NLP неге қиын
+               ========================================================== -->
+          <section class="section" aria-labelledby="difficult">
+            <div class="container">
+              <span class="section__eyebrow">Түсінік</span>
+              <h2 id="difficult">NLP неге қиын?</h2>
+              <p class="narrow lead">
+                Бағдарламалау тілінің бір ғана грамматикасы бар және онда ерекше
+                жағдайлар жоқ. Адам тілінде екеуі де жоқ. Ол:
+              </p>
+
+              <div class="grid">
+                <div class="card">
+                  <h3>Көпмағыналы</h3>
+                  <p>Бір сөз әртүрлі мағына бере алады.</p>
+                </div>
+                <div class="card">
+                  <h3>Контекстке тәуелді</h3>
+                  <p>Мағына айналасындағы сөйлемдерге байланысты.</p>
+                </div>
+                <div class="card">
+                  <h3>Көптілді</h3>
+                  <p>Бір хабарлама бірнеше тілді араластыруы мүмкін.</p>
+                </div>
+                <div class="card">
+                  <h3>Үнемі өзгеретін</h3>
+                  <p>Жаңа сөздер, сленг және қысқартулар үнемі пайда болады.</p>
+                </div>
+                <div class="card">
+                  <h3>Мәдениетке тәуелді</h3>
+                  <p>
+                    Сыпайылық, ирония және сілтемелер жергілікті сипатта болады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Морфологиясы бай</h3>
+                  <p>Қазақ тілінде бір түбір өте көп тұлғада кездеседі.</p>
+                </div>
+              </div>
+
+              <!-- Көпмағыналылық -->
+              <h3 style="margin-top: 56px">Көпмағыналылық (Ambiguity)</h3>
+              <div class="kz-example">
+                <span class="kz-example__label">Қазақша мысал</span>
+                <p class="kz-example__text">Ол банкте отыр.</p>
+                <p>Контекстсіз кемінде екі оқылым мүмкін:</p>
+                <ul>
+                  <li>адам банкте <strong>жұмыс істейді</strong></li>
+                  <li>
+                    адам банктің ішінде <strong>физикалық түрде отыр</strong>
+                  </li>
+                </ul>
+                <p>
+                  Адам мұны жағдайдан ажыратады. Модель болса, оны контексттен
+                  үйренуі керек.
+                </p>
+              </div>
+
+              <!-- Морфология -->
+              <h3 style="margin-top: 40px">Морфология</h3>
+              <p class="narrow">
+                Қазақ тілі — агглютинативті тіл: жұрнақтар бірінен соң бірі
+                жалғанады. Сондықтан бір түбір көптеген тұлғада кездеседі.
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Бір түбір, көп тұлға</span>
+                <dl class="kv">
+                  <dt>кітап</dt>
+                  <dd>түбір тұлға</dd>
+                  <dt>кітаптар</dt>
+                  <dd>көптік жалғау</dd>
+                  <dt>кітаптарым</dt>
+                  <dd>тәуелдік жалғау</dd>
+                  <dt>кітаптарымыздан</dt>
+                  <dd>тәуелдік + септік жалғау</dd>
+                </dl>
+                <p style="margin-top: 16px">
+                  Компьютер үшін бұл — төрт мүлдем бөлек жол (string). Оларды
+                  салыстыруға жарамды етіп жасау дәл Tokenization мен
+                  Lemmatization міндеті — оларды курстың келесі бөлігінде
+                  кездестіреміз.
+                </p>
+              </div>
+
+              <!-- Көптілділік -->
+              <h3 style="margin-top: 40px">Көптілді шындық</h3>
+              <div class="kz-example">
+                <span class="kz-example__label"
+                  >Қазақстандағы шынайы хабарлама</span
+                >
+                <p class="kz-example__text">
+                  Сәлем, meeting сағат 15:00-де болады, Teams-ке кіресің бе?
+                </p>
+                <p>Бір қысқа сөйлемде бізде мыналар бар:</p>
+                <ul>
+                  <li>қазақ грамматикасы мен сөз тәртібі</li>
+                  <li>
+                    ағылшын терминологиясы (<span class="token">meeting</span>,
+                    <span class="token">Teams</span>)
+                  </li>
+                  <li>сандар мен уақыт форматтары</li>
+                  <li>
+                    тыныс белгілері және ағылшын сөздеріне жалғанған қазақ
+                    жалғаулары
+                  </li>
+                </ul>
+              </div>
+              <div class="callout">
+                Мұндай араласу бізде қалыпты жағдай — және дәл осы Қазақстанды
+                NLP зерттеулері мен өнімдері үшін қызықты ортаға айналдырады.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Қазақстандағы NLP
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="kz">
+            <div class="container">
+              <span class="section__eyebrow">Қазақстан</span>
+              <h2 id="kz">Қазақстанда NLP қайда қолданылады?</h2>
+              <p class="narrow lead">
+                Төмендегі мысалдар — NLP жүйесі не істей <em>алатынын</em>
+                көрсететін оқу мысалдары. Олар нақты бір ұйымның ішкі
+                технологиясын сипаттамайды.
+              </p>
+
+              <div class="stack" style="margin-top: 40px">
+                <!-- 1-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">01-жағдай</span>
+                  <h3>eGov және мемлекеттік қызметтер</h3>
+                  <ul>
+                    <li>азаматтардың сұрақтарын жіктеу</li>
+                    <li>мемлекеттік ақпаратты іздеу</li>
+                    <li>құжаттарды өңдеу</li>
+                    <li>виртуалды көмекшілер</li>
+                    <li>көптілді ақпаратқа қолжетімділік</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал сұрақ</span>
+                    <p class="kz-example__text">
+                      Жеке куәлікті қалай ауыстыруға болады?
+                    </p>
+                    <ul class="diagram">
+                      <li>
+                        <span class="diagram__node">User Question</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node">Intent Detection</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node">Search / Retrieval</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node diagram__node--soft"
+                          >Қажетті мемлекеттік ақпарат</span
+                        >
+                      </li>
+                    </ul>
+                  </div>
+                </article>
+
+                <!-- 2-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">02-жағдай</span>
+                  <h3>Банк ісі</h3>
+                  <ul>
+                    <li>клиенттерді қолдау</li>
+                    <li>транзакция сипаттамаларын жіктеу</li>
+                    <li>алаяқтыққа қатысты мәтінді талдау</li>
+                    <li>шағымдарды санаттау</li>
+                    <li>дауыстық көмекшілер және chatbot жүйелері</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал хабарлама</span>
+                    <p class="kz-example__text">
+                      Kaspi аударымым неге өтпей жатыр?
+                    </p>
+                    <p>Банк көмекшісі мынаны анықтай алар еді:</p>
+                    <dl class="kv">
+                      <dt>Intent</dt>
+                      <dd>transfer problem</dd>
+                      <dt>Entity</dt>
+                      <dd>Kaspi transfer</dd>
+                      <dt>Sentiment</dt>
+                      <dd>negative / concerned</dd>
+                    </dl>
+                  </div>
+                  <div class="callout" style="margin: 20px 0 0">
+                    Бұл тек оқу мысалы. Ол нақты компанияға қатыстылықты да, оның
+                    технологиясы туралы тұжырымды да білдірмейді.
+                  </div>
+                </article>
+
+                <!-- 3-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">03-жағдай</span>
+                  <h3>Жаңалықтар және медиа</h3>
+                  <ul>
+                    <li>тақырып бойынша жіктеу</li>
+                    <li>Named Entity Recognition</li>
+                    <li>қысқаша мазмұндау (summarization)</li>
+                    <li>жалған ақпаратты талдау</li>
+                    <li>ұсыныстар мен іздеу</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label"
+                      >Named Entity Recognition</span
+                    >
+                    <dl class="kv">
+                      <dt>Астана</dt>
+                      <dd>LOCATION</dd>
+                      <dt>Алматы</dt>
+                      <dd>LOCATION</dd>
+                      <dt>Қасым-Жомарт Тоқаев</dt>
+                      <dd>PERSON</dd>
+                      <dt>Ұлттық банк</dt>
+                      <dd>ORGANIZATION</dd>
+                      <dt>Қазақстан</dt>
+                      <dd>COUNTRY</dd>
+                    </dl>
+                  </div>
+                </article>
+
+                <!-- 4-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">04-жағдай</span>
+                  <h3>Білім беру</h3>
+                  <ul>
+                    <li>автоматты кері байланыс</li>
+                    <li>сұраққа жауап беру</li>
+                    <li>эссені талдау</li>
+                    <li>оқу chatbot-тары және дербестендірілген оқыту</li>
+                    <li>қазақ тілін үйретуге арналған құралдар</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал</span>
+                    <p class="kz-example__text">Абай Құнанбайұлы кім?</p>
+                    <p>
+                      NLP жүйесі қажетті материалды тауып, сұрақты түсініп,
+                      студенттің тілінде жауап генерациялайды.
+                    </p>
+                  </div>
+                </article>
+
+                <!-- 5-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">05-жағдай</span>
+                  <h3>Іздеу (Search)</h3>
+                  <div
+                    class="kz-example"
+                    style="margin: 0 0 20px; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал сұрау</span>
+                    <p class="kz-example__text">
+                      Алматыда демалыс күндері қайда баруға болады?
+                    </p>
+                  </div>
+                  <ul class="diagram">
+                    <li>
+                      <span class="diagram__node">Query Understanding</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Semantic Search</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Ranking</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft"
+                        >Answer Generation</span
+                      >
+                    </li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Тек кілт сөздерді салыстыру жеткіліксіз: сұрауды
+                    сәйкестендіріп қана қоймай, түсіну керек.
+                  </p>
+                </article>
+
+                <!-- 6-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">06-жағдай</span>
+                  <h3>Аударма</h3>
+                  <p>
+                    Machine Translation бір тілдегі сөйлемді мағынасын сақтай
+                    отырып екінші тілдегі сөйлемге түрлендіруді үйренеді.
+                  </p>
+                  <ul class="diagram">
+                    <li><span class="diagram__node">Kazakh ↔ Russian</span></li>
+                    <li><span class="diagram__node">Kazakh ↔ English</span></li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал сөйлем</span>
+                    <p class="kz-example__text">
+                      Қазақстанның астанасы — Астана.
+                    </p>
+                    <p style="margin-bottom: 0">
+                      Заманауи жүйелер сөзбе-сөз аудармайды. Олар бүкіл сөйлемді
+                      кодтап, аударманы сол көріністен генерациялайды — бұл
+                      механизмді Transformers тақырыбында қайта кездестіреміз.
+                    </p>
+                  </div>
+                </article>
+
+                <!-- 7-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">07-жағдай</span>
+                  <h3>Әлеуметтік желілер</h3>
+                  <ul>
+                    <li>sentiment analysis</li>
+                    <li>тақырыпты талдау</li>
+                    <li>toxicity detection</li>
+                    <li>трендтерді анықтау</li>
+                    <li>тілді анықтау (language identification)</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Мысал пост</span>
+                    <p class="kz-example__text">
+                      Бүгін Астанада ауа райы керемет екен!
+                    </p>
+                    <p>NLP pipeline-ның ықтимал нәтижесі:</p>
+                    <dl class="kv">
+                      <dt>Language</dt>
+                      <dd>Kazakh</dd>
+                      <dt>Topic</dt>
+                      <dd>Weather</dd>
+                      <dt>Sentiment</dt>
+                      <dd>Positive</dd>
+                      <dt>Location</dt>
+                      <dd>Astana</dd>
+                    </dl>
+                  </div>
+                </article>
+
+                <!-- 8-жағдай -->
+                <article class="card">
+                  <span class="topic-card__num">08-жағдай</span>
+                  <h3>Дыбыс (Speech)</h3>
+                  <p>
+                    NLP дыбыстық жүйелермен тікелей байланысады. Қазақ тіліндегі
+                    дауыстық көмекшіге бүкіл тізбектің жұмыс істеуі қажет:
+                  </p>
+                  <ul class="diagram">
+                    <li>
+                      <span class="diagram__node">Speech</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft">ASR</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Text</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--accent">NLP</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Response</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft">TTS</span>
+                    </li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    ASR мен TTS курстың соңында өз дәрісін алады.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               NLP эволюциясы
+               ========================================================== -->
+          <section class="section" aria-labelledby="evolution">
+            <div class="container">
+              <span class="section__eyebrow">Жалпы көрініс</span>
+              <h2 id="evolution">NLP эволюциясы</h2>
+              <p class="narrow lead">
+                Әр қадам алдыңғысын жойған жоқ — ол тілді бейнелеудің жаңа
+                тәсілін қосты. Біздің курс шамамен осы жолмен жүреді.
+              </p>
+
+              <ul class="evolution" style="margin-top: 28px">
+                <li><span class="evolution__step">Rules</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Bag of Words</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Machine Learning</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">word2vec</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">RNN / LSTM</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Transformers</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">BERT / GPT</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Large Language Models</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">RAG / Agents</span></li>
+              </ul>
+
+              <div class="callout" style="margin-top: 32px">
+                Әзірге бұны тұжырымдамалық деңгейде қалдырамыз. Математика
+                кейінірек, бізде оған қажет ұғымдар жинақталғанда келеді.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Негізгі қорытынды
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Қорытынды</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Natural Language Processing дегеніміз не</li>
+                <li>NLP тапсырмаларының төрт тобы</li>
+                <li>Тіл компьютер үшін неге қиын</li>
+                <li>Қазақ тіліндегі көпмағыналылық, морфология, тіл араласуы</li>
+                <li>Қазақстандағы NLP қолданылу жағдайлары</li>
+                <li>Ережелерден Large Language Models дейінгі эволюция</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · 0-дәріс · 24 тамыз 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../js/course.js"></script>
+    <script src="../js/main.js"></script>
+  </body>
+</html>

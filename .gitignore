@@ -1,0 +1,39 @@
+# --- Local-only project files ------------------------------------------------
+# Authoring instructions for the site — not part of the published website.
+Guidelines.md
+
+# GitHub Pages marker and empty-folder placeholders: needed on disk, not in git.
+.nojekyll
+.gitkeep
+
+# --- Operating system --------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Editors and IDEs --------------------------------------------------------
+.vscode/
+.idea/
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# --- Tooling that may appear even though the site needs no build system -------
+node_modules/
+package-lock.json
+.cache/
+.parcel-cache/
+*.log
+npm-debug.log*
+
+# --- Scratch files -----------------------------------------------------------
+tmp/
+scratch/
+*.bak
+*.orig

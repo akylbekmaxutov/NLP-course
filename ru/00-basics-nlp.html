@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Основы NLP | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 0: что такое Natural Language Processing, почему человеческий язык труден для компьютеров и где NLP применяется в Казахстане."
+    />
+    <link rel="stylesheet" href="../css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Мобильная панель (ниже 1024px) ---------------------------------- -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Язык">
+        <a href="../en/00-basics-nlp.html" data-lang-link="en">EN</a>
+        <a href="../kk/00-basics-nlp.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/00-basics-nlp.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Боковая панель: содержание ------------------------------------ -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          От обработки текста до Large Language Models
+        </p>
+        <div class="lang-switch" role="group" aria-label="Язык">
+          <a href="../en/00-basics-nlp.html" data-lang-link="en">EN</a>
+          <a href="../kk/00-basics-nlp.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/00-basics-nlp.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">План курса</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Закрыть содержание"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 0</span>
+              <h1>Основы Natural Language Processing</h1>
+              <p class="hero__subtitle">
+                Что такое NLP, почему человеческий язык труден для компьютеров и
+                где мы применяем его в Казахстане.
+              </p>
+              <p class="hero__date">24 августа 2026</p>
+              <ul class="topic-chips">
+                <li>Что такое NLP</li>
+                <li>Почему язык сложен</li>
+                <li>NLP в Казахстане</li>
+                <li>Эволюция NLP</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Цели обучения
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели лекции</span>
+              <h2 id="goals">После этой лекции вы сможете…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Объяснить, что такое NLP</h3>
+                  <p>
+                    Описать, что такое Natural Language Processing и какие
+                    задачи к нему относятся.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Назвать сложности</h3>
+                  <p>
+                    На примерах из казахского и русского языков показать, почему
+                    человеческий язык труден для компьютера.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Узнавать сценарии применения</h3>
+                  <p>
+                    Показать, где NLP может применяться в Казахстане —
+                    государственные услуги, банки, медиа, образование, поиск.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Поместить область во времени</h3>
+                  <p>
+                    Проследить путь от систем на правилах до Large Language
+                    Models и увидеть, куда движется курс.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Что такое NLP?
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="what-is-nlp"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Начало</span>
+              <h2 id="what-is-nlp">Что такое Natural Language Processing?</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Natural Language Processing (NLP)</strong> — это
+                  область Artificial Intelligence, которая изучает, как
+                  компьютеры могут обрабатывать, понимать, анализировать и
+                  генерировать человеческий язык.
+                </p>
+              </div>
+
+              <p class="narrow">
+                Человеческий язык — это не таблица чисел. Это текст и речь,
+                которые создают люди: сообщения, вопросы, новости, документы,
+                отзывы, голосовые команды. NLP — это набор методов, которые
+                превращают этот материал в форму, пригодную для компьютера, а
+                затем возвращают результат обратно в язык, понятный человеку.
+              </p>
+
+              <h3 style="margin-top: 40px">Базовый поток</h3>
+              <ul
+                class="diagram"
+                aria-label="От человеческого языка к результату NLP"
+              >
+                <li>
+                  <span class="diagram__node">Human Language</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent"
+                    >Natural Language Processing</span
+                  >
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft"
+                    >Understanding / Classification / Search / Generation</span
+                  >
+                </li>
+              </ul>
+
+              <div class="grid" style="margin-top: 36px">
+                <div class="topic-card">
+                  <span class="topic-card__num">Understanding</span>
+                  <h3>Что означает этот текст?</h3>
+                  <p>
+                    Intent Detection, Named Entity Recognition, Sentiment
+                    Analysis.
+                  </p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Classification</span>
+                  <h3>К какой категории он относится?</h3>
+                  <p>Тематические метки, spam-фильтры, маршрутизация жалоб.</p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Search</span>
+                  <h3>Где находится ответ?</h3>
+                  <p>Semantic Search, Retrieval, Ranking, Question Answering.</p>
+                </div>
+                <div class="topic-card">
+                  <span class="topic-card__num">Generation</span>
+                  <h3>Как мы отвечаем?</h3>
+                  <p>
+                    Machine Translation, Summarization, диалог, Large Language
+                    Models.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Почему NLP сложен
+               ========================================================== -->
+          <section class="section" aria-labelledby="difficult">
+            <div class="container">
+              <span class="section__eyebrow">Концепция</span>
+              <h2 id="difficult">Почему NLP — это сложно?</h2>
+              <p class="narrow lead">
+                У языка программирования одна грамматика и никаких исключений. У
+                человеческого языка нет ни того, ни другого. Он:
+              </p>
+
+              <div class="grid">
+                <div class="card">
+                  <h3>Многозначный</h3>
+                  <p>Одно и то же слово может значить разное.</p>
+                </div>
+                <div class="card">
+                  <h3>Контекстный</h3>
+                  <p>Смысл зависит от окружающих предложений.</p>
+                </div>
+                <div class="card">
+                  <h3>Многоязычный</h3>
+                  <p>Одно сообщение может смешивать несколько языков.</p>
+                </div>
+                <div class="card">
+                  <h3>Постоянно меняющийся</h3>
+                  <p>Новые слова, сленг и сокращения появляются всё время.</p>
+                </div>
+                <div class="card">
+                  <h3>Зависимый от культуры</h3>
+                  <p>Вежливость, ирония и отсылки всегда локальны.</p>
+                </div>
+                <div class="card">
+                  <h3>Морфологически богатый</h3>
+                  <p>
+                    В казахском языке один корень порождает очень много
+                    словоформ.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Многозначность -->
+              <h3 style="margin-top: 56px">Многозначность (Ambiguity)</h3>
+              <div class="kz-example">
+                <span class="kz-example__label">Пример на казахском</span>
+                <p class="kz-example__text">Ол банкте отыр.</p>
+                <p>Без контекста возможны как минимум два прочтения:</p>
+                <ul>
+                  <li>человек <strong>работает</strong> в банке</li>
+                  <li>человек <strong>физически сидит</strong> внутри банка</li>
+                </ul>
+                <p>
+                  Человек различает это по ситуации. Модель должна научиться
+                  этому из контекста.
+                </p>
+              </div>
+
+              <!-- Морфология -->
+              <h3 style="margin-top: 40px">Морфология</h3>
+              <p class="narrow">
+                Казахский — агглютинативный язык: суффиксы присоединяются один за
+                другим. Один и тот же корень встречается во множестве форм.
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Один корень, много форм</span>
+                <dl class="kv">
+                  <dt>кітап</dt>
+                  <dd>книга</dd>
+                  <dt>кітаптар</dt>
+                  <dd>книги</dd>
+                  <dt>кітаптарым</dt>
+                  <dd>мои книги</dd>
+                  <dt>кітаптарымыздан</dt>
+                  <dd>из наших книг</dd>
+                </dl>
+                <p style="margin-top: 16px">
+                  Для компьютера это четыре совершенно разные строки. Сделать их
+                  сопоставимыми — как раз задача Tokenization и Lemmatization, к
+                  которым мы придём дальше по курсу.
+                </p>
+              </div>
+
+              <!-- Многоязычность -->
+              <h3 style="margin-top: 40px">Многоязычная реальность</h3>
+              <div class="kz-example">
+                <span class="kz-example__label"
+                  >Реалистичное сообщение в Казахстане</span
+                >
+                <p class="kz-example__text">
+                  Сәлем, meeting сағат 15:00-де болады, Teams-ке кіресің бе?
+                </p>
+                <p>В одном коротком предложении уже есть:</p>
+                <ul>
+                  <li>казахская грамматика и порядок слов</li>
+                  <li>
+                    английская терминология (<span class="token">meeting</span>,
+                    <span class="token">Teams</span>)
+                  </li>
+                  <li>числа и форматы времени</li>
+                  <li>
+                    пунктуация и казахские окончания, присоединённые к английским
+                    словам
+                  </li>
+                </ul>
+              </div>
+              <div class="callout">
+                Такое смешение здесь — норма, и именно оно делает Казахстан
+                интересной средой для исследований и продуктов в области NLP.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               NLP в Казахстане
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="kz">
+            <div class="container">
+              <span class="section__eyebrow">Казахстан</span>
+              <h2 id="kz">Где NLP применяется в Казахстане?</h2>
+              <p class="narrow lead">
+                Примеры ниже — учебные иллюстрации того, что NLP-система
+                <em>могла бы</em> делать. Они не описывают внутренние технологии
+                какой-либо конкретной организации.
+              </p>
+
+              <div class="stack" style="margin-top: 40px">
+                <!-- Кейс 1 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 01</span>
+                  <h3>eGov и государственные услуги</h3>
+                  <ul>
+                    <li>классификация вопросов граждан</li>
+                    <li>поиск государственной информации</li>
+                    <li>обработка документов</li>
+                    <li>виртуальные ассистенты</li>
+                    <li>многоязычный доступ к информации</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример запроса</span>
+                    <p class="kz-example__text">
+                      Жеке куәлікті қалай ауыстыруға болады?
+                    </p>
+                    <ul class="diagram">
+                      <li>
+                        <span class="diagram__node">User Question</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node">Intent Detection</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node">Search / Retrieval</span>
+                        <span class="diagram__arrow" aria-hidden="true">→</span>
+                      </li>
+                      <li>
+                        <span class="diagram__node diagram__node--soft"
+                          >Нужная государственная информация</span
+                        >
+                      </li>
+                    </ul>
+                  </div>
+                </article>
+
+                <!-- Кейс 2 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 02</span>
+                  <h3>Банки</h3>
+                  <ul>
+                    <li>поддержка клиентов</li>
+                    <li>классификация описаний транзакций</li>
+                    <li>анализ текстов, связанных с мошенничеством</li>
+                    <li>категоризация жалоб</li>
+                    <li>голосовые ассистенты и chatbot-системы</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример сообщения</span>
+                    <p class="kz-example__text">
+                      Kaspi аударымым неге өтпей жатыр?
+                    </p>
+                    <p>Банковский ассистент мог бы извлечь:</p>
+                    <dl class="kv">
+                      <dt>Intent</dt>
+                      <dd>transfer problem</dd>
+                      <dt>Entity</dt>
+                      <dd>Kaspi transfer</dd>
+                      <dt>Sentiment</dt>
+                      <dd>negative / concerned</dd>
+                    </dl>
+                  </div>
+                  <div class="callout" style="margin: 20px 0 0">
+                    Только учебный пример. Он не подразумевает ни
+                    аффилированности с конкретной компанией, ни утверждений о её
+                    технологиях.
+                  </div>
+                </article>
+
+                <!-- Кейс 3 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 03</span>
+                  <h3>Новости и медиа</h3>
+                  <ul>
+                    <li>классификация по темам</li>
+                    <li>Named Entity Recognition</li>
+                    <li>summarization</li>
+                    <li>анализ недостоверной информации</li>
+                    <li>рекомендации и поиск</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label"
+                      >Named Entity Recognition</span
+                    >
+                    <dl class="kv">
+                      <dt>Астана</dt>
+                      <dd>LOCATION</dd>
+                      <dt>Алматы</dt>
+                      <dd>LOCATION</dd>
+                      <dt>Қасым-Жомарт Тоқаев</dt>
+                      <dd>PERSON</dd>
+                      <dt>Ұлттық банк</dt>
+                      <dd>ORGANIZATION</dd>
+                      <dt>Қазақстан</dt>
+                      <dd>COUNTRY</dd>
+                    </dl>
+                  </div>
+                </article>
+
+                <!-- Кейс 4 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 04</span>
+                  <h3>Образование</h3>
+                  <ul>
+                    <li>автоматическая обратная связь</li>
+                    <li>ответы на вопросы</li>
+                    <li>анализ эссе</li>
+                    <li>учебные chatbot-ы и персонализированное обучение</li>
+                    <li>инструменты для изучения казахского языка</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример</span>
+                    <p class="kz-example__text">Абай Құнанбайұлы кім?</p>
+                    <p>
+                      NLP-система находит нужный материал, понимает вопрос и
+                      генерирует ответ на языке студента.
+                    </p>
+                  </div>
+                </article>
+
+                <!-- Кейс 5 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 05</span>
+                  <h3>Поиск (Search)</h3>
+                  <div
+                    class="kz-example"
+                    style="margin: 0 0 20px; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример запроса</span>
+                    <p class="kz-example__text">
+                      Алматыда демалыс күндері қайда баруға болады?
+                    </p>
+                  </div>
+                  <ul class="diagram">
+                    <li>
+                      <span class="diagram__node">Query Understanding</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Semantic Search</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Ranking</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft"
+                        >Answer Generation</span
+                      >
+                    </li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    Совпадения по ключевым словам недостаточно: запрос нужно
+                    понять, а не просто сопоставить.
+                  </p>
+                </article>
+
+                <!-- Кейс 6 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 06</span>
+                  <h3>Перевод</h3>
+                  <p>
+                    Machine Translation учится переводить предложение одного
+                    языка в предложение другого, сохраняя смысл.
+                  </p>
+                  <ul class="diagram">
+                    <li><span class="diagram__node">Kazakh ↔ Russian</span></li>
+                    <li><span class="diagram__node">Kazakh ↔ English</span></li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример предложения</span>
+                    <p class="kz-example__text">
+                      Қазақстанның астанасы — Астана.
+                    </p>
+                    <p style="margin-bottom: 0">
+                      Современные системы не переводят слово за словом. Они
+                      кодируют предложение целиком и генерируют перевод из этого
+                      представления — с этим механизмом мы снова встретимся в
+                      теме Transformers.
+                    </p>
+                  </div>
+                </article>
+
+                <!-- Кейс 7 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 07</span>
+                  <h3>Социальные сети</h3>
+                  <ul>
+                    <li>sentiment analysis</li>
+                    <li>анализ тем</li>
+                    <li>toxicity detection</li>
+                    <li>выявление трендов</li>
+                    <li>language identification</li>
+                  </ul>
+                  <div
+                    class="kz-example"
+                    style="margin: 20px 0 0; background: #fff"
+                  >
+                    <span class="kz-example__label">Пример поста</span>
+                    <p class="kz-example__text">
+                      Бүгін Астанада ауа райы керемет екен!
+                    </p>
+                    <p>Возможный результат NLP pipeline:</p>
+                    <dl class="kv">
+                      <dt>Language</dt>
+                      <dd>Kazakh</dd>
+                      <dt>Topic</dt>
+                      <dd>Weather</dd>
+                      <dt>Sentiment</dt>
+                      <dd>Positive</dd>
+                      <dt>Location</dt>
+                      <dd>Astana</dd>
+                    </dl>
+                  </div>
+                </article>
+
+                <!-- Кейс 8 -->
+                <article class="card">
+                  <span class="topic-card__num">Кейс 08</span>
+                  <h3>Речь (Speech)</h3>
+                  <p>
+                    NLP напрямую связан с речевыми системами. Голосовому
+                    ассистенту на казахском языке нужна вся цепочка целиком:
+                  </p>
+                  <ul class="diagram">
+                    <li>
+                      <span class="diagram__node">Speech</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft">ASR</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Text</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--accent">NLP</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node">Response</span>
+                      <span class="diagram__arrow" aria-hidden="true">→</span>
+                    </li>
+                    <li>
+                      <span class="diagram__node diagram__node--soft">TTS</span>
+                    </li>
+                  </ul>
+                  <p style="margin-bottom: 0">
+                    ASR и TTS получают отдельную лекцию в конце курса.
+                  </p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Эволюция NLP
+               ========================================================== -->
+          <section class="section" aria-labelledby="evolution">
+            <div class="container">
+              <span class="section__eyebrow">Общая картина</span>
+              <h2 id="evolution">Эволюция NLP</h2>
+              <p class="narrow lead">
+                Каждый шаг не отменял предыдущий — он добавлял новый способ
+                представления языка. Наш курс примерно повторяет этот путь.
+              </p>
+
+              <ul class="evolution" style="margin-top: 28px">
+                <li><span class="evolution__step">Rules</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Bag of Words</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Machine Learning</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">word2vec</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">RNN / LSTM</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Transformers</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">BERT / GPT</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">Large Language Models</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="evolution__step">RAG / Agents</span></li>
+              </ul>
+
+              <div class="callout" style="margin-top: 32px">
+                Пока мы остаёмся на концептуальном уровне. Математика появится
+                позже, когда у нас будет для неё словарь.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Итоги
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы изучили</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Что такое Natural Language Processing</li>
+                <li>Четыре группы задач NLP</li>
+                <li>Почему язык сложен для компьютеров</li>
+                <li>Многозначность, морфологию и смешение языков</li>
+                <li>Сценарии применения NLP в Казахстане</li>
+                <li>Эволюцию от правил до Large Language Models</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Лекция 0 · 24 августа 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../js/course.js"></script>
+    <script src="../js/main.js"></script>
+  </body>
+</html>
