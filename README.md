@@ -15,3 +15,7 @@ Added:
 - `language/en/index.html`, `language/kk/index.html`, `language/ru/index.html` — course roadmap
 - `language/en/00-basics-nlp.html`, `language/kk/00-basics-nlp.html`, `language/ru/00-basics-nlp.html` — Lecture 0, Basics of NLP
 - `language/en/01-regular-expressions.html`, `language/kk/01-regular-expressions.html`, `language/ru/01-regular-expressions.html` — Lecture 1, Regular Expressions
+
+Changed:
+
+- `language/kk/*.html` — added a machine-translation notice (red banner at the top of each Kazakh page and a compact note in the sidebar)

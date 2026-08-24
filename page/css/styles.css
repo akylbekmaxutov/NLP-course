@@ -21,6 +21,9 @@
   --accent-border: #c7d9ff;
   --code-bg: #f6f8fa;
   --mark: #fde68a;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --danger-border: #fecaca;
 
   /* typography */
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1411,7 +1414,64 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   16. Takeaways + footer
+   16. Machine-translation notice (Kazakh pages)
+   -------------------------------------------------------------------------- */
+
+.mt-notice {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 28px 0 0;
+  padding: 16px 20px;
+  max-width: var(--text-width);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-left: 4px solid var(--danger);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--danger);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* The symbol carries the meaning too — never colour alone. */
+.mt-notice__icon {
+  flex: none;
+  font-size: 1.15rem;
+  line-height: 1.4;
+}
+
+.mt-notice p {
+  margin: 0;
+  max-width: none;
+}
+
+.mt-notice strong {
+  font-weight: 700;
+}
+
+.mt-notice__en {
+  display: block;
+  margin-top: 4px;
+  color: #7f1d1d;
+  font-size: 0.95rem;
+}
+
+/* compact version pinned in the sticky sidebar, visible in every section */
+.sidebar__mt {
+  display: block;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  border-left: 3px solid var(--danger);
+  border-radius: 0 8px 8px 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+/* --------------------------------------------------------------------------
+   17. Takeaways + footer
    -------------------------------------------------------------------------- */
 
 .takeaways {
@@ -1455,7 +1515,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   17. Responsive
+   18. Responsive
    -------------------------------------------------------------------------- */
 
 @media (max-width: 1100px) {
@@ -1538,7 +1598,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   18. Print / motion preferences
+   19. Print / motion preferences
    -------------------------------------------------------------------------- */
 
 @media print {
