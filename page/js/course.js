@@ -85,7 +85,7 @@ window.NLP_COURSE = {
     {
       id: "text-processing",
       num: 2,
-      file: null,
+      file: "02-text-processing.html",
       date: { en: "26 Aug 2026", kk: "26 тамыз 2026", ru: "26 августа 2026" },
       title: {
         en: "Text Processing",

@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text Processing | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 2: Text Processing — normalization, Tokenization, Lemmatization, stopwords, Bag of Words and TF-IDF, with Kazakhstan examples, an interactive lab and Python practice."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <!-- Mobile bar (visible below 1024px) ------------------------------- -->
+    <header class="mobile-bar">
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar"
+      >
+        ☰ Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/02-text-processing.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/02-text-processing.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/02-text-processing.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar: table of contents ------------------------------------ -->
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">
+          From Text Processing to Large Language Models
+        </p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/02-text-processing.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/02-text-processing.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/02-text-processing.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button
+        class="sidebar-backdrop"
+        type="button"
+        aria-label="Close contents"
+        tabindex="-1"
+      ></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- ==========================================================
+               Hero
+               ========================================================== -->
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 2</span>
+              <h1>Text Processing</h1>
+              <p class="hero__subtitle">
+                How a sentence becomes a row of numbers: normalization,
+                Tokenization, Lemmatization, and the first real text
+                representation — Bag of Words.
+              </p>
+              <p class="hero__date">26 August 2026</p>
+              <ul class="topic-chips">
+                <li>Tokenization</li>
+                <li>Lemmatization</li>
+                <li>Stopwords</li>
+                <li>Bag of Words</li>
+                <li>TF-IDF</li>
+                <li>N-grams</li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Learning goals
+               ========================================================== -->
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Build a pipeline</h3>
+                  <p>
+                    Take raw Kazakh or Russian text and walk it through
+                    normalization, Tokenization and Lemmatization.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Explain the choices</h3>
+                  <p>
+                    Say why a step helps, and what information it destroys —
+                    every step is a trade-off.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Vectorize text</h3>
+                  <p>
+                    Build a Bag of Words and a TF-IDF matrix by hand, and read
+                    what the numbers mean.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>See the limits</h3>
+                  <p>
+                    Show, with a Kazakh example, what Bag of Words cannot
+                    represent — and why embeddings come next.
+                  </p>
+                </div>
+              </div>
+
+              <div class="callout" style="margin-top: 32px">
+                <strong>How this lecture is organised.</strong> First the theory
+                — the whole pipeline, step by step. Then the practice — an
+                interactive lab, Python code you can run, and exercises.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               THEORY — the pipeline
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="pipeline">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The map</span>
+              <h2 id="pipeline">From raw text to numbers</h2>
+
+              <div class="definition">
+                <p>
+                  A Machine Learning model cannot read a sentence. It reads
+                  <strong>vectors of numbers</strong>. Text Processing is the
+                  chain of steps that turns one into the other — and everything
+                  in this lecture is one link in that chain.
+                </p>
+              </div>
+
+              <ul class="diagram" aria-label="The text processing pipeline">
+                <li>
+                  <span class="diagram__node">Raw text</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node">Normalization</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent">Tokenization</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node">Lemmatization</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node">Stopwords</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">Bag of Words / TF-IDF</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node">Model</span>
+                </li>
+              </ul>
+
+              <div class="kz-example">
+                <span class="kz-example__label">The same sentence at every step</span>
+                <dl class="kv">
+                  <dt>Raw</dt>
+                  <dd>"  Астанада ауа райы ЖАҚСЫ!!!  "</dd>
+                  <dt>Normalized</dt>
+                  <dd>"астанада ауа райы жақсы"</dd>
+                  <dt>Tokens</dt>
+                  <dd>["астанада", "ауа", "райы", "жақсы"]</dd>
+                  <dt>Lemmas</dt>
+                  <dd>["астана", "ауа", "рай", "жақсы"]</dd>
+                  <dt>Vector</dt>
+                  <dd>[0, 1, 1, 0, 0, 0, 1, 0, 1]</dd>
+                </dl>
+                <p style="margin-top: 16px">
+                  The last line is what the model actually sees. Everything we do
+                  today decides what ends up in it.
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>A rule for the whole lecture:</strong> every step both
+                <em>helps</em> and <em>destroys</em>. Lowercasing merges
+                <span class="token">Астана</span> and
+                <span class="token">астана</span> — and also merges the city with
+                any other meaning of the word. Choose each step for the task, not
+                out of habit.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Normalization
+               ========================================================== -->
+          <section class="section" aria-labelledby="normalization">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 1</span>
+              <h2 id="normalization">Normalization — making text comparable</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Normalization</strong> brings text that means the same
+                  thing into the same written form, so that a computer comparing
+                  strings sees them as equal.
+                </p>
+              </div>
+
+              <div class="grid" style="margin-top: 32px">
+                <div class="card">
+                  <h3>Case</h3>
+                  <p>
+                    <span class="token">Астана</span> and
+                    <span class="token">АСТАНА</span> are different strings until
+                    you lowercase them.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Whitespace</h3>
+                  <p>
+                    Tabs, double spaces and line breaks collapse into one space —
+                    the <span class="token">\s+</span> pattern from Lecture 1.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Punctuation</h3>
+                  <p>
+                    <span class="token">жақсы!!!</span> and
+                    <span class="token">жақсы</span> should usually count as the
+                    same word.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Unicode</h3>
+                  <p>
+                    The same letter can be stored in two ways; NFC normalization
+                    makes them identical byte for byte.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 48px">What this looks like in practice</h3>
+              <div class="example">
+                <span class="example__label">Three cleaning steps</span>
+                <div class="code-block" data-lang="text">
+                  <pre><code>"  Сәлем, ӘЛЕМ!!!   Бүгін   #NLP сабағы бар.  "</code></pre>
+                </div>
+                <div class="breakdown">
+                  <span class="breakdown__label">Piece by piece</span>
+                  <dl class="breakdown__list">
+                    <dt>lower()</dt>
+                    <dd>"сәлем, әлем!!! бүгін #nlp сабағы бар." — one case for everything</dd>
+                    <dt>[^\w\s] → " "</dt>
+                    <dd>punctuation and the <code>#</code> become spaces</dd>
+                    <dt>\s+ → " "</dt>
+                    <dd>the resulting runs of spaces collapse into one</dd>
+                    <dt>.strip()</dt>
+                    <dd>the spaces at the very start and end disappear</dd>
+                  </dl>
+                  <p class="breakdown__reading">
+                    <strong>Result:</strong>
+                    <code>сәлем әлем бүгін nlp сабағы бар</code>
+                  </p>
+                </div>
+                <p class="note">
+                  <strong>What we just lost:</strong> the hashtag
+                  <code>#NLP</code> became an ordinary word, and the exclamation
+                  marks — a strong signal for Sentiment Analysis — are gone. For
+                  a topic classifier that is fine. For emotion detection it is a
+                  mistake.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Kazakh needs extra care</h3>
+              <div class="kz-example">
+                <span class="kz-example__label">Traps specific to our texts</span>
+                <ul>
+                  <li>
+                    <strong>Two scripts.</strong> The same word may arrive in
+                    Cyrillic (<span class="token">Астана</span>) or in Latin
+                    (<span class="token">Astana</span>). To a vectorizer these are
+                    two unrelated terms.
+                  </li>
+                  <li>
+                    <strong>Look-alike letters.</strong> Cyrillic
+                    <span class="token">А, В, С, Е, О, Р</span> are visually
+                    identical to Latin <span class="token">A, B, C, E, O, P</span>
+                    but have different codes — the same problem we saw with
+                    vehicle plates.
+                  </li>
+                  <li>
+                    <strong>Kazakh-only letters.</strong>
+                    <span class="token">ә ғ қ ң ө ұ ү һ і</span> are sometimes
+                    typed as <span class="token">а г к н о у у х и</span> by
+                    people without a Kazakh keyboard.
+                  </li>
+                  <li>
+                    <strong>The letter і.</strong> Kazakh
+                    <span class="token">і</span> (U+0456) and Latin
+                    <span class="token">i</span> look the same in most fonts and
+                    are constantly mixed up in real data.
+                  </li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  None of this is exotic — it is what Kazakhstan text data
+                  actually looks like, and it is why normalization is never
+                  “just <code>.lower()</code>”.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Tokenization
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="tokenization">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 2</span>
+              <h2 id="tokenization">Tokenization — cutting text into units</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Tokenization</strong> splits text into
+                  <strong>tokens</strong> — the smallest units the model will
+                  count. A token is usually a word, but it does not have to be.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 40px">Attempt 1 — split on spaces</h3>
+              <div class="example">
+                <span class="example__label">The simplest tokenizer</span>
+                <div class="code-block" data-lang="python">
+                  <pre><code>text = "Сәлем, әлем! Бүгін NLP сабағы бар."
+print(text.split())</code></pre>
+                </div>
+                <div class="code-block" data-lang="output">
+                  <pre><code>['Сәлем,', 'әлем!', 'Бүгін', 'NLP', 'сабағы', 'бар.']</code></pre>
+                </div>
+                <p class="note">
+                  <strong>The problem is visible immediately:</strong>
+                  <code>Сәлем,</code> and <code>Сәлем</code> are now two different
+                  tokens, and so are <code>бар.</code> and <code>бар</code>. The
+                  vocabulary doubles for no reason.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 40px">Attempt 2 — a regex tokenizer</h3>
+              <div class="example">
+                <span class="example__label">Words only</span>
+                <div class="code-block" data-lang="python">
+                  <pre><code>import re
+
+text = "Сәлем, meeting сағат 15:00-де болады, Teams-ке кіресің бе?"
+print(re.findall(r"\w+", text))</code></pre>
+                </div>
+                <div class="code-block" data-lang="output">
+                  <pre><code>['Сәлем', 'meeting', 'сағат', '15', '00', 'де', 'болады', 'Teams', 'ке', 'кіресің', 'бе']</code></pre>
+                </div>
+                <p class="note">
+                  <strong>Better — but look closely.</strong> The time
+                  <code>15:00</code> broke into <code>15</code> and
+                  <code>00</code>; <code>Teams-ке</code> broke into
+                  <code>Teams</code> and the suffix <code>ке</code>. Neither is
+                  obviously wrong: it depends on whether your task cares about
+                  times and about Kazakh suffixes glued to English words.
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>There is no “correct” tokenizer.</strong> There is only a
+                tokenizer that fits the task. If you need times and phone numbers,
+                protect them with the Regex patterns from Lecture 1
+                <em>before</em> splitting into words.
+              </div>
+
+              <h3 style="margin-top: 44px">Hard cases in Kazakhstan text</h3>
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">Tokenization decisions</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Input</th>
+                      <th scope="col">Naive result</th>
+                      <th scope="col">The decision you have to make</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>15:00-де</code></td>
+                      <td><code>15</code>, <code>00</code>, <code>де</code></td>
+                      <td>keep the time as one token, or drop it entirely?</td>
+                    </tr>
+                    <tr>
+                      <td><code>+7 701 123 45 67</code></td>
+                      <td>five separate numbers</td>
+                      <td>replace with a <code>&lt;PHONE&gt;</code> placeholder</td>
+                    </tr>
+                    <tr>
+                      <td><code>Teams-ке</code></td>
+                      <td><code>Teams</code>, <code>ке</code></td>
+                      <td>is the suffix noise, or a grammatical signal?</td>
+                    </tr>
+                    <tr>
+                      <td><code>#NLP</code></td>
+                      <td><code>NLP</code></td>
+                      <td>hashtags often deserve their own token type</td>
+                    </tr>
+                    <tr>
+                      <td><code>Қасым-Жомарт</code></td>
+                      <td><code>Қасым</code>, <code>Жомарт</code></td>
+                      <td>a hyphenated name is one entity, not two</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 style="margin-top: 44px">Sentence tokenization</h3>
+              <p class="narrow">
+                Splitting into sentences is a separate task, and the naive
+                “split at every dot” fails on abbreviations and initials —
+                <span class="token">А. Құнанбайұлы</span> is not two sentences. We
+                already met the careful version in Lecture 1 with a lookbehind.
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Subword tokenization
+               ========================================================== -->
+          <section class="section" aria-labelledby="subword">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 2b</span>
+              <h2 id="subword">Subword tokens — why modern models split words</h2>
+
+              <p class="narrow lead">
+                Kazakh has a problem that English does not: one root produces an
+                enormous number of surface forms, so a word-level vocabulary
+                never stops growing.
+              </p>
+
+              <div class="kz-example">
+                <span class="kz-example__label">One root, many entries</span>
+                <p>
+                  For a word-level vocabulary these are five unrelated terms:
+                </p>
+                <ul class="chips" style="margin-bottom: 12px">
+                  <li><span class="chip">кітап</span></li>
+                  <li><span class="chip">кітаптар</span></li>
+                  <li><span class="chip">кітаптарым</span></li>
+                  <li><span class="chip">кітапхана</span></li>
+                  <li><span class="chip">кітаптарымыздан</span></li>
+                </ul>
+                <p style="margin-bottom: 0">
+                  Multiply that by every noun in the language and the vocabulary
+                  explodes. Worse, a form the model never saw during training is
+                  simply unknown — the <strong>out-of-vocabulary</strong> problem.
+                </p>
+              </div>
+
+              <p class="narrow" style="margin-top: 28px">
+                The modern answer is to make the tokens smaller than words. A
+                <strong>subword</strong> tokenizer learns frequent character
+                sequences from the data and splits rare words into known pieces:
+              </p>
+
+              <ul class="diagram">
+                <li>
+                  <span class="diagram__node">кітаптарымыздан</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">кітап</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">тар</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">ымыз</span>
+                  <span class="diagram__arrow" aria-hidden="true">+</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">дан</span>
+                </li>
+              </ul>
+
+              <div class="callout">
+                <strong>An illustration, not a real model output.</strong> The
+                exact pieces depend on the corpus the tokenizer was trained on.
+                The important idea is that an unseen word is still representable,
+                because its parts are known. <strong>BPE</strong> (used by GPT
+                models) and <strong>WordPiece</strong> (used by BERT) are the two
+                algorithms you will meet again in the Transformers lectures.
+              </div>
+
+              <p class="narrow">
+                For today we stay with word-level tokens: they are what Bag of
+                Words needs, and they are easy to inspect by eye.
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Stemming and lemmatization
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="lemmatization"
+          >
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 3</span>
+              <h2 id="lemmatization">Stemming and Lemmatization</h2>
+
+              <p class="narrow lead">
+                Both answer the same question: how do we make
+                <span class="token">кітап</span> and
+                <span class="token">кітаптарымыздан</span> count as one thing?
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <div class="card">
+                  <h3>Stemming</h3>
+                  <p>
+                    Cuts the ending off by rules. Fast, crude, and the result is
+                    often not a real word: English <code>studies</code> →
+                    <code>studi</code>.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Lemmatization</h3>
+                  <p>
+                    Returns the <strong>lemma</strong> — the dictionary form —
+                    using a dictionary and grammar: <code>studies</code> →
+                    <code>study</code>, <code>кітаптарым</code> →
+                    <code>кітап</code>.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 44px">Why naive stemming fails in Kazakh</h3>
+              <div class="example">
+                <span class="example__label">“Just cut three characters”</span>
+                <div class="code-block" data-lang="python">
+                  <pre><code>forms = ["кітап", "кітаптар", "кітаптарым", "кітаптарымыздан"]
+print([f[:-3] for f in forms])</code></pre>
+                </div>
+                <div class="code-block" data-lang="output">
+                  <pre><code>['кі', 'кітап', 'кітапта', 'кітаптарымыз']</code></pre>
+                </div>
+                <p class="note">
+                  <strong>Four different results for one root.</strong> The rule
+                  destroys the short word (<code>кітап</code> → <code>кі</code>)
+                  and barely touches the long one. Correct lemmatization returns
+                  <code>кітап</code> for all four.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 40px">The morphology behind it</h3>
+              <div class="kz-example">
+                <span class="kz-example__label">кітаптарымыздан, piece by piece</span>
+                <div class="breakdown">
+                  <span class="breakdown__label">Suffix by suffix</span>
+                  <dl class="breakdown__list">
+                    <dt>кітап</dt>
+                    <dd>the root — “book”</dd>
+                    <dt>-тар</dt>
+                    <dd>plural</dd>
+                    <dt>-ымыз</dt>
+                    <dd>possessive, “our”</dd>
+                    <dt>-дан</dt>
+                    <dd>ablative case, “from”</dd>
+                  </dl>
+                  <p class="breakdown__reading">
+                    <strong>In words:</strong> “from our books” — one Kazakh word
+                    where English needs three.
+                  </p>
+                </div>
+                <p class="note">
+                  <strong>And the suffixes themselves change shape.</strong> The
+                  ablative appears as <code>-дан</code>, <code>-ден</code>,
+                  <code>-тан</code>, <code>-тен</code>, <code>-нан</code> or
+                  <code>-нен</code> depending on the sounds before it — vowel
+                  harmony and consonant assimilation. A list of endings is not
+                  enough; you need a morphological analyser.
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>Practical note.</strong> For English, stemming is often
+                good enough. For Russian there are mature analysers. For Kazakh
+                the tooling is thinner — which is exactly why subword tokenization
+                is so attractive for agglutinative languages, and why Kazakh NLP
+                is an open field for your own work.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Stopwords
+               ========================================================== -->
+          <section class="section" aria-labelledby="stopwords">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 4</span>
+              <h2 id="stopwords">Stopwords — removing the filler</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Stopwords</strong> are very frequent words that carry
+                  little meaning on their own: <span class="token">және</span>,
+                  <span class="token">бұл</span>, <span class="token">ол</span>,
+                  <span class="token">и</span>, <span class="token">в</span>,
+                  <span class="token">the</span>, <span class="token">of</span>.
+                </p>
+              </div>
+
+              <div class="example">
+                <span class="example__label">Before and after</span>
+                <div class="code-block" data-lang="python">
+                  <pre><code>import re
+
+STOP = {"және", "бұл", "ол", "да", "де", "мен", "бен"}
+
+text = "Астана және Алматы бұл үлкен қалалар"
+tokens = re.findall(r"\w+", text.lower())
+kept = [w for w in tokens if w not in STOP]
+
+print("tokens:", tokens)
+print("kept  :", kept)</code></pre>
+                </div>
+                <div class="code-block" data-lang="output">
+                  <pre><code>tokens: ['астана', 'және', 'алматы', 'бұл', 'үлкен', 'қалалар']
+kept  : ['астана', 'алматы', 'үлкен', 'қалалар']</code></pre>
+                </div>
+                <p class="note">
+                  Six tokens became four, and nothing important was lost — for a
+                  topic classifier.
+                </p>
+              </div>
+
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Now the dangerous case.</strong> Many Kazakh stopword
+                lists contain <span class="token">емес</span> — “not”. Remove it
+                and <span class="token">ауа райы жақсы емес</span> (“the weather
+                is not good”) becomes
+                <span class="token">ауа райы жақсы</span> — the exact opposite.
+                For Sentiment Analysis that single deletion inverts the label.
+              </div>
+
+              <p class="narrow">
+                Rules of thumb: remove stopwords for topic classification and
+                keyword search, keep them for sentiment, negation, question
+                detection, and anything where grammar matters. And always look at
+                the list before you use it.
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Bag of Words
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="bag-of-words">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 5</span>
+              <h2 id="bag-of-words">Bag of Words — the first vector</h2>
+
+              <div class="definition">
+                <p>
+                  <strong>Bag of Words</strong> represents a document as a count
+                  of its words. You build a vocabulary of every term in the
+                  collection, then each document becomes a row of counts — one
+                  column per term. Word order is thrown away; that is why it is a
+                  “bag”.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 40px">Worked example — three sentences</h3>
+              <div class="code-block" data-lang="text">
+                <pre><code>D1: Астанада ауа райы жақсы
+D2: Алматыда ауа райы жақсы емес
+D3: Астанада бүгін жаңбыр жауды</code></pre>
+              </div>
+
+              <p><strong>Step 1 — tokenize and lowercase:</strong></p>
+              <div class="code-block" data-lang="output">
+                <pre><code>D1: ['астанада', 'ауа', 'райы', 'жақсы']
+D2: ['алматыда', 'ауа', 'райы', 'жақсы', 'емес']
+D3: ['астанада', 'бүгін', 'жаңбыр', 'жауды']</code></pre>
+              </div>
+
+              <p>
+                <strong>Step 2 — collect the vocabulary</strong> (every distinct
+                term, sorted):
+              </p>
+              <div class="code-block" data-lang="output">
+                <pre><code>['алматыда', 'астанада', 'ауа', 'бүгін', 'емес', 'жауды', 'жақсы', 'жаңбыр', 'райы']</code></pre>
+              </div>
+              <p class="narrow">
+                Nine terms — so every document becomes a vector of nine numbers,
+                whatever its length.
+              </p>
+
+              <p><strong>Step 3 — count:</strong></p>
+              <div class="table-wrap">
+                <table class="matrix">
+                  <caption class="visually-hidden">Document-term matrix</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col"></th>
+                      <th scope="col">алматыда</th>
+                      <th scope="col">астанада</th>
+                      <th scope="col">ауа</th>
+                      <th scope="col">бүгін</th>
+                      <th scope="col">емес</th>
+                      <th scope="col">жауды</th>
+                      <th scope="col">жақсы</th>
+                      <th scope="col">жаңбыр</th>
+                      <th scope="col">райы</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>D1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                    </tr>
+                    <tr>
+                      <td>D2</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                    </tr>
+                    <tr>
+                      <td>D3</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                      <td class="is-hit">1</td>
+                      <td class="is-zero">0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="narrow">
+                That table is the whole idea. Three sentences are now three
+                vectors, and a model can measure how similar they are by comparing
+                the rows.
+              </p>
+
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Look at D1 and D2.</strong> They differ in exactly two
+                positions — <code>алматыда</code> and <code>емес</code> — yet one
+                says the weather is good and the other says it is not. Bag of
+                Words has no idea that <code>емес</code> negates the sentence,
+                because it never sees which word it stands next to. Remember this
+                when we reach n-grams.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               TF-IDF
+               ========================================================== -->
+          <section class="section" aria-labelledby="tfidf">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 6</span>
+              <h2 id="tfidf">TF-IDF — not all words are equally useful</h2>
+
+              <p class="narrow lead">
+                In raw counts, a word that appears in every document weighs as
+                much as a word that appears in one. But the rare word is what
+                makes a document distinctive.
+              </p>
+
+              <div class="definition">
+                <p>
+                  <strong>TF-IDF</strong> multiplies how often a term appears in
+                  <em>this</em> document by how rare it is across
+                  <em>all</em> documents.
+                </p>
+              </div>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <div class="card">
+                  <h3>TF — term frequency</h3>
+                  <p>
+                    How often the term occurs in this document, usually divided by
+                    the document length:
+                    <span class="token">tf = count / total tokens</span>
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>IDF — inverse document frequency</h3>
+                  <p>
+                    How rare the term is in the collection:
+                    <span class="token">idf = ln(N / df)</span>, where
+                    <span class="token">df</span> is the number of documents
+                    containing it.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 44px">The same three sentences, in numbers</h3>
+              <p><strong>Document frequency</strong> (N = 3 documents):</p>
+              <div class="code-block" data-lang="output">
+                <pre><code>ауа: 2   райы: 2   жақсы: 2   астанада: 2
+алматыда: 1   емес: 1   бүгін: 1   жаңбыр: 1   жауды: 1</code></pre>
+              </div>
+
+              <p><strong>IDF:</strong></p>
+              <div class="code-block" data-lang="output">
+                <pre><code>ln(3/2) = 0.405   → ауа, райы, жақсы, астанада
+ln(3/1) = 1.099   → алматыда, емес, бүгін, жаңбыр, жауды</code></pre>
+              </div>
+
+              <p>
+                <strong>TF-IDF for D2</strong>
+                (<code>алматыда ауа райы жақсы емес</code>, 5 tokens):
+              </p>
+              <div class="table-wrap">
+                <table>
+                  <caption class="visually-hidden">TF-IDF values for D2</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Term</th>
+                      <th scope="col">tf</th>
+                      <th scope="col">idf</th>
+                      <th scope="col">tf × idf</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>алматыда</code></td>
+                      <td>1/5 = 0.2</td>
+                      <td>1.099</td>
+                      <td><strong>0.220</strong></td>
+                    </tr>
+                    <tr>
+                      <td><code>емес</code></td>
+                      <td>1/5 = 0.2</td>
+                      <td>1.099</td>
+                      <td><strong>0.220</strong></td>
+                    </tr>
+                    <tr>
+                      <td><code>ауа</code></td>
+                      <td>1/5 = 0.2</td>
+                      <td>0.405</td>
+                      <td>0.081</td>
+                    </tr>
+                    <tr>
+                      <td><code>райы</code></td>
+                      <td>1/5 = 0.2</td>
+                      <td>0.405</td>
+                      <td>0.081</td>
+                    </tr>
+                    <tr>
+                      <td><code>жақсы</code></td>
+                      <td>1/5 = 0.2</td>
+                      <td>0.405</td>
+                      <td>0.081</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p class="narrow">
+                Every term occurs once, so plain Bag of Words would give them all
+                the same weight. TF-IDF says the two words that actually
+                distinguish this sentence — <code>алматыда</code> and
+                <code>емес</code> — matter almost three times more.
+              </p>
+
+              <div class="callout">
+                <strong>A word that appears in every document gets idf = ln(1) =
+                0</strong> — its weight becomes exactly zero. TF-IDF quietly does
+                the job of a stopword list, learned from your own data instead of
+                taken from someone else's.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               N-grams
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="ngrams">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Step 7</span>
+              <h2 id="ngrams">N-grams — putting a little order back</h2>
+
+              <div class="definition">
+                <p>
+                  An <strong>n-gram</strong> is a sequence of n neighbouring
+                  tokens. Counting bigrams (n = 2) instead of, or alongside,
+                  single words gives the model a small window of context.
+                </p>
+              </div>
+
+              <div class="example">
+                <span class="example__label">Bigrams of D2</span>
+                <div class="code-block" data-lang="python">
+                  <pre><code>import re
+
+tokens = re.findall(r"\w+", "Алматыда ауа райы жақсы емес".lower())
+bigrams = [" ".join(pair) for pair in zip(tokens, tokens[1:])]
+
+print(bigrams)</code></pre>
+                </div>
+                <div class="code-block" data-lang="output">
+                  <pre><code>['алматыда ауа', 'ауа райы', 'райы жақсы', 'жақсы емес']</code></pre>
+                </div>
+                <p class="note">
+                  <strong>There it is:</strong> <code>жақсы емес</code> is now a
+                  single feature. A classifier can learn that this bigram means
+                  something different from <code>жақсы</code> — the negation
+                  problem from the Bag of Words section is solved, at least for
+                  neighbouring words.
+                </p>
+              </div>
+
+              <div class="callout">
+                <strong>The price.</strong> Vocabulary grows fast: a corpus with
+                50 000 distinct words has up to 2.5 billion possible bigrams. In
+                practice you keep only bigrams that occur often enough —
+                <code>min_df</code> in scikit-learn — and accept that longer
+                dependencies (“<em>жақсы</em> деп айтуға <em>болмайды</em>”) stay
+                out of reach until we have models that read sequences.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Limits
+               ========================================================== -->
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The honest summary</span>
+              <h2 id="limits">What Bag of Words cannot do</h2>
+
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Order is gone</h3>
+                  <p>
+                    <span class="token">ит адамды қапты</span> and
+                    <span class="token">адам итті қапты</span> can produce almost
+                    the same vector, although only one of them is news.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Meaning is gone</h3>
+                  <p>
+                    <span class="token">дәрігер</span> and
+                    <span class="token">емші</span> are as unrelated to the model
+                    as <span class="token">дәрігер</span> and
+                    <span class="token">трактор</span> — different columns, no
+                    connection.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Unknown words are invisible</h3>
+                  <p>
+                    A word missing from the vocabulary simply does not exist. In
+                    an agglutinative language that happens constantly.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Vectors are huge and empty</h3>
+                  <p>
+                    A vocabulary of 50 000 terms gives every short message a
+                    50 000-long vector where almost every value is zero.
+                  </p>
+                </div>
+              </div>
+
+              <ul class="diagram" style="margin-top: 36px">
+                <li>
+                  <span class="diagram__node">Bag of Words</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node">TF-IDF</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--soft">Word Embeddings</span>
+                  <span class="diagram__arrow" aria-hidden="true">→</span>
+                </li>
+                <li>
+                  <span class="diagram__node diagram__node--accent">Transformers</span>
+                </li>
+              </ul>
+
+              <p class="narrow">
+                Each arrow fixes a limitation of the step before it. Embeddings
+                give words that share meaning similar vectors; Transformers bring
+                back the order. But TF-IDF is still a strong, cheap baseline —
+                and in the next lecture we will train a real classifier on exactly
+                these vectors.
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               PRACTICE — interactive lab
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Interactive</span>
+              <h2 id="lab">Text-processing lab</h2>
+              <p class="narrow lead">
+                One document per line. Switch the steps on and off and watch both
+                the tokens and the Bag of Words matrix change. Removed stopwords
+                stay visible, crossed out, so you can see exactly what you threw
+                away.
+              </p>
+
+              <div class="textlab" data-textlab style="margin-top: 28px">
+                <div class="regex-playground__presets">
+                  <button
+                    class="btn"
+                    type="button"
+                    data-tl-preset="Астанада ауа райы жақсы\nАлматыда ауа райы жақсы емес\nАстанада бүгін жаңбыр жауды"
+                  >
+                    Weather
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-tl-preset="Kaspi аударымым неге өтпей жатыр?\nЖеке куәлікті қалай ауыстыруға болады?\nАударым өтпей тұр, көмектесіңіз"
+                  >
+                    Support requests
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-tl-preset="кітап оқыдым\nкітаптарды оқыдым\nкітаптарымыздан оқыдым"
+                  >
+                    One root, many forms
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    data-tl-preset="Астана және Алматы бұл үлкен қалалар\nБұл кітап және дәптер\nОл және мен Астанада тұрамыз"
+                  >
+                    Stopwords visible
+                  </button>
+                </div>
+
+                <div class="field">
+                  <label for="tl-input">Documents — one per line</label>
+                  <textarea id="tl-input" spellcheck="false" data-tl-input>
+Астанада ауа райы жақсы
+Алматыда ауа райы жақсы емес
+Астанада бүгін жаңбыр жауды</textarea
+                  >
+                </div>
+
+                <div class="textlab__controls">
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-tl-lower checked />
+                    lowercase
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-tl-punct checked />
+                    drop punctuation
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-tl-stop />
+                    remove stopwords
+                  </label>
+                  <label class="flag-toggle">
+                    <input type="checkbox" data-tl-bigrams />
+                    add bigrams
+                  </label>
+                </div>
+
+                <p class="textlab__step">Tokens</p>
+                <p class="textlab__meta" data-tl-meta role="status"></p>
+                <div data-tl-docs></div>
+
+                <p class="textlab__step">Bag of Words</p>
+                <div class="table-wrap" data-tl-matrix></div>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <strong>Try this:</strong> load <em>One root, many forms</em> and
+                look at the vocabulary — three sentences about the same thing
+                produce three unrelated columns. That single screen is the
+                argument for Lemmatization and for subword tokens.
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               PRACTICE — Python
+               ========================================================== -->
+          <section class="section" aria-labelledby="python">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Code</span>
+              <h2 id="python">Building the pipeline in Python</h2>
+              <p class="narrow lead">
+                Every output below is the real output of the code above it. Run
+                them in order and you will have written a working text-processing
+                pipeline from scratch.
+              </p>
+
+              <h3 style="margin-top: 40px">1 · A normalization function</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+def normalize(text):
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+raw = "  Сәлем, ӘЛЕМ!!!   Бүгін   #NLP сабағы бар.  "
+print(repr(normalize(raw)))
+print(normalize(raw).split())</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>'сәлем әлем бүгін nlp сабағы бар'
+['сәлем', 'әлем', 'бүгін', 'nlp', 'сабағы', 'бар']</code></pre>
+              </div>
+              <p class="note">
+                <strong>Order matters:</strong> punctuation is replaced with a
+                <em>space</em>, not with nothing — otherwise
+                <code>жақсы,бүгін</code> would glue into one token. Only then do
+                we collapse the spaces.
+              </p>
+
+              <h3 style="margin-top: 40px">2 · Counting words</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+text = "ауа райы жақсы, ауа райы керемет"
+tokens = re.findall(r"\w+", text.lower())
+bow = Counter(tokens)
+
+print(bow)
+print(bow["ауа"], bow["жаңбыр"])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Counter({'ауа': 2, 'райы': 2, 'жақсы': 1, 'керемет': 1})
+2 0</code></pre>
+              </div>
+              <p class="note">
+                <code>Counter</code> is a Bag of Words for a single document.
+                Asking for a missing key returns <code>0</code> instead of raising
+                — convenient, and exactly the behaviour a vectorizer needs.
+              </p>
+
+              <h3 style="margin-top: 40px">3 · A document-term matrix by hand</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+
+print("vocabulary:", vocab)
+for i, t in enumerate(tokens, 1):
+    counts = Counter(t)
+    print(f"D{i}:", [counts[w] for w in vocab])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>vocabulary: ['алматыда', 'астанада', 'ауа', 'бүгін', 'емес', 'жауды', 'жақсы', 'жаңбыр', 'райы']
+D1: [0, 1, 1, 0, 0, 0, 1, 0, 1]
+D2: [1, 0, 1, 0, 1, 0, 1, 0, 1]
+D3: [0, 1, 0, 1, 0, 1, 0, 1, 0]</code></pre>
+              </div>
+              <p class="note">
+                This is the whole of <code>CountVectorizer</code> in seven lines.
+                The <code>sorted()</code> call matters: the column order must be
+                the same for every document, otherwise the vectors are not
+                comparable.
+              </p>
+
+              <h3 style="margin-top: 40px">4 · Stopwords</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+STOP = {"және", "бұл", "ол", "да", "де", "мен", "бен"}
+
+text = "Астана және Алматы бұл үлкен қалалар"
+tokens = re.findall(r"\w+", text.lower())
+kept = [w for w in tokens if w not in STOP]
+
+print("tokens:", tokens)
+print("kept  :", kept)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>tokens: ['астана', 'және', 'алматы', 'бұл', 'үлкен', 'қалалар']
+kept  : ['астана', 'алматы', 'үлкен', 'қалалар']</code></pre>
+              </div>
+              <p class="note">
+                <code>STOP</code> is a <code>set</code>, not a list, on purpose:
+                checking membership in a set is instant, while a list is scanned
+                item by item — on a million tokens the difference is minutes.
+              </p>
+
+              <h3 style="margin-top: 40px">5 · TF-IDF from scratch</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re, math
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+N = len(docs)
+
+df = {w: sum(1 for t in tokens if w in t) for w in vocab}
+idf = {w: math.log(N / df[w]) for w in vocab}
+
+counts = Counter(tokens[1])
+tfidf = {w: round(counts[w] / len(tokens[1]) * idf[w], 3)
+         for w in vocab if counts[w]}
+
+print("df :", df)
+print("D2 :", tfidf)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>df : {'алматыда': 1, 'астанада': 2, 'ауа': 2, 'бүгін': 1, 'емес': 1, 'жауды': 1, 'жақсы': 2, 'жаңбыр': 1, 'райы': 2}
+D2 : {'алматыда': 0.22, 'ауа': 0.081, 'емес': 0.22, 'жақсы': 0.081, 'райы': 0.081}</code></pre>
+              </div>
+              <p class="note">
+                The same numbers as the table in the theory part — now produced by
+                six lines of code. <code>sum(1 for t in tokens if w in t)</code>
+                counts <em>documents</em> containing the word, not occurrences:
+                that distinction is the whole of <code>df</code>.
+              </p>
+
+              <h3 style="margin-top: 40px">6 · Bigrams</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+tokens = re.findall(r"\w+", "Алматыда ауа райы жақсы емес".lower())
+bigrams = [" ".join(pair) for pair in zip(tokens, tokens[1:])]
+
+print(bigrams)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['алматыда ауа', 'ауа райы', 'райы жақсы', 'жақсы емес']</code></pre>
+              </div>
+              <p class="note">
+                <code>zip(tokens, tokens[1:])</code> pairs every token with the
+                next one — a two-word sliding window in one line. For trigrams,
+                add <code>tokens[2:]</code>.
+              </p>
+
+              <h3 style="margin-top: 40px">7 · The same thing with scikit-learn</h3>
+              <p class="narrow">
+                In real projects you do not write the vectorizer yourself. The
+                library does the tokenizing, the vocabulary and the counting:
+              </p>
+              <div class="code-block" data-lang="python">
+                <pre><code>from sklearn.feature_extraction.text import CountVectorizer
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+vec = CountVectorizer()
+X = vec.fit_transform(docs)
+
+print(vec.get_feature_names_out())
+print(X.toarray())</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['алматыда' 'астанада' 'ауа' 'бүгін' 'емес' 'жауды' 'жақсы' 'жаңбыр' 'райы']
+[[0 1 1 0 0 0 1 0 1]
+ [1 0 1 0 1 0 1 0 1]
+ [0 1 0 1 0 1 0 1 0]]</code></pre>
+              </div>
+              <p class="note">
+                <strong>Identical to what we built by hand</strong> — because the
+                defaults do the same thing: lowercase, then the token pattern
+                <code>(?u)\b\w\w+\b</code>, then a sorted vocabulary.
+                <strong>Watch that pattern:</strong> it requires
+                <em>two or more</em> word characters, so one-letter tokens are
+                silently dropped. Pass
+                <code>token_pattern=r"(?u)\b\w+\b"</code> if you need them.
+              </p>
+
+              <h3 style="margin-top: 40px">8 · TF-IDF and bigrams with scikit-learn</h3>
+              <div class="code-block" data-lang="python">
+                <pre><code>from sklearn.feature_extraction.text import TfidfVectorizer
+
+vec = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+X = vec.fit_transform(docs)
+
+print(len(vec.get_feature_names_out()), "features")
+print(vec.get_feature_names_out()[:6])</code></pre>
+              </div>
+              <p class="note">
+                <code>ngram_range=(1, 2)</code> keeps single words
+                <em>and</em> bigrams, so <code>жақсы емес</code> becomes its own
+                feature. <code>min_df</code> drops rare features. Note that
+                scikit-learn's TF-IDF is not exactly the textbook formula: it uses
+                a smoothed <code>idf = ln((1 + N) / (1 + df)) + 1</code> and then
+                normalises each row to length 1, so its numbers are larger than
+                ours but the ranking of terms is the same.
+              </p>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Knowledge check — in class
+               ========================================================== -->
+          <section
+            class="section section--surface"
+            aria-labelledby="knowledge-check"
+          >
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">
+                Five questions to answer together before we finish.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">Name the steps that turn "  Астанада ауа райы ЖАҚСЫ!!!  " into a vector, in order.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Normalization → Tokenization → (Lemmatization) →
+                      (stopword removal) → vectorization with Bag of Words or
+                      TF-IDF. The middle two are optional and depend on the task.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">Why does cutting three characters off every word fail for Kazakh?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because the suffixes have different lengths and change shape
+                      with vowel harmony. The rule destroys <code>кітап</code>
+                      (→ <code>кі</code>) and leaves
+                      <code>кітаптарымыздан</code> almost untouched — one root
+                      ends up as four different features.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">D1: ауа райы жақсы
+D2: ауа райы жақсы емес
+
+Why can Bag of Words not tell these apart properly, and what fixes it?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The vectors differ by a single count, because word order and
+                      adjacency are lost — <code>емес</code> is just another
+                      column. Bigrams fix it: <code>жақсы емес</code> becomes one
+                      feature that a classifier can learn separately.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">A term appears in all three documents. What is its idf, and what does that mean?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <code>ln(3/3) = ln(1) = 0</code>, so its TF-IDF weight is
+                      zero in every document. A word that is everywhere
+                      distinguishes nothing — TF-IDF removes it automatically,
+                      without any stopword list.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">You are building sentiment analysis for customer reviews in Kazakh. Which pipeline steps would you skip, and why?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Keep stopwords — especially <code>емес</code>, which carries
+                      the negation. Keep punctuation, or at least the exclamation
+                      marks, as an emotion signal. Add bigrams. Lowercasing is
+                      usually safe, though ALL CAPS is itself a signal worth
+                      keeping as a separate feature.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Practice tasks + self-check quiz
+               ========================================================== -->
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Do these on your own. Use the lab above and a Python file — most
+                of them take under ten lines.
+              </p>
+
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Task 1 — Normalize</h3>
+                  <p class="challenge__task">Write normalize() that lowercases, removes punctuation and collapses whitespace, then run it on:
+
+"  АЛМАТЫ — Қазақстанның  ең ІРІ қаласы!!!  "</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The function from example 1 gives
+                      <code>'алматы қазақстанның ең ірі қаласы'</code>. Note that
+                      the dash is punctuation too, so it becomes a space and then
+                      disappears with <code>\s+</code>.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 2 — Count the vocabulary</h3>
+                  <p class="challenge__task">How many distinct terms are in these two documents together?
+
+D1: ауа райы жақсы
+D2: ауа райы нашар</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Four. Sorted, the vocabulary is
+                      <code>['ауа', 'жақсы', 'нашар', 'райы']</code>, so
+                      D1 = <code>[1, 1, 0, 1]</code> and
+                      D2 = <code>[1, 0, 1, 1]</code> — two words shared, one
+                      each that differs.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 3 — Protect the phone number</h3>
+                  <p class="challenge__task">Tokenize this so the phone number stays one token:
+
+"Хабарласыңыз: +7 701 123 45 67"</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Replace it before tokenizing:
+                      <code>re.sub(r"\+7[\s\d]+", "&lt;PHONE&gt;", text)</code>,
+                      then split into words. The placeholder survives as a single
+                      feature and the digits stop polluting the vocabulary.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 4 — Break the stopword list</h3>
+                  <p class="challenge__task">Find a Kazakh sentence whose meaning is inverted by removing a stopword. Explain which task this would break.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Any negation:
+                      <code>тамақ дәмді емес</code> → <code>тамақ дәмді</code>.
+                      It breaks Sentiment Analysis, review classification, and
+                      complaint routing — every task where polarity is the label.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 5 — idf by hand</h3>
+                  <p class="challenge__task">A collection has 100 documents. A term appears in 10 of them. What is its idf with ln(N/df)?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <code>ln(100/10) = ln(10) ≈ 2.303</code>. A term in 50
+                      documents would give <code>ln(2) ≈ 0.693</code> — over three
+                      times less weight.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 6 — Bigrams</h3>
+                  <p class="challenge__task">Produce all bigrams of:
+
+"Астанада бүгін жаңбыр жауды"</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <code>['астанада бүгін', 'бүгін жаңбыр', 'жаңбыр жауды']</code>
+                      — three bigrams from four tokens. In general, n tokens give
+                      n − 1 bigrams.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 7 — Lemmatization by hand</h3>
+                  <p class="challenge__task">Give the lemma of each form and say which suffixes you removed:
+
+қалалар · қаладан · қалаларымызда</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      All three reduce to <code>қала</code> — “city”.
+                      <code>-лар</code> plural, <code>-дан</code> ablative,
+                      <code>-лар</code> + <code>-ымыз</code> possessive +
+                      <code>-да</code> locative.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 8 — Compare two vectorizers</h3>
+                  <p class="challenge__task">Run CountVectorizer and TfidfVectorizer on the same three weather sentences. Which term gets the highest weight in D2, and why?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      With counts every term ties at 1. With TF-IDF
+                      <code>алматыда</code> and <code>емес</code> win, because
+                      they appear in only one document out of three and therefore
+                      carry the highest idf.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 9 — The vocabulary explosion</h3>
+                  <p class="challenge__task">Load the "One root, many forms" preset in the lab. How many columns appear, and how many should there ideally be?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Four columns — <code>кітап</code>, <code>кітаптарды</code>,
+                      <code>кітаптарымыздан</code>, <code>оқыдым</code> — where a
+                      lemmatized pipeline would give two:
+                      <code>кітап</code> and <code>оқы</code>. That is the cost of
+                      skipping Lemmatization in an agglutinative language.
+                    </p>
+                  </details>
+                </article>
+
+                <article class="challenge">
+                  <h3>Task 10 — Design a pipeline</h3>
+                  <p class="challenge__task">Design the pipeline for classifying eGov questions by topic. List every step and justify each one in a sentence.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      A defensible answer: replace phone numbers and IIN-like
+                      digits with placeholders (privacy, and they carry no topic);
+                      lowercase; drop punctuation; remove stopwords (topic, not
+                      sentiment); lemmatize if a Kazakh analyser is available;
+                      TF-IDF with <code>ngram_range=(1, 2)</code> and
+                      <code>min_df=2</code> to keep the matrix small.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Self-check quiz</h3>
+              <p class="narrow lead">
+                Ten questions with instant feedback.
+              </p>
+
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">What is a token?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">always exactly one word</button>
+                    <button class="quiz__option" type="button" data-correct>the smallest unit the model counts — a word, a subword or a symbol</button>
+                    <button class="quiz__option" type="button">one sentence</button>
+                    <button class="quiz__option" type="button">one character</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    A token is whatever unit you decide to count. Word-level today,
+                    subword in the Transformer lectures.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Why is <code>text.split()</code> a poor tokenizer?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">it is too slow</button>
+                    <button class="quiz__option" type="button" data-correct>punctuation stays glued to words, so <code>бар.</code> and <code>бар</code> become different tokens</button>
+                    <button class="quiz__option" type="button">it does not work with Cyrillic</button>
+                    <button class="quiz__option" type="button">it removes stopwords automatically</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    It splits on whitespace only, so every punctuation mark creates
+                    a new vocabulary entry.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Which pair shows Lemmatization rather than stemming?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">кітаптарым → кітапта</button>
+                    <button class="quiz__option" type="button" data-correct>кітаптарым → кітап</button>
+                    <button class="quiz__option" type="button">studies → studi</button>
+                    <button class="quiz__option" type="button">жақсы → жақс</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Lemmatization returns a real dictionary form. The others are
+                    truncations that leave non-words behind.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">What does Bag of Words throw away?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">the words themselves</button>
+                    <button class="quiz__option" type="button">the number of documents</button>
+                    <button class="quiz__option" type="button" data-correct>word order and therefore context</button>
+                    <button class="quiz__option" type="button">the vocabulary</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Counts survive, order does not — which is why negation is
+                    invisible to it.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Three documents, a term appears in all three. Its idf with ln(N/df) is…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">1.099</button>
+                    <button class="quiz__option" type="button" data-correct>0</button>
+                    <button class="quiz__option" type="button">0.405</button>
+                    <button class="quiz__option" type="button">3</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    ln(3/3) = ln(1) = 0. A term that is everywhere gets zero weight.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Which term has the highest idf in a collection of 3 documents?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">one appearing in all 3</button>
+                    <button class="quiz__option" type="button">one appearing in 2</button>
+                    <button class="quiz__option" type="button" data-correct>one appearing in 1</button>
+                    <button class="quiz__option" type="button">idf does not depend on that</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    The rarer the term, the higher the idf: ln(3/1) = 1.099 against
+                    ln(3/2) = 0.405.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Removing <code>емес</code> from Kazakh text is dangerous because…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">it makes the vocabulary bigger</button>
+                    <button class="quiz__option" type="button">it slows the pipeline down</button>
+                    <button class="quiz__option" type="button" data-correct>it deletes the negation and inverts the meaning</button>
+                    <button class="quiz__option" type="button">it breaks the Unicode encoding</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    <code>жақсы емес</code> → <code>жақсы</code>: the sentiment
+                    label flips to its opposite.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Four tokens produce how many bigrams?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">4</button>
+                    <button class="quiz__option" type="button" data-correct>3</button>
+                    <button class="quiz__option" type="button">2</button>
+                    <button class="quiz__option" type="button">8</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    n tokens give n − 1 bigrams — each token pairs with the one
+                    after it, except the last.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Why do modern models use subword tokens?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">they are faster to type</button>
+                    <button class="quiz__option" type="button" data-correct>they keep the vocabulary small and can represent words never seen in training</button>
+                    <button class="quiz__option" type="button">they remove the need for normalization</button>
+                    <button class="quiz__option" type="button">they only work for English</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    Especially valuable in agglutinative languages, where word-level
+                    vocabularies grow without limit.
+                  </p>
+                </li>
+
+                <li class="quiz__item">
+                  <p class="quiz__question">Which limitation does TF-IDF <em>not</em> fix?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">frequent words dominating the vector</button>
+                    <button class="quiz__option" type="button">needing a hand-written stopword list</button>
+                    <button class="quiz__option" type="button" data-correct>synonyms having no relationship to each other</button>
+                    <button class="quiz__option" type="button">rare words being under-weighted</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>
+                    <code>дәрігер</code> and <code>емші</code> stay separate columns.
+                    Only Word Embeddings connect meaning — the next step in the course.
+                  </p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <!-- ==========================================================
+               Key takeaways
+               ========================================================== -->
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>The pipeline from raw text to a vector</li>
+                <li>Normalization, and what it destroys</li>
+                <li>Tokenization and its hard cases in Kazakhstan text</li>
+                <li>Why subword tokens exist</li>
+                <li>Stemming vs Lemmatization in an agglutinative language</li>
+                <li>Stopwords — and when removing them is a mistake</li>
+                <li>Bag of Words and the document-term matrix</li>
+                <li>TF-IDF: tf, idf and what the weights mean</li>
+                <li>N-grams and the negation problem</li>
+                <li>The limits that Word Embeddings will fix</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Lecture 2 · 26 August 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

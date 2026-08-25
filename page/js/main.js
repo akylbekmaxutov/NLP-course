@@ -30,6 +30,11 @@
       },
       emptyPattern: "Enter a pattern to see matches.",
       reset: "Reset",
+      tlDoc: "D",
+      tlEmpty: "Type at least one line of text.",
+      tlMeta: function (docs, tokens, vocab) {
+        return docs + " documents · " + tokens + " tokens · vocabulary: " + vocab + " terms";
+      },
       score: function (right, done, total) {
         return done ? right + " / " + done + " correct (" + done + " of " + total + " answered)" : "Answer the questions to see your score.";
       }
@@ -45,6 +50,11 @@
       },
       emptyPattern: "Сәйкестіктерді көру үшін pattern енгізіңіз.",
       reset: "Қайта бастау",
+      tlDoc: "Д",
+      tlEmpty: "Кемінде бір жол мәтін теріңіз.",
+      tlMeta: function (docs, tokens, vocab) {
+        return docs + " құжат · " + tokens + " token · сөздік: " + vocab + " термин";
+      },
       score: function (right, done, total) {
         return done ? right + " / " + done + " дұрыс (" + total + " сұрақтың " + done + "-не жауап берілді)" : "Ұпайды көру үшін сұрақтарға жауап беріңіз.";
       }
@@ -60,6 +70,11 @@
       },
       emptyPattern: "Введите pattern, чтобы увидеть совпадения.",
       reset: "Сбросить",
+      tlDoc: "Д",
+      tlEmpty: "Введите хотя бы одну строку текста.",
+      tlMeta: function (docs, tokens, vocab) {
+        return docs + " документа · " + tokens + " токенов · словарь: " + vocab + " терминов";
+      },
       score: function (right, done, total) {
         return done ? right + " / " + done + " верно (отвечено " + done + " из " + total + ")" : "Ответьте на вопросы, чтобы увидеть результат.";
       }
@@ -501,6 +516,195 @@
   }
 
   /* ------------------------------------------------------------------
+     Text-processing lab: normalize → tokenize → stopwords → Bag of Words
+     ------------------------------------------------------------------ */
+
+  // Small demonstration lists — real projects use much longer ones.
+  var STOPWORDS = {
+    kk: ["және", "бұл", "ол", "да", "де", "та", "те", "мен", "бен", "пен",
+         "үшін", "сол", "осы", "бар", "жоқ", "ғана", "тек"],
+    ru: ["и", "в", "на", "это", "что", "с", "по", "для", "не", "а", "но",
+         "как", "у", "к", "о", "же", "бы", "из"],
+    en: ["the", "a", "an", "and", "or", "of", "to", "in", "is", "are", "for",
+         "on", "with", "that", "it", "this", "as", "at"]
+  };
+
+  function makeTokenizer() {
+    // \p{L} needs the u flag; fall back to explicit ranges where unsupported.
+    try {
+      return new RegExp("[\\p{L}\\p{N}]+", "gu");
+    } catch (err) {
+      return /[0-9A-Za-zА-Яа-яЁёӘәҒғҚқҢңӨөҰұҮүҺһІі]+/g;
+    }
+  }
+
+  function initTextLab() {
+    var root = $("[data-textlab]");
+    if (!root) return;
+
+    var input = $("[data-tl-input]", root);
+    var docsOut = $("[data-tl-docs]", root);
+    var matrixOut = $("[data-tl-matrix]", root);
+    var meta = $("[data-tl-meta]", root);
+    if (!input || !docsOut || !matrixOut) return;
+
+    var lower = $("[data-tl-lower]", root);
+    var punct = $("[data-tl-punct]", root);
+    var stop = $("[data-tl-stop]", root);
+    var bigrams = $("[data-tl-bigrams]", root);
+
+    var tokenRe = makeTokenizer();
+    // The demo texts are Kazakh on every language version of the page, so the
+    // lab checks all three lists at once rather than the interface language.
+    var stopList = STOPWORDS.kk.concat(STOPWORDS.ru, STOPWORDS.en);
+    var strings = t();
+
+    function normalize(line) {
+      var text = line;
+      if (lower && lower.checked) text = text.toLowerCase();
+      // Punctuation removal happens through the tokenizer, but showing the
+      // switch keeps the pipeline visible; when it is off we keep the raw
+      // chunks split on whitespace only.
+      return text;
+    }
+
+    function tokenize(line) {
+      if (punct && !punct.checked) {
+        return line.split(/\s+/).filter(Boolean);
+      }
+      tokenRe.lastIndex = 0;
+      return line.match(tokenRe) || [];
+    }
+
+    function run() {
+      var lines = input.value.split("\n").map(function (l) {
+        return l.trim();
+      }).filter(Boolean);
+
+      docsOut.innerHTML = "";
+      matrixOut.innerHTML = "";
+
+      if (!lines.length) {
+        meta.textContent = strings.tlEmpty;
+        return;
+      }
+
+      var kept = [];      // tokens that survive, per document
+      var totalTokens = 0;
+
+      lines.forEach(function (line, index) {
+        var tokens = tokenize(normalize(line));
+        totalTokens += tokens.length;
+
+        var keptHere = [];
+        var box = document.createElement("div");
+        box.className = "doc";
+
+        var name = span("doc__name", strings.tlDoc + (index + 1));
+        var original = document.createElement("span");
+        original.textContent = line;
+        box.appendChild(name);
+        box.appendChild(original);
+
+        var list = document.createElement("ul");
+        list.className = "chips";
+
+        tokens.forEach(function (token) {
+          var dropped = stop && stop.checked &&
+            stopList.indexOf(token.toLowerCase()) !== -1;
+          if (!dropped) keptHere.push(token);
+
+          var item = document.createElement("li");
+          item.appendChild(span("chip" + (dropped ? " chip--removed" : ""), token));
+          list.appendChild(item);
+        });
+
+        if (bigrams && bigrams.checked) {
+          var pairs = [];
+          for (var i = 0; i < keptHere.length - 1; i += 1) {
+            pairs.push(keptHere[i] + " " + keptHere[i + 1]);
+          }
+          pairs.forEach(function (pair) {
+            var item = document.createElement("li");
+            item.appendChild(span("chip chip--ngram", pair));
+            list.appendChild(item);
+          });
+          keptHere = keptHere.concat(pairs);
+        }
+
+        box.appendChild(list);
+        docsOut.appendChild(box);
+        kept.push(keptHere);
+      });
+
+      // vocabulary: every distinct term, sorted, exactly as a vectorizer does
+      var seen = {};
+      kept.forEach(function (tokens) {
+        tokens.forEach(function (token) {
+          seen[token] = true;
+        });
+      });
+      var vocab = Object.keys(seen).sort();
+
+      meta.textContent = strings.tlMeta(lines.length, totalTokens, vocab.length);
+      matrixOut.appendChild(buildMatrix(vocab, kept, strings));
+    }
+
+    function buildMatrix(vocab, kept, strings) {
+      var table = document.createElement("table");
+      table.className = "matrix";
+
+      var thead = document.createElement("thead");
+      var headRow = document.createElement("tr");
+      headRow.appendChild(cell("th", ""));
+      vocab.forEach(function (term) {
+        headRow.appendChild(cell("th", term));
+      });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement("tbody");
+      kept.forEach(function (tokens, index) {
+        var row = document.createElement("tr");
+        row.appendChild(cell("td", strings.tlDoc + (index + 1)));
+        vocab.forEach(function (term) {
+          var count = 0;
+          tokens.forEach(function (token) {
+            if (token === term) count += 1;
+          });
+          var td = cell("td", String(count));
+          td.className = count ? "is-hit" : "is-zero";
+          row.appendChild(td);
+        });
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      return table;
+    }
+
+    function cell(tag, text) {
+      var el = document.createElement(tag);
+      el.textContent = text;
+      if (tag === "th") el.setAttribute("scope", text ? "col" : "row");
+      return el;
+    }
+
+    input.addEventListener("input", run);
+    [lower, punct, stop, bigrams].forEach(function (box) {
+      if (box) box.addEventListener("change", run);
+    });
+
+    $$("[data-tl-preset]", root).forEach(function (button) {
+      button.addEventListener("click", function () {
+        input.value = button.getAttribute("data-tl-preset").replace(/\\n/g, "\n");
+        run();
+      });
+    });
+
+    run();
+  }
+
+  /* ------------------------------------------------------------------
      Quiz — self-check questions with immediate feedback
      ------------------------------------------------------------------ */
 
@@ -664,6 +868,7 @@
     initSidebarDrawer();
     initCodeBlocks();
     initRegexPlayground();
+    initTextLab();
     initQuizzes();
     initProgressBar();
     initLanguageMemory();

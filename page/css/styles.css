@@ -1471,7 +1471,136 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   17. Takeaways + footer
+   17. Text-processing lab (Lecture 2 interactive demo)
+   -------------------------------------------------------------------------- */
+
+.textlab {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 26px;
+  background: #fff;
+}
+
+.textlab__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  align-items: center;
+  margin-bottom: 22px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.textlab__step {
+  margin: 26px 0 10px;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.textlab__step:first-of-type {
+  margin-top: 0;
+}
+
+.textlab__meta {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.doc {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.doc__name {
+  display: inline-block;
+  min-width: 34px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips li {
+  margin: 0;
+}
+
+.chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  background: #fff;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  padding: 3px 9px;
+}
+
+.chip--removed {
+  color: var(--muted);
+  background: var(--surface-2);
+  border-style: dashed;
+  text-decoration: line-through;
+}
+
+.chip--ngram {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+/* document-term matrix */
+.matrix {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+}
+
+.matrix th {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 650;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.matrix th:first-child,
+.matrix td:first-child {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  color: var(--accent);
+  position: sticky;
+  left: 0;
+  background: #fff;
+}
+
+.matrix td {
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.matrix td.is-zero {
+  color: #c3c8d1;
+}
+
+.matrix td.is-hit {
+  background: var(--accent-soft);
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   18. Takeaways + footer
    -------------------------------------------------------------------------- */
 
 .takeaways {
@@ -1515,7 +1644,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   18. Responsive
+   19. Responsive
    -------------------------------------------------------------------------- */
 
 @media (max-width: 1100px) {
@@ -1598,7 +1727,7 @@ details.answer p:last-child {
 }
 
 /* --------------------------------------------------------------------------
-   19. Print / motion preferences
+   20. Print / motion preferences
    -------------------------------------------------------------------------- */
 
 @media print {

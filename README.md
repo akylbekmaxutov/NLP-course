@@ -19,3 +19,16 @@ Added:
 Changed:
 
 - `language/kk/*.html` — added a machine-translation notice (red banner at the top of each Kazakh page and a compact note in the sidebar)
+
+### 25.08.2026
+
+Added:
+
+- `language/en/02-text-processing.html`, `language/kk/02-text-processing.html`, `language/ru/02-text-processing.html` — Lecture 2, Text Processing (Tokenization, Lemmatization, Bag of Words, TF-IDF): theory first, then practice
+
+Changed:
+
+- `page/js/main.js` — new interactive text-processing lab (normalize → tokenize → stopwords → Bag of Words matrix)
+- `page/css/styles.css` — styles for the text-processing lab
+- `page/js/course.js` — Lecture 2 marked as published
+- `index.html` — link to Lecture 2
