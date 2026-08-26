@@ -223,6 +223,32 @@
                 бірге қаланы сөздің басқа мағыналарымен де қосып жібереді. Әр
                 қадамды әдет бойынша емес, тапсырмаға қарап таңдаңыз.
               </div>
+              <h3 style="margin-top: 44px">Бүкіл pipeline бір функцияда</h3>
+              <p class="narrow">Жоғарыдағының бәрі жазылған түрі. Іске қосыңыз — кестедегі дәл сол вектор, сол тоғыз сан шығады.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+VOCAB = ['алматыда', 'астанада', 'ауа', 'бүгін', 'емес',
+         'жауды', 'жақсы', 'жаңбыр', 'райы']
+
+def pipeline(text):
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    return text.split()
+
+raw = "  Астанада ауа райы ЖАҚСЫ!!!  "
+tokens = pipeline(raw)
+counts = Counter(tokens)
+
+print("tokens:", tokens)
+print("vector:", [counts[w] for w in VOCAB])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>tokens: ['астанада', 'ауа', 'райы', 'жақсы']
+vector: [0, 1, 1, 0, 0, 0, 1, 0, 1]</code></pre>
+              </div>
+              <p class="note"><strong>Соңғы жолды оқыңыз:</strong> вектор бекітілген сөздікке қарсы құрылады, сондықтан 2-орын әрқашан <code>астанада</code>, 7-орын әрқашан <code>жақсы</code> дегенді білдіреді. Сөздікті өзгертсеңіз, сақталған векторлардың бәрі мағынасын жоғалтады — сондықтан векторизаторды модельмен бірге сақтау керек.</p>
             </div>
           </section>
 
@@ -343,6 +369,61 @@
                   <code>.lower()</code>» болмайды.
                 </p>
               </div>
+              <h3 style="margin-top: 44px">Тазалау жоятын нәрсені қалай сақтап қалуға болады</h3>
+              <p class="narrow">Жоғарыдағы мәселенің шешімі: белгілерді тазалауға <em>дейін</em> бөліп алыңыз, ал hashtag-ты токенизация жұтып қоймайтындай етіп қайта жазыңыз.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+raw = "Сәлем, ӘЛЕМ!!! Бүгін #NLP сабағы бар."
+
+# 1. save the signals BEFORE cleaning destroys them
+features = {
+    "exclamations": raw.count("!"),
+    "hashtags": re.findall(r"#\w+", raw),
+    "has_shouting": bool(re.search(r"\b[А-ЯЁӘҒҚҢӨҰҮҺІA-Z]{3,}\b", raw)),
+}
+
+# 2. keep the hashtag as one token instead of losing the #
+protected = re.sub(r"#(\w+)", r"hashtag_\1", raw)
+tokens = re.sub(r"[^\w\s]", " ", protected.lower()).split()
+
+print(features)
+print(tokens)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>{'exclamations': 3, 'hashtags': ['#NLP'], 'has_shouting': True}
+['сәлем', 'әлем', 'бүгін', 'hashtag_nlp', 'сабағы', 'бар']</code></pre>
+              </div>
+              <p class="note"><strong>Есте сақтайтын үлгі:</strong> алдымен шығарып ал, сосын тазала. <code>exclamations</code> және <code>has_shouting</code> сөз санақтарының қасындағы кәдімгі сандық белгіге айналады, ал <code>hashtag_nlp</code> жеке token болып сақталады — жіктеуіш оны <code>nlp</code> сөзінен бөлек үйрене алады.</p>
+              <h3 style="margin-top: 44px">Аралас жазуды қалай түзетуге болады</h3>
+              <p class="narrow">Кириллица мен латын тұзақтарының шешімі: NFC-ке келтіріп, ұқсас латын әріптерін кириллица егіздеріне ауыстырыңыз.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import unicodedata
+
+# Latin letters that look identical to Cyrillic ones, both cases
+LOOKALIKE = str.maketrans({
+    "A": "А", "B": "В", "C": "С", "E": "Е", "H": "Н", "I": "І",
+    "K": "К", "M": "М", "O": "О", "P": "Р", "T": "Т", "X": "Х",
+    "a": "а", "c": "с", "e": "е", "i": "і", "o": "о", "p": "р",
+    "x": "х", "y": "у",
+})
+
+def fix_script(text):
+    return unicodedata.normalize("NFC", text).translate(LOOKALIKE)
+
+cyrillic = "Астана"
+mixed = "A" + "стана"          # the first letter is Latin A
+
+print(cyrillic == mixed)
+print(fix_script(mixed) == cyrillic)
+print(fix_script("Ipi"), fix_script("Ipi") == "Ірі")</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>False
+True
+Ірі True</code></pre>
+              </div>
+              <p class="note"><strong>Көзге бірдей екі жол тең емес</strong> — мұны істемейінше. Бірінші <code>print</code> <code>False</code> береді. Бұл қадамды сөздерді санаудан бұрын, ерте орындаңыз, әйтпесе бір қала матрицаңызда екі баған алып тұрады. Кестені тек кириллицадағы мәтінге қолданыңыз: нағыз ағылшын сөздерін бүлдіріп жіберер еді.</p>
             </div>
           </section>
 
@@ -457,6 +538,62 @@ print(re.findall(r"\w+", text))</code></pre>
                 <span class="token">А. Құнанбайұлы</span> — екі сөйлем емес. Оның
                 мұқият нұсқасын 1-дәрісте lookbehind арқылы кездестірдік.
               </p>
+              <h3 style="margin-top: 44px">Бөлінбеуі керек нәрсені қалай қорғауға болады</h3>
+              <p class="narrow"><code>15:00</code> мәселесінің жауабы: алдымен құрылымды бөліктерді 1-дәрістегі Regex үлгілерімен орынбасарға ауыстырыңыз, тек содан кейін сөзге бөліңіз.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+def protect(text):
+    text = re.sub(r"\+7(?:[\s-]?\d){10}", " &lt;PHONE&gt; ", text)
+    text = re.sub(r"\b\d{2}\.\d{2}\.\d{4}\b", " &lt;DATE&gt; ", text)
+    text = re.sub(r"\b\d{1,2}:\d{2}\b", " &lt;TIME&gt; ", text)
+    text = re.sub(r"#(\w+)", r" hashtag_\1 ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+raw = "Сәлем, meeting 15:00-де, 24.08.2026 күні. Тел: +7 701 123 45 67 #NLP"
+
+print(protect(raw))
+print(re.findall(r"&lt;\w+&gt;|\w+", protect(raw)))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Сәлем, meeting &lt;TIME&gt; -де, &lt;DATE&gt; күні. Тел: &lt;PHONE&gt; hashtag_NLP
+['Сәлем', 'meeting', '&lt;TIME&gt;', 'де', '&lt;DATE&gt;', 'күні', 'Тел', '&lt;PHONE&gt;', 'hashtag_NLP']</code></pre>
+              </div>
+              <p class="note"><strong>Бір мезгілде екі ұтыс.</strong> Уақыт, күн және телефон нөмірі цифрларға жарылмай, бір token болып сақталады, әрі телефон нөмірі жол-жөнекей жасырылады — бір жол әрі белгі жасайды, әрі құпиялықты қорғайды. Оның үстіне орынбасарлар сөздікті кішірейтеді: корпустағы әр телефон нөмірі мыңдаған емес, бір баған болады.</p>
+              <h3 style="margin-top: 44px">Дефиспен жазылған есімдерді қалай бүтін қалдыруға болады</h3>
+              <p class="narrow">Бір токенизатор, ретімен үш ереже: дефиспен жазылған кириллица есімі, содан кейін кез келген жазудағы жай сөз, содан кейін сандар.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+KAZ = "А-ЯЁӘҒҚҢӨҰҮҺІа-яёәғқңөұүһі"
+TOKEN = re.compile(rf"[{KAZ}]+(?:-[{KAZ}]+)+|[{KAZ}]+|[A-Za-z]+|\d+")
+
+text = "Қасым-Жомарт Тоқаев Teams-ке кірді"
+print(TOKEN.findall(text))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['Қасым-Жомарт', 'Тоқаев', 'Teams', 'ке', 'кірді']</code></pre>
+              </div>
+              <p class="note"><code>Қасым-Жомарт</code> бір token болып қалады, себебі бірінші балама бірінші сыналады, ал <code>Teams-ке</code> бәрібір бөлінеді — ондағы дефис екі түрлі жазуды жалғап тұр, ал бұл — біз бөлгіміз <em>келетін</em> жағдай. Барлық қулық баламалардың ретінде: ең ұзын, ең нақты ережені бірінші қойыңыз.</p>
+              <h3 style="margin-top: 44px">Бас әріптерге бөлінбей, сөйлемге қалай бөлуге болады</h3>
+              <p class="narrow">Қарапайым бөлгіш <code>А.</code> дегеннен кейін кесіп жібереді. Қорғаныш бір әріптік бас әріптің нүктесін жасырып, бөлгеннен кейін орнына қайтарады.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Абай А. Құнанбайұлы — ақын. Ол 1845 жылы туған! Солай ма?"
+
+naive = re.split(r"(?&lt;=[.!?])\s+", text)
+print("naive   :", naive)
+
+guarded = re.sub(r"\b([А-ЯЁӘҒҚҢӨҰҮҺІ])\.\s", r"\1&lt;DOT&gt; ", text)
+parts = [p.replace("&lt;DOT&gt;", ".") for p in re.split(r"(?&lt;=[.!?])\s+", guarded)]
+print("guarded :", parts)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>naive   : ['Абай А.', 'Құнанбайұлы — ақын.', 'Ол 1845 жылы туған!', 'Солай ма?']
+guarded : ['Абай А. Құнанбайұлы — ақын.', 'Ол 1845 жылы туған!', 'Солай ма?']</code></pre>
+              </div>
+              <p class="note">Екі жолды салыстырыңыз: <code>'Абай А.'</code> — сөйлем емес. Дәл сол әдісті кез келген қысқарту тізіміне — <code>т.б.</code>, <code>ж.</code>, <code>қ.</code> — кеңейтуге болады, әрі өндірістік кітапханалар бір Regex емес, әр тілге арналған қысқартулар тізімін тасымалдайтынының себебі осы.</p>
             </div>
           </section>
 
@@ -533,6 +670,38 @@ print(re.findall(r"\w+", text))</code></pre>
                 Бүгінге сөз деңгейіндегі token-дермен қаламыз: Bag of Words-қа
                 дәл солар керек әрі оларды көзбен тексеру оңай.
               </p>
+              <h3 style="margin-top: 44px">BPE жиырма жолда</h3>
+              <p class="narrow">Бұл нағыз токенизатор емес, бірақ нағыз алгоритм: жеке таңбалардан бастап, ең жиі кездесетін көрші жұпты қайта-қайта біріктіру.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>from collections import Counter
+
+words = ["кітап", "кітаптар", "кітаптарым", "кітаптарымыздан"]
+corpus = {" ".join(word) + " &lt;/w&gt;": 1 for word in words}
+
+def best_pair(corpus):
+    pairs = Counter()
+    for word, freq in corpus.items():
+        symbols = word.split()
+        for i in range(len(symbols) - 1):
+            pairs[symbols[i], symbols[i + 1]] += freq
+    return pairs.most_common(1)[0]
+
+for step in range(1, 5):
+    (left, right), count = best_pair(corpus)
+    corpus = {w.replace(f"{left} {right}", left + right): f
+              for w, f in corpus.items()}
+    print(f"merge {step}: {left!r} + {right!r}  (seen {count}x)")
+
+print(list(corpus)[-1])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>merge 1: 'т' + 'а'  (seen 7x)
+merge 2: 'к' + 'і'  (seen 4x)
+merge 3: 'кі' + 'та'  (seen 4x)
+merge 4: 'кіта' + 'п'  (seen 4x)
+кітап та р ы м ы з д а н &lt;/w&gt;</code></pre>
+              </div>
+              <p class="note"><strong>Алгоритмнің нені тапқанына қараңыз.</strong> Оған қазақ морфологиясы туралы ешкім айтқан жоқ, бірақ төрт біріктіруден кейін ол <code>кітап</code> дегенді бүтін бірлік ретінде үйреніп алды — себебі бұл тізбек қайталана береді. Циклді жалғастырсаңыз, <code>тар</code>, <code>ымыз</code>, <code>дан</code> жалғаулары да осылай шығады. Subword сөздігі тек деректерден осылай құрылады.</p>
             </div>
           </section>
 
@@ -629,6 +798,36 @@ print([f[:-3] for f in forms])</code></pre>
                 tokenization соншалық тартымды, әрі қазақ NLP-і сіздің өз
                 жұмысыңызға ашық алаң.
               </div>
+              <h3 style="margin-top: 44px">Шынымен жұмыс істейтін жалғау кескіш</h3>
+              <p class="narrow">«Үш таңбаны кесу» апатының шешімі: ең ұзын жалғаулардан бастаңыз, қайталап кесіңіз және түбірді төрт таңбадан қысқартпаңыз.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>SUFFIXES = ["ымыздан", "імізден", "ларымыз", "леріміз", "тарымыз",
+            "дан", "ден", "тан", "тен", "нан", "нен",
+            "лар", "лер", "тар", "тер", "дар", "дер",
+            "ым", "ім", "ың", "ің", "да", "де", "та", "те"]
+
+def strip_suffixes(word, min_stem=4):
+    changed = True
+    while changed:
+        changed = False
+        for suffix in sorted(SUFFIXES, key=len, reverse=True):
+            if word.endswith(suffix) and len(word) - len(suffix) &gt;= min_stem:
+                word = word[: -len(suffix)]
+                changed = True
+                break
+    return word
+
+for form in ["кітап", "кітаптар", "кітаптарым", "кітаптарымыздан", "қалалар"]:
+    print(f"{form:18} → {strip_suffixes(form)}")</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>кітап              → кітап
+кітаптар           → кітап
+кітаптарым         → кітап
+кітаптарымыздан    → кітап
+қалалар            → қала</code></pre>
+              </div>
+              <p class="note"><strong>Енді төрт тұлғаның бәрі <code>кітап</code> болып жиналады</strong>, ал <code>қалалар</code> — <code>қала</code>. <strong>Бірақ шектеулерін де мойындайық:</strong> тізім сіз қосуды ұмытқан үндестік нұсқаларын елемейді әрі сол әріптермен аяқталатын сөзді де оп-оңай бүлдіреді. Бұл — морфологиялық талдағыш емес, лайықты бастапқы шешім; әр нәтижені тексерілуге тиіс болжам деп қараңыз.</p>
             </div>
           </section>
 
@@ -690,6 +889,26 @@ kept  : ['астана', 'алматы', 'үлкен', 'қалалар']</code><
                 грамматика маңызды кез келген жерде — қалдырыңыз. Әрі тізімді
                 қолданар алдында әрқашан қарап шығыңыз.
               </p>
+              <h3 style="margin-top: 44px">Болымсыздықты жоғалтпай стоп-сөздерді қалай алуға болады</h3>
+              <p class="narrow">Қауіпті жағдайдың шешімі: берілген стоп-сөздер тізімінен болымсыздықты білдіретін сөздерді алып тастап, айырмасын пайдаланыңыз.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+STOP = {"және", "бұл", "ол", "да", "де", "мен", "бен", "емес", "жоқ"}
+NEGATION = {"емес", "жоқ", "ешқашан"}
+SAFE_STOP = STOP - NEGATION
+
+text = "тамақ дәмді емес және қымбат"
+tokens = re.findall(r"\w+", text.lower())
+
+print("naive :", [w for w in tokens if w not in STOP])
+print("safe  :", [w for w in tokens if w not in SAFE_STOP])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>naive : ['тамақ', 'дәмді', 'қымбат']
+safe  : ['тамақ', 'дәмді', 'емес', 'қымбат']</code></pre>
+              </div>
+              <p class="note"><strong>Бір жол — <code>SAFE_STOP = STOP - NEGATION</code> — таңбаны сақтап қалады.</strong> Қарапайым нұсқа керісінше айтатын сөйлем үшін <code>дәмді</code> қайтарады. Сұрақтарды жіктесеңіз, сұрау сөздері үшін де, кореференция жасасаңыз, есімдіктер үшін де дәл сондай қорғаныш жасаңыз.</p>
             </div>
           </section>
 
@@ -810,6 +1029,32 @@ D3: ['астанада', 'бүгін', 'жаңбыр', 'жауды']</code></pre
                 білмейді, себебі ол сөздің қай сөздің қасында тұрғанын ешқашан
                 көрмейді. N-грамдарға жеткенде осыны есте сақтаңыз.
               </div>
+              <h3 style="margin-top: 44px">Екі вектордың ұқсастығын өлшеу</h3>
+              <p class="narrow">Модель сол жолдармен шын мәнінде осыны істейді — cosine similarity, яғни екі құжат арасындағы бұрыш.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re, math
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+vectors = [[Counter(t)[w] for w in vocab] for t in tokens]
+
+def cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
+
+print("D1 vs D2:", round(cosine(vectors[0], vectors[1]), 3))
+print("D1 vs D3:", round(cosine(vectors[0], vectors[2]), 3))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>D1 vs D2: 0.671
+D1 vs D3: 0.25</code></pre>
+              </div>
+              <p class="note"><strong>D1 мен D2 67% ұқсас болып шықты</strong>, бірі ауа райы жақсы десе, екіншісі жақсы емес десе де; ал екеуі де Астана туралы D1 мен D3 небәрі 0.25 алады. Bag of Words ортақ мағынаны емес, ортақ сөздікті өлшейді. Биграмдарды қосқанда осы санды есте ұстаңыз.</p>
             </div>
           </section>
 
@@ -931,6 +1176,35 @@ ln(3/1) = 1.099   → алматыда, емес, бүгін, жаңбыр, жа
                 стоп-сөздер тізімінің жұмысын үнсіз атқарады, оның үстіне ол
                 біреудің тізімінен емес, өз деректеріңізден үйренілген.
               </div>
+              <h3 style="margin-top: 44px">Әр құжатты қай сөздер ұстап тұр</h3>
+              <p class="narrow">Әр терминді TF-IDF салмағы бойынша реттеу векторизатордың әр құжат не туралы деп ойлайтынын көрсетеді.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re, math
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+N = len(docs)
+
+df = {w: sum(1 for t in tokens if w in t) for w in vocab}
+idf = {w: math.log(N / df[w]) for w in vocab}
+
+for i, t in enumerate(tokens, 1):
+    counts = Counter(t)
+    scores = {w: counts[w] / len(t) * idf[w] for w in set(t)}
+    top = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:2]
+    print(f"D{i} top terms:", [(w, round(s, 3)) for w, s in top])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>D1 top terms: [('астанада', 0.101), ('ауа', 0.101)]
+D2 top terms: [('алматыда', 0.22), ('емес', 0.22)]
+D3 top terms: [('бүгін', 0.275), ('жауды', 0.275)]</code></pre>
+              </div>
+              <p class="note"><strong>D2-ні <code>алматыда</code> мен <code>емес</code> сипаттайды</strong> — дәл оны ерекшелейтін екі сөз. Сұрыптау кілті жай <code>-score</code> емес, <code>(-score, term)</code>: мұнда бірнеше термин тең түсіп тұр, ал тең түскенді ажырататын кілт болмаса, шығыс реті әр іске қосқанда өзгерер еді.</p>
             </div>
           </section>
 
@@ -979,6 +1253,37 @@ print(bigrams)</code></pre>
                 байланыстар («<em>жақсы</em> деп айтуға <em>болмайды</em>»)
                 тізбекті оқитын модельдер шыққанша қолжетімсіз болып қалады.
               </div>
+              <h3 style="margin-top: 44px">Тек өз орнын ақтайтын биграмдарды қалдыру</h3>
+              <p class="narrow">Бұл — қолмен жасалған <code>min_df</code>: әр биграм неше құжатта кездесетінін санап, кемінде екі рет кездескендерін қалдыру.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+docs = ["ауа райы жақсы емес",
+        "бүгін ауа райы жақсы",
+        "ертең ауа райы жақсы болады"]
+
+def bigrams(tokens):
+    return [" ".join(pair) for pair in zip(tokens, tokens[1:])]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+doc_freq = Counter()
+for t in tokens:
+    doc_freq.update(set(bigrams(t)))
+
+kept = sorted(b for b, n in doc_freq.items() if n &gt;= 2)
+dropped = sorted(b for b, n in doc_freq.items() if n &lt; 2)
+
+print("all bigrams :", len(doc_freq))
+print("min_df &gt;= 2 :", kept)
+print("dropped     :", dropped)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>all bigrams : 6
+min_df &gt;= 2 : ['ауа райы', 'райы жақсы']
+dropped     : ['бүгін ауа', 'ертең ауа', 'жақсы болады', 'жақсы емес']</code></pre>
+              </div>
+              <p class="note"><strong>Алты биграм екеу болды.</strong> Не жоғалғанына назар аударыңыз: <code>жақсы емес</code> мұнда бір ғана құжатта бар, сондықтан қатаң <code>min_df</code> биграмдарды енгізу себебіміз болған дәл сол белгіні алып тастайды. Шағын корпуста <code>min_df=1</code> қалдырыңыз; бұл шек — сапа емес, көлем туралы шешім.</p>
             </div>
           </section>
 
@@ -994,9 +1299,11 @@ print(bigrams)</code></pre>
                 <div class="card">
                   <h3>Тәртіп жоғалды</h3>
                   <p>
+                    Сөйлемдегі сөздерді араластырсаңыз, оның векторы мүлде
+                    өзгермейді. Қазақ тіліндегі септік жалғаулары
                     <span class="token">ит адамды қапты</span> мен
-                    <span class="token">адам итті қапты</span> дерлік бірдей
-                    вектор бере алады, ал жаңалық болатыны — тек біреуі.
+                    <span class="token">адам итті қапты</span> дегенді әлі де
+                    ажыратады — Lemmatization дәл сол жалғауларды алып тастағанша.
                   </p>
                 </div>
                 <div class="card">
@@ -1050,6 +1357,32 @@ print(bigrams)</code></pre>
                 болып қала береді — келесі дәрісте дәл осы векторлармен нағыз
                 жіктеуіш оқытамыз.
               </p>
+              <h3 style="margin-top: 44px">Жоғалтуларды кодта көру</h3>
+              <p class="narrow">Шектеулерді нақты етіп көрсететін үш <code>print</code>.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>from collections import Counter
+
+d1 = ["астанада", "ауа", "райы", "жақсы"]
+shuffled = ["жақсы", "райы", "астанада", "ауа"]
+print("same vector after shuffling:", Counter(d1) == Counter(shuffled))
+
+# In Kazakh the case suffixes still separate the roles …
+a = ["ит", "адамды", "қапты"]      # the dog bit the man
+b = ["адам", "итті", "қапты"]      # the man bit the dog
+print("raw tokens differ         :", Counter(a) != Counter(b))
+
+# … until lemmatization strips exactly those suffixes
+lemma = {"адамды": "адам", "итті": "ит"}
+la = [lemma.get(w, w) for w in a]
+lb = [lemma.get(w, w) for w in b]
+print("after lemmatization       :", Counter(la) == Counter(lb), la, lb)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>same vector after shuffling: True
+raw tokens differ         : True
+after lemmatization       : True ['ит', 'адам', 'қапты'] ['адам', 'ит', 'қапты']</code></pre>
+              </div>
+              <p class="note"><strong>1-жол:</strong> сөйлемді араластырыңыз — вектор мүлде өзгермейді. <strong>2 және 3-жолдар — ең қызығы:</strong> қазақ тілінде <code>-ды</code> және <code>-ті</code> септік жалғаулары кім кімді қапқанын белгілейді, сондықтан шикі векторлар әлі де өзгеше — қазақ тілі Bag of Words-та ағылшыннан гөрі жақсы сақталады. Бірақ Lemmatization дәл сол жалғауларды кесіп тастайды да, екі сөйлем бірдей болып шығады. Pipeline-ның жеке-жеке орынды екі қадамы бірге мағынаны жояды.</p>
             </div>
           </section>
 

@@ -203,6 +203,32 @@
                 любым другим значением слова. Выбирайте шаг под задачу, а не по
                 привычке.
               </div>
+              <h3 style="margin-top: 44px">Весь pipeline в одной функции</h3>
+              <p class="narrow">Всё вышеописанное, выписанное кодом. Запустите — и получите ровно тот вектор из таблицы, те же девять чисел.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+VOCAB = ['алматыда', 'астанада', 'ауа', 'бүгін', 'емес',
+         'жауды', 'жақсы', 'жаңбыр', 'райы']
+
+def pipeline(text):
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    return text.split()
+
+raw = "  Астанада ауа райы ЖАҚСЫ!!!  "
+tokens = pipeline(raw)
+counts = Counter(tokens)
+
+print("tokens:", tokens)
+print("vector:", [counts[w] for w in VOCAB])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>tokens: ['астанада', 'ауа', 'райы', 'жақсы']
+vector: [0, 1, 1, 0, 0, 0, 1, 0, 1]</code></pre>
+              </div>
+              <p class="note"><strong>Прочитайте последнюю строку:</strong> вектор строится относительно фиксированного словаря, поэтому позиция 2 всегда означает <code>астанада</code>, а позиция 7 — <code>жақсы</code>. Измените словарь — и все сохранённые векторы теряют смысл; именно поэтому векторизатор нужно сохранять вместе с моделью.</p>
             </div>
           </section>
 
@@ -323,6 +349,61 @@
                   не сводится к «просто <code>.lower()</code>».
                 </p>
               </div>
+              <h3 style="margin-top: 44px">Как сохранить то, что уничтожает очистка</h3>
+              <p class="narrow">Решение проблемы выше: вытащите сигналы <em>до</em> очистки, а hashtag перепишите так, чтобы токенизация его не проглотила.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+raw = "Сәлем, ӘЛЕМ!!! Бүгін #NLP сабағы бар."
+
+# 1. save the signals BEFORE cleaning destroys them
+features = {
+    "exclamations": raw.count("!"),
+    "hashtags": re.findall(r"#\w+", raw),
+    "has_shouting": bool(re.search(r"\b[А-ЯЁӘҒҚҢӨҰҮҺІA-Z]{3,}\b", raw)),
+}
+
+# 2. keep the hashtag as one token instead of losing the #
+protected = re.sub(r"#(\w+)", r"hashtag_\1", raw)
+tokens = re.sub(r"[^\w\s]", " ", protected.lower()).split()
+
+print(features)
+print(tokens)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>{'exclamations': 3, 'hashtags': ['#NLP'], 'has_shouting': True}
+['сәлем', 'әлем', 'бүгін', 'hashtag_nlp', 'сабағы', 'бар']</code></pre>
+              </div>
+              <p class="note"><strong>Приём, который стоит запомнить:</strong> сначала извлекаем, потом чистим. <code>exclamations</code> и <code>has_shouting</code> становятся обычными числовыми признаками рядом со счётчиками слов, а <code>hashtag_nlp</code> выживает как отдельный токен, который классификатор может выучить отдельно от слова <code>nlp</code>.</p>
+              <h3 style="margin-top: 44px">Как починить смешанные письменности</h3>
+              <p class="narrow">И решение для кириллическо-латинских ловушек: привести к NFC, затем отобразить похожие латинские буквы на их кириллических двойников.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import unicodedata
+
+# Latin letters that look identical to Cyrillic ones, both cases
+LOOKALIKE = str.maketrans({
+    "A": "А", "B": "В", "C": "С", "E": "Е", "H": "Н", "I": "І",
+    "K": "К", "M": "М", "O": "О", "P": "Р", "T": "Т", "X": "Х",
+    "a": "а", "c": "с", "e": "е", "i": "і", "o": "о", "p": "р",
+    "x": "х", "y": "у",
+})
+
+def fix_script(text):
+    return unicodedata.normalize("NFC", text).translate(LOOKALIKE)
+
+cyrillic = "Астана"
+mixed = "A" + "стана"          # the first letter is Latin A
+
+print(cyrillic == mixed)
+print(fix_script(mixed) == cyrillic)
+print(fix_script("Ipi"), fix_script("Ipi") == "Ірі")</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>False
+True
+Ірі True</code></pre>
+              </div>
+              <p class="note"><strong>Две визуально одинаковые строки не равны</strong>, пока вы этого не сделаете — первый <code>print</code> выдаёт <code>False</code>. Выполняйте этот шаг рано, до любого подсчёта слов, иначе один и тот же город займёт две колонки матрицы. Применяйте таблицу только к текстам на кириллице: настоящие английские слова она испортит.</p>
             </div>
           </section>
 
@@ -439,6 +520,62 @@ print(re.findall(r"\w+", text))</code></pre>
                 предложения. Аккуратный вариант мы уже видели в лекции 1 с
                 lookbehind.
               </p>
+              <h3 style="margin-top: 44px">Как защитить то, что нельзя разбивать</h3>
+              <p class="narrow">Ответ на проблему <code>15:00</code>: сначала заменяем структурированные куски на заглушки Regex-шаблонами из лекции 1 и только потом разбиваем на слова.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+def protect(text):
+    text = re.sub(r"\+7(?:[\s-]?\d){10}", " &lt;PHONE&gt; ", text)
+    text = re.sub(r"\b\d{2}\.\d{2}\.\d{4}\b", " &lt;DATE&gt; ", text)
+    text = re.sub(r"\b\d{1,2}:\d{2}\b", " &lt;TIME&gt; ", text)
+    text = re.sub(r"#(\w+)", r" hashtag_\1 ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+raw = "Сәлем, meeting 15:00-де, 24.08.2026 күні. Тел: +7 701 123 45 67 #NLP"
+
+print(protect(raw))
+print(re.findall(r"&lt;\w+&gt;|\w+", protect(raw)))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>Сәлем, meeting &lt;TIME&gt; -де, &lt;DATE&gt; күні. Тел: &lt;PHONE&gt; hashtag_NLP
+['Сәлем', 'meeting', '&lt;TIME&gt;', 'де', '&lt;DATE&gt;', 'күні', 'Тел', '&lt;PHONE&gt;', 'hashtag_NLP']</code></pre>
+              </div>
+              <p class="note"><strong>Две выгоды сразу.</strong> Время, дата и номер телефона выживают как отдельные токены, а не рассыпаются на цифры, и номер по дороге обезличивается — одна строка делает и feature engineering, и работу по приватности. К тому же заглушки уменьшают словарь: каждый телефон корпуса становится одной колонкой, а не тысячами.</p>
+              <h3 style="margin-top: 44px">Как сохранить имена через дефис</h3>
+              <p class="narrow">Один токенизатор, три правила по порядку: имя через дефис на кириллице, затем обычное слово любой письменности, затем числа.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+KAZ = "А-ЯЁӘҒҚҢӨҰҮҺІа-яёәғқңөұүһі"
+TOKEN = re.compile(rf"[{KAZ}]+(?:-[{KAZ}]+)+|[{KAZ}]+|[A-Za-z]+|\d+")
+
+text = "Қасым-Жомарт Тоқаев Teams-ке кірді"
+print(TOKEN.findall(text))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>['Қасым-Жомарт', 'Тоқаев', 'Teams', 'ке', 'кірді']</code></pre>
+              </div>
+              <p class="note"><code>Қасым-Жомарт</code> остаётся одним токеном, потому что первая альтернатива проверяется первой, а <code>Teams-ке</code> всё равно разделяется — там дефис соединяет две разные письменности, и это как раз тот случай, который мы разделить <em>хотим</em>. Весь фокус в порядке альтернатив: самое длинное и конкретное правило ставьте первым.</p>
+              <h3 style="margin-top: 44px">Как делить на предложения, не спотыкаясь об инициалы</h3>
+              <p class="narrow">Наивный разделитель режет после <code>А.</code> Защита прячет точку однобуквенного инициала, делит, а потом возвращает её на место.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+text = "Абай А. Құнанбайұлы — ақын. Ол 1845 жылы туған! Солай ма?"
+
+naive = re.split(r"(?&lt;=[.!?])\s+", text)
+print("naive   :", naive)
+
+guarded = re.sub(r"\b([А-ЯЁӘҒҚҢӨҰҮҺІ])\.\s", r"\1&lt;DOT&gt; ", text)
+parts = [p.replace("&lt;DOT&gt;", ".") for p in re.split(r"(?&lt;=[.!?])\s+", guarded)]
+print("guarded :", parts)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>naive   : ['Абай А.', 'Құнанбайұлы — ақын.', 'Ол 1845 жылы туған!', 'Солай ма?']
+guarded : ['Абай А. Құнанбайұлы — ақын.', 'Ол 1845 жылы туған!', 'Солай ма?']</code></pre>
+              </div>
+              <p class="note">Сравните две строки: <code>'Абай А.'</code> — не предложение. Тот же приём расширяется на любой список сокращений — <code>т.б.</code>, <code>ж.</code>, <code>қ.</code> — и именно поэтому промышленные библиотеки везут с собой список сокращений для каждого языка, а не один Regex.</p>
             </div>
           </section>
 
@@ -519,6 +656,38 @@ print(re.findall(r"\w+", text))</code></pre>
                 Сегодня мы остаёмся на уровне слов: именно это нужно Bag of Words,
                 и такие токены легко проверить глазами.
               </p>
+              <h3 style="margin-top: 44px">BPE в двадцать строк</h3>
+              <p class="narrow">Это не настоящий токенизатор, но настоящий алгоритм: начать с отдельных символов и раз за разом сливать самую частую соседнюю пару.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>from collections import Counter
+
+words = ["кітап", "кітаптар", "кітаптарым", "кітаптарымыздан"]
+corpus = {" ".join(word) + " &lt;/w&gt;": 1 for word in words}
+
+def best_pair(corpus):
+    pairs = Counter()
+    for word, freq in corpus.items():
+        symbols = word.split()
+        for i in range(len(symbols) - 1):
+            pairs[symbols[i], symbols[i + 1]] += freq
+    return pairs.most_common(1)[0]
+
+for step in range(1, 5):
+    (left, right), count = best_pair(corpus)
+    corpus = {w.replace(f"{left} {right}", left + right): f
+              for w, f in corpus.items()}
+    print(f"merge {step}: {left!r} + {right!r}  (seen {count}x)")
+
+print(list(corpus)[-1])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>merge 1: 'т' + 'а'  (seen 7x)
+merge 2: 'к' + 'і'  (seen 4x)
+merge 3: 'кі' + 'та'  (seen 4x)
+merge 4: 'кіта' + 'п'  (seen 4x)
+кітап та р ы м ы з д а н &lt;/w&gt;</code></pre>
+              </div>
+              <p class="note"><strong>Посмотрите, что алгоритм обнаруживает.</strong> Никто не рассказывал ему про казахскую морфологию, но после четырёх слияний он выучил <code>кітап</code> как единицу — потому что эта последовательность постоянно повторяется. Продолжите цикл, и суффиксы <code>тар</code>, <code>ымыз</code>, <code>дан</code> появятся так же. Именно так словарь subword-токенов строится из одних только данных.</p>
             </div>
           </section>
 
@@ -615,6 +784,36 @@ print([f[:-3] for f in forms])</code></pre>
                 так привлекательна для агглютинативных языков, и именно поэтому
                 казахский NLP — открытое поле для вашей собственной работы.
               </div>
+              <h3 style="margin-top: 44px">Отрезание суффиксов, которое действительно работает</h3>
+              <p class="narrow">Решение катастрофы «отрежем три символа»: пробуем сначала самые длинные суффиксы, режем повторно и не даём основе стать короче четырёх символов.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>SUFFIXES = ["ымыздан", "імізден", "ларымыз", "леріміз", "тарымыз",
+            "дан", "ден", "тан", "тен", "нан", "нен",
+            "лар", "лер", "тар", "тер", "дар", "дер",
+            "ым", "ім", "ың", "ің", "да", "де", "та", "те"]
+
+def strip_suffixes(word, min_stem=4):
+    changed = True
+    while changed:
+        changed = False
+        for suffix in sorted(SUFFIXES, key=len, reverse=True):
+            if word.endswith(suffix) and len(word) - len(suffix) &gt;= min_stem:
+                word = word[: -len(suffix)]
+                changed = True
+                break
+    return word
+
+for form in ["кітап", "кітаптар", "кітаптарым", "кітаптарымыздан", "қалалар"]:
+    print(f"{form:18} → {strip_suffixes(form)}")</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>кітап              → кітап
+кітаптар           → кітап
+кітаптарым         → кітап
+кітаптарымыздан    → кітап
+қалалар            → қала</code></pre>
+              </div>
+              <p class="note"><strong>Все четыре формы теперь сходятся к <code>кітап</code></strong>, а <code>қалалар</code> — к <code>қала</code>. <strong>Но будем честны насчёт границ:</strong> список игнорирует варианты сингармонизма, которые вы забыли добавить, и с удовольствием испортит слово, которое просто оканчивается на эти буквы. Это приличная базовая линия, а не морфологический анализатор — считайте каждый результат догадкой, требующей проверки.</p>
             </div>
           </section>
 
@@ -676,6 +875,26 @@ kept  : ['астана', 'алматы', 'үлкен', 'қалалар']</code><
                 распознавания вопросов и всего, где важна грамматика. И всегда
                 просматривайте список перед использованием.
               </p>
+              <h3 style="margin-top: 44px">Как убрать стоп-слова, не потеряв отрицание</h3>
+              <p class="narrow">Решение опасного случая: возьмите выданный вам список стоп-слов, вычтите из него слова, несущие отрицание, и используйте разность.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+
+STOP = {"және", "бұл", "ол", "да", "де", "мен", "бен", "емес", "жоқ"}
+NEGATION = {"емес", "жоқ", "ешқашан"}
+SAFE_STOP = STOP - NEGATION
+
+text = "тамақ дәмді емес және қымбат"
+tokens = re.findall(r"\w+", text.lower())
+
+print("naive :", [w for w in tokens if w not in STOP])
+print("safe  :", [w for w in tokens if w not in SAFE_STOP])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>naive : ['тамақ', 'дәмді', 'қымбат']
+safe  : ['тамақ', 'дәмді', 'емес', 'қымбат']</code></pre>
+              </div>
+              <p class="note"><strong>Одна строка — <code>SAFE_STOP = STOP - NEGATION</code> — спасает метку.</strong> Наивная версия возвращает <code>дәмді</code> («вкусно») для предложения, которое говорит обратное. Постройте такую же защиту для вопросительных слов, если классифицируете вопросы, и для местоимений, если делаете кореференцию.</p>
             </div>
           </section>
 
@@ -794,6 +1013,32 @@ D3: ['астанада', 'бүгін', 'жаңбыр', 'жауды']</code></pre
                 потому что никогда не видит, рядом с каким словом оно стоит.
                 Вспомните это, когда дойдём до n-грамм.
               </div>
+              <h3 style="margin-top: 44px">Измеряем, насколько похожи два вектора</h3>
+              <p class="narrow">Именно это модель и делает с этими строками — косинусная близость, угол между двумя документами.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re, math
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+vectors = [[Counter(t)[w] for w in vocab] for t in tokens]
+
+def cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
+
+print("D1 vs D2:", round(cosine(vectors[0], vectors[1]), 3))
+print("D1 vs D3:", round(cosine(vectors[0], vectors[2]), 3))</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>D1 vs D2: 0.671
+D1 vs D3: 0.25</code></pre>
+              </div>
+              <p class="note"><strong>D1 и D2 оказываются похожи на 67%</strong>, хотя одно говорит, что погода хорошая, а другое — что нет; при этом D1 и D3, оба про Астану, получают лишь 0.25. Bag of Words измеряет общий словарь, а не общий смысл. Вспомните это число, когда мы добавим биграммы.</p>
             </div>
           </section>
 
@@ -915,6 +1160,35 @@ ln(3/1) = 1.099   → алматыда, емес, бүгін, жаңбыр, жа
                 делает работу списка стоп-слов, причём выученного на ваших
                 собственных данных, а не взятого у кого-то.
               </div>
+              <h3 style="margin-top: 44px">Какие слова держат каждый документ</h3>
+              <p class="narrow">Ранжирование терминов по весу TF-IDF показывает, о чём, по мнению векторизатора, каждый документ.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re, math
+from collections import Counter
+
+docs = ["Астанада ауа райы жақсы",
+        "Алматыда ауа райы жақсы емес",
+        "Астанада бүгін жаңбыр жауды"]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+vocab = sorted({w for t in tokens for w in t})
+N = len(docs)
+
+df = {w: sum(1 for t in tokens if w in t) for w in vocab}
+idf = {w: math.log(N / df[w]) for w in vocab}
+
+for i, t in enumerate(tokens, 1):
+    counts = Counter(t)
+    scores = {w: counts[w] / len(t) * idf[w] for w in set(t)}
+    top = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:2]
+    print(f"D{i} top terms:", [(w, round(s, 3)) for w, s in top])</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>D1 top terms: [('астанада', 0.101), ('ауа', 0.101)]
+D2 top terms: [('алматыда', 0.22), ('емес', 0.22)]
+D3 top terms: [('бүгін', 0.275), ('жауды', 0.275)]</code></pre>
+              </div>
+              <p class="note"><strong>D2 характеризуют <code>алматыда</code> и <code>емес</code></strong> — ровно те два слова, которые его отличают. Ключ сортировки — <code>(-score, term)</code>, а не просто <code>-score</code>: здесь несколько терминов дают одинаковый вес, и без такого «разрешителя ничьей» порядок вывода менялся бы от запуска к запуску.</p>
             </div>
           </section>
 
@@ -965,6 +1239,37 @@ print(bigrams)</code></pre>
                 остаются недоступными, пока у нас нет моделей, читающих
                 последовательности.
               </div>
+              <h3 style="margin-top: 44px">Оставляем только те биграммы, которые себя оправдывают</h3>
+              <p class="narrow">Это <code>min_df</code> вручную: считаем, в скольких документах встречается каждая биграмма, и оставляем те, что встретились хотя бы дважды.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>import re
+from collections import Counter
+
+docs = ["ауа райы жақсы емес",
+        "бүгін ауа райы жақсы",
+        "ертең ауа райы жақсы болады"]
+
+def bigrams(tokens):
+    return [" ".join(pair) for pair in zip(tokens, tokens[1:])]
+
+tokens = [re.findall(r"\w+", d.lower()) for d in docs]
+doc_freq = Counter()
+for t in tokens:
+    doc_freq.update(set(bigrams(t)))
+
+kept = sorted(b for b, n in doc_freq.items() if n &gt;= 2)
+dropped = sorted(b for b, n in doc_freq.items() if n &lt; 2)
+
+print("all bigrams :", len(doc_freq))
+print("min_df &gt;= 2 :", kept)
+print("dropped     :", dropped)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>all bigrams : 6
+min_df &gt;= 2 : ['ауа райы', 'райы жақсы']
+dropped     : ['бүгін ауа', 'ертең ауа', 'жақсы болады', 'жақсы емес']</code></pre>
+              </div>
+              <p class="note"><strong>Шесть биграмм превращаются в две.</strong> Обратите внимание, что теряется: <code>жақсы емес</code> встречается здесь лишь в одном документе, поэтому строгий <code>min_df</code> выбрасывает ровно тот признак, ради которого мы биграммы и вводили. На маленьком корпусе оставляйте <code>min_df=1</code>; этот порог — решение о размере, а не о качестве.</p>
             </div>
           </section>
 
@@ -980,9 +1285,11 @@ print(bigrams)</code></pre>
                 <div class="card">
                   <h3>Порядок потерян</h3>
                   <p>
+                    Перемешайте слова в предложении — его вектор не изменится
+                    вообще. Казахские падежные суффиксы всё ещё различают
                     <span class="token">ит адамды қапты</span> и
-                    <span class="token">адам итті қапты</span> могут дать почти
-                    одинаковый вектор, хотя новость — только одно из двух.
+                    <span class="token">адам итті қапты</span> — пока
+                    Lemmatization не срежет ровно эти суффиксы.
                   </p>
                 </div>
                 <div class="card">
@@ -1036,6 +1343,32 @@ print(bigrams)</code></pre>
                 базовый метод — и в следующей лекции мы обучим настоящий
                 классификатор ровно на этих векторах.
               </p>
+              <h3 style="margin-top: 44px">Видим потери в коде</h3>
+              <p class="narrow">Три <code>print</code>, которые делают ограничения осязаемыми.</p>
+              <div class="code-block" data-lang="python">
+                <pre><code>from collections import Counter
+
+d1 = ["астанада", "ауа", "райы", "жақсы"]
+shuffled = ["жақсы", "райы", "астанада", "ауа"]
+print("same vector after shuffling:", Counter(d1) == Counter(shuffled))
+
+# In Kazakh the case suffixes still separate the roles …
+a = ["ит", "адамды", "қапты"]      # the dog bit the man
+b = ["адам", "итті", "қапты"]      # the man bit the dog
+print("raw tokens differ         :", Counter(a) != Counter(b))
+
+# … until lemmatization strips exactly those suffixes
+lemma = {"адамды": "адам", "итті": "ит"}
+la = [lemma.get(w, w) for w in a]
+lb = [lemma.get(w, w) for w in b]
+print("after lemmatization       :", Counter(la) == Counter(lb), la, lb)</code></pre>
+              </div>
+              <div class="code-block" data-lang="output">
+                <pre><code>same vector after shuffling: True
+raw tokens differ         : True
+after lemmatization       : True ['ит', 'адам', 'қапты'] ['адам', 'ит', 'қапты']</code></pre>
+              </div>
+              <p class="note"><strong>Строка 1:</strong> перемешайте предложение — вектор не изменится вообще. <strong>Строки 2 и 3 самые интересные:</strong> в казахском падежные суффиксы <code>-ды</code> и <code>-ті</code> помечают, кто кого укусил, поэтому сырые векторы всё ещё различаются — казахский переживает Bag of Words лучше английского. Но лемматизация срезает ровно эти суффиксы, и два предложения становятся одинаковыми. Два шага pipeline, каждый разумный по отдельности, вместе уничтожают смысл.</p>
             </div>
           </section>
 

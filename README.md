@@ -32,3 +32,4 @@ Changed:
 - `page/css/styles.css` — styles for the text-processing lab
 - `page/js/course.js` — Lecture 2 marked as published
 - `index.html` — link to Lecture 2
+- `language/*/02-text-processing.html` — added a runnable Python snippet after each theory explanation (13 per language), including how to handle what each step destroys: keeping hashtags and emphasis, repairing mixed Cyrillic/Latin scripts, protecting times and phone numbers before tokenizing, keeping hyphenated names, splitting sentences without breaking on initials, a mini-BPE, a working suffix stripper, stopword removal that preserves negation, cosine similarity, TF-IDF ranking, min_df pruning
