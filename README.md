@@ -33,3 +33,33 @@ Changed:
 - `page/js/course.js` — Lecture 2 marked as published
 - `index.html` — link to Lecture 2
 - `language/*/02-text-processing.html` — added a runnable Python snippet after each theory explanation (13 per language), including how to handle what each step destroys: keeping hashtags and emphasis, repairing mixed Cyrillic/Latin scripts, protecting times and phone numbers before tokenizing, keeping hyphenated names, splitting sentences without breaking on initials, a mini-BPE, a working suffix stripper, stopword removal that preserves negation, cosine similarity, TF-IDF ranking, min_df pruning
+
+### 26.08.2026
+
+Added:
+
+- `code_files/lesson3.py` — the Lecture 3 script: KazSAnDRA polarity classification in six steps (load, explore, balance, train, test, inspect), Naive Bayes written from scratch, optional scikit-learn comparison
+- `language/en/03-classical-ml.html`, `language/kk/03-classical-ml.html`, `language/ru/03-classical-ml.html` — Lecture 3, Classical Machine Learning for Text Data
+
+Changed:
+
+- `page/css/styles.css` — styles for inline SVG figures and the algorithm comparison table
+- `page/js/course.js` — Lecture 3 marked as published
+- `index.html` — link to Lecture 3
+
+### 30.08.2026
+
+Changed:
+
+- `code_files/lesson3.py` — rewritten around the real KazSAnDRA dataset (`issai/kazsandra`, polarity split): EDA first, then balanced train and test sets, then the models; simpler and linear
+- `language/*/03-classical-ml.html` — every number now comes from KazSAnDRA instead of a hand-written corpus: 0.789 accuracy on a balanced 2 000-review test set, the effect of skipping balancing, the learning curve, cross-validation, the smoothing sweep and error analysis
+- `.gitignore` — `.env` and `code_files/data/` (the downloaded, gated CSVs)
+
+Changed later the same day:
+
+- `code_files/lesson3.py` — everything now runs on scikit-learn (TF-IDF + Pipeline, MultinomialNB / LogisticRegression / LinearSVC, `classification_report`, `cross_val_score`, `ConfusionMatrixDisplay`); the HF token is read with `python-dotenv`
+- `code_files/requirements.txt` — added
+- `language/*/03-classical-ml.html` — all numbers regenerated from the scikit-learn run: Naive Bayes 0.784, Logistic Regression 0.780, Linear SVM 0.762 on a balanced 2 000-review test set
+- `code_files/lesson3.py` — the dataset is now read with `datasets.load_dataset(...).to_pandas()` instead of manual downloads, and two more models were added: `DecisionTreeClassifier` and `RandomForestClassifier`
+- `code_files/requirements.txt` — `datasets` added
+- `language/*/03-classical-ml.html` — the comparison now covers five models: Naive Bayes 0.784, Logistic Regression 0.780, Random Forest 0.775, Linear SVM 0.762, Decision Tree 0.750

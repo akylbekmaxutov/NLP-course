@@ -32,8 +32,18 @@ package-lock.json
 *.log
 npm-debug.log*
 
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.pyc
+figures/
+
 # --- Scratch files -----------------------------------------------------------
 tmp/
 scratch/
 *.bak
 *.orig
+
+# --- API Keys and Tokens -----------------------------------------------------------
+.env
+# --- downloaded datasets (gated, large) --------------------------------------
+code_files/data/

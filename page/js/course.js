@@ -101,12 +101,17 @@ window.NLP_COURSE = {
     {
       id: "classical-ml",
       num: 3,
-      file: null,
+      file: "03-classical-ml.html",
       date: { en: "31 Aug 2026", kk: "31 тамыз 2026", ru: "31 августа 2026" },
       title: {
         en: "Classical Machine Learning for Text Data",
         kk: "Мәтін деректеріне арналған классикалық Machine Learning",
         ru: "Классический Machine Learning для текстовых данных"
+      },
+      topics: {
+        en: "Naive Bayes · Logistic Regression · SVM · KazSAnDRA",
+        kk: "Naive Bayes · Logistic Regression · SVM · KazSAnDRA",
+        ru: "Naive Bayes · Logistic Regression · SVM · KazSAnDRA"
       }
     },
     {

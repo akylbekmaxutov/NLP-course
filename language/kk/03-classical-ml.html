@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Мәтінге арналған классикалық Machine Learning | NLP Course</title>
+    <meta
+      name="description"
+      content="3-дәріс: мәтін деректеріне арналған классикалық Machine Learning алгоритмдері — Naive Bayes, Logistic Regression, SVM, kNN және шешім ағаштары — KazSAnDRA қазақша пікірлерінде, метрикалармен, валидациямен және іске қосылатын кодпен."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Тіл">
+        <a href="../en/03-classical-ml.html" data-lang-link="en">EN</a>
+        <a href="../kk/03-classical-ml.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/03-classical-ml.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">Мәтінді өңдеуден Large Language Models дейін</p>
+        <div class="lang-switch" role="group" aria-label="Тіл">
+          <a href="../en/03-classical-ml.html" data-lang-link="en">EN</a>
+          <a href="../kk/03-classical-ml.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/03-classical-ml.html" data-lang-link="ru">RU</a>
+        </div>
+        <p class="sidebar__mt" role="note">
+          <span aria-hidden="true">⚠</span> Машиналық аударма — сапасы тексерілу
+          үстінде.
+        </p>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс жоспары</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Мазмұнды жабу" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- Машиналық аударма туралы ескерту ------------------------- -->
+          <div class="container">
+            <div class="mt-notice" role="note">
+              <span class="mt-notice__icon" aria-hidden="true">⚠</span>
+              <p>
+                <strong>Машиналық аударма.</strong> Бұл беттің қазақша нұсқасы
+                ағылшын тілінен машиналық аудармамен жасалған, аударма сапасы
+                тексерілу үстінде.
+                <span class="mt-notice__en"
+                  >The Kazakh version was translated from English via machine
+                  translation, and translation quality is under validation.</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">3-дәріс</span>
+              <h1>Мәтін деректеріне арналған классикалық Machine Learning</h1>
+              <p class="hero__subtitle">
+                2-дәрістегі векторлар модельмен кездеседі. Бес алгоритм және бір
+                тапсырма: қазақша оң пікірді терістен ажырату.
+              </p>
+              <p class="hero__date">31 тамыз 2026</p>
+              <ul class="topic-chips">
+                <li>Naive Bayes</li>
+                <li>Logistic Regression</li>
+                <li>SVM</li>
+                <li>kNN</li>
+                <li>Decision Trees</li>
+                <li>Метрикалар</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістен кейін сіз…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Жіктеуіш оқытасыз</h3>
+                  <p>Шикі датасеттен нақты қазақша пікірлерде жұмыс істейтін модельге дейінгі жолды өтесіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Алгоритм таңдайсыз</h3>
+                  <p>Тапсырмаға неге Naive Bayes, Logistic Regression немесе SVM жарайтынын түсіндіресіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Метрикаларды оқисыз</h3>
+                  <p>Accuracy, precision, recall және F1 мәнін — әрі accuracy қашан алдайтынын түсіндіресіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Модельді жөндейсіз</h3>
+                  <p>Қатенің себебін тауып, оны шын мәнінде не түзететінін шешесіз.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Дәрістің құрылымы.</strong> Алдымен теория — pipeline,
+                алгоритмдер, метрикалар. Содан кейін нақты деректердегі практика: осы
+                беттегі әрбір сан KazSAnDRA датасетінде іске қосылған мына файлдан
+                алынған:
+                <a href="../../code_files/lesson3.py">code_files/lesson3.py</a>,
+                скрипт.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="when-classical">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Бұл не үшін керек</span>
+              <h2 id="when-classical">LLM дәуірінде классикалық алгоритмдер не үшін керек?</h2>
+              <p class="narrow lead">
+                Себебі көптеген нақты тапсырмалар үшін олар әлі күнге дейін дұрыс
+                жауап — әрі бұдан кейінгінің бәрі модельдің саналған сөздерден қалай
+                үйренетінін бір рет көрген соң әлдеқайда оңай түсініледі.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <div class="card">
+                  <h3>Оларға деректер аз керек</h3>
+                  <p>
+                    Осы тапсырмада 0.784 алу үшін сегіз мың пікір мен ноутбук
+                    жеткілікті. Ағылшыннан басқа тілдердің көбінде қолда бар деректер дәл
+                    осындай көлемде болады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Олар оқылады</h3>
+                  <p>
+                    Әр шешімнің артында тұрған нақты сөздерді басып шығаруға болады.
+                    Несие бойынша бас тартуды «нейрожелі солай деді» деп түсіндіріп
+                    көріңізші.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Олар арзан әрі жылдам</h3>
+                  <p>
+                    Оқыту ноутбукте секунд алады, болжау — микросекунд, ал деплой
+                    дегеніміз сандары бар файл. GPU-сыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Бұл — бастапқы шек</h3>
+                  <p>
+                    TF-IDF негізіндегі бастапқы шек жеңілмейінше, үлкен модель
+                    көмектеседі деп айтуға болмайды. Таңқаларлық жиі ол жеңілмеген
+                    күйде қалады.
+                  </p>
+                </div>
+              </div>
+              <div class="callout">
+                <strong>Адал шектеу.</strong> Бұл модельдер тек сіз санаған сөздерді
+                көреді. Сөз тәртібі, мағына және контекст әлі де қолжетімсіз — 2-дәріс
+                ескерткеннің бәрі. Тапсырмаға дәл осылар керек болса, келесі
+                дәрістерге жол ашық.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="pipeline">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Жалпы карта</span>
+              <h2 id="pipeline">Мұғаліммен оқыту pipeline-ы</h2>
+              <div class="definition">
+                <p>
+                  <strong>Мұғаліммен оқыту</strong> — дұрыс жауабы бұрыннан белгілі
+                  мысалдардан үйрену. Сіз модельге (мәтін, белгі) жұптарын бересіз; ол
+                  оларды байланыстыратын заңдылықты табады.
+                </p>
+              </div>
+              <ul class="diagram" aria-label="Мұғаліммен оқыту pipeline-ы">
+                <li><span class="diagram__node">Белгіленген мәтін</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">TF-IDF белгілері</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">Train / test split</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">Модель</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">Метрикалар</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Қателерді талдау</span></li>
+              </ul>
+              <p class="narrow">
+                Соңғы көрсеткі бірінші блокқа қайта апарады. Қателерді талдау нені
+                өзгерту керегін айтады — әдетте алгоритмді емес, деректерді, — сосын
+                сіз келесі айналымға шығасыз. Осы цикл — нағыз жұмыстың өзі.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="dataset">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Деректер</span>
+              <h2 id="dataset">Датасет: KazSAnDRA</h2>
+              <p class="narrow lead">
+                <strong>KazSAnDRA</strong> — Kazakh Sentiment Analysis Dataset of Reviews
+                and Attitudes — қолданба дүкендерінен, маркетплейстерден, карталар мен
+                кітап дүкендерінен жиналған пікірлер. Біз оның polarity бөлігін аламыз:
+                әр пікір не теріс (0), не оң (1).
+              </p>
+              <div class="callout">
+                <strong>Датасет жабық.</strong>
+                <code>huggingface.co/datasets/issai/kazsandra</code> бетінде шарттарды
+                қабылдап, <code>.env</code> файлына <code>HF_TOKEN=hf_…</code> жазыңыз.
+                <code>python-dotenv</code> оны оқиды, <code>datasets</code> сплитті жүктеп
+                кэштейді, ал <code>to_pandas()</code> оны pandas-қа береді.
+              </div>
+
+              <h3 style="margin-top: 44px">1-қадам — алдымен деректерге қарау</h3>
+              <p class="narrow">
+                Өзіңіз қарамаған деректерде модель оқытпаңыз. Кластардың теңгерімі, мәтін
+                ұзындығы және бірнеше мысал әрі қарай не болатынын дерлік толық
+                айқындайды.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load
+
+train = load("train")
+
+print("reviews:", len(train))
+print(train["label"].value_counts(normalize=True).round(3).to_dict())
+print("domains:", train["domain"].value_counts().to_dict())
+
+words = train["text_cleaned"].astype(str).str.split().str.len()
+print("median words:", int(words.median()))
+print("short reviews (&lt;= 3 words):", f"{100 * (words &lt;= 3).mean():.1f}%")
+
+for label in (0, 1):
+    print(f"label {label}: «{train.loc[train['label'] == label, 'text'].iloc[0][:55]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews: 134368
+{1: 0.822, 0: 0.178}
+domains: {'appstore': 101477, 'market': 22561, 'mapping': 6509, 'bookstore': 3821}
+median words: 6
+short reviews (&lt;= 3 words): 22.8%
+label 0: «Реклама коп»
+label 1: «Өтте күшті»</code></pre></div>
+              <p class="note">
+                Есте ұстайтын төрт дерек. <strong>Кластар қисық</strong> — 82% оң пікір,
+                сондықтан әрқашан «оң» деп жауап беретін модель бірден 0.82 алады.
+                <strong>Пікірлер қысқа</strong> — медианасы алты сөз, 23%-ында үш сөз не
+                одан аз, демек әр құжатта дәлел өте аз. <strong>Домендер тең емес</strong> —
+                бәрінің төрттен үші қолданба дүкенінен. Ал алғашқы теріс мысал —
+                <code>«Реклама коп»</code>, екі сөз.
+              </p>
+
+              <h3 style="margin-top: 44px">2-қадам — екі жағын да теңгеру</h3>
+              <p class="narrow">
+                82% оң пікір болғанда accuracy мағынасын жоғалтады. Оқытуға <em>да</em>,
+                тестке де әр кластан тең сан аламыз, сонда 0.500 — тиын лақтыру нәтижесі,
+                ал одан жоғарысы — нағыз үйрену.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+print("train:", len(train), train["label"].value_counts().sort_index().to_dict())
+print("test :", len(test), test["label"].value_counts().sort_index().to_dict())</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train: 8000 {0: 4000, 1: 4000}
+test : 2000 {0: 1000, 1: 1000}</code></pre></div>
+              <p class="note">
+                Қолжетімді 134 368 пікірден оқытуға 8 000, тестке 2 000. Бәрін пайдалану
+                баяуырақ болар еді әрі жаңа ештеңе үйретпес еді, ал теңгерілген тест —
+                метрикаларды оқуға жарамды ететін нәрсе. Train мен test датасеттің өз
+                бөлек файлдарынан алынады: тест пікірлерін модель оқыту кезінде көрмейді.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="naive-bayes">
+            <div class="container">
+              <span class="section__eyebrow">1-алгоритм</span>
+              <h2 id="naive-bayes">Naive Bayes</h2>
+              <div class="definition">
+                <p>
+                  <strong>Naive Bayes</strong> қарапайым сұрақ қояды: бұл сөздерді
+                  туғызу ықтималдығы қай класта жоғары? Ол әр класс үшін әр сөздің
+                  ықтималдығын көбейтіп, жеңімпазды таңдайды.
+                </p>
+              </div>
+              <p class="narrow">Мұның артында бір батыл жеңілдетуі бар Байес теоремасы тұр:</p>
+              <div class="code-block" data-lang="text"><pre><code>P(class | words) ∝ P(class) × P(word₁ | class) × P(word₂ | class) × …</code></pre></div>
+              <p class="narrow">
+                Жеңілдету — дәл сол «аңғалдық» — сөздерді бір-бірінен
+                <strong>тәуелсіз</strong> деп санауда. Тілде бұл ашықтан-ашық қате:
+                <span class="token">жақсы</span> мен <span class="token">емес</span>
+                тәуелсіз емес. Модель бәрібір жұмыс істейді, бұл — саланың жағымды
+                тосынсыйларының бірі.
+              </p>
+              <h3 style="margin-top: 40px">Мұны жұмыс істететін екі бөлшек</h3>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Логарифмдер</h3>
+                  <p>
+                    Жүздеген кіші ықтималдықты көбейту нөлге кетеді, сондықтан біз
+                    логарифмдерді қосамыз. Төмендегі бағалардың теріс сан болатыны
+                    сондықтан.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Тегістеу</h3>
+                  <p>
+                    Класпен бірге бір рет те кездеспеген сөз 0 ықтималдық беріп, бүкіл
+                    көбейтіндіні нөлдер еді. Лаплас тегістеуі әр санауышқа
+                    <span class="token">alpha</span> қосады, сонда ешнәрсе мүмкін емес
+                    болып қалмайды.
+                  </p>
+                </div>
+              </div>
+              <h3 style="margin-top: 44px">Бүкіл модель алты жолда</h3>
+              <p class="narrow">
+                <code>Pipeline</code> векторизатор мен жіктеуішті бір нысанға
+                байланыстырады. Бұл маңызды: бірдей сөздік пен бірдей салмақтау оқытуда да,
+                болжауда да қолданылады — қолмен жазылған pipeline-дар әдетте дәл осы
+                жерде бұзылады.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+
+model = Pipeline([
+    ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=2, sublinear_tf=True)),
+    ("clf", MultinomialNB(alpha=1.0)),
+])
+model.fit(x_train, y_train)</code></pre></div>
+              <p class="note">
+                Үш шешімді атап өткен жөн. <code>ngram_range=(1, 2)</code> жеке сөздерді
+                <em>де</em>, жұптарды <em>да</em> қалдырады, сондықтан
+                <code>өте нашар</code> өз белгісіне айналады. <code>min_df=2</code> бір
+                ғана пікірде кездескеннің бәрін алып тастайды — ал бұл сөздіктің басым
+                бөлігі. <code>alpha=1.0</code> — жоғарыдағы формуладағы Лаплас тегістеуі.
+              </p>
+              <h3 style="margin-top: 44px">Оқыту және тест</h3>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.metrics import classification_report, confusion_matrix
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+model = build("nb")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+predicted = model.predict(test["text_cleaned"].astype(str))
+
+print("features:", len(model.named_steps["tfidf"].get_feature_names_out()))
+print(classification_report(test["label"], predicted,
+                            target_names=["negative", "positive"], digits=3))
+print(confusion_matrix(test["label"], predicted))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>features: 9419
+              precision    recall  f1-score   support
+
+    negative      0.782     0.787     0.785      1000
+    positive      0.786     0.781     0.783      1000
+
+    accuracy                          0.784      2000
+   macro avg      0.784     0.784     0.784      2000
+weighted avg      0.784     0.784     0.784      2000
+
+[[787 213]
+ [219 781]]</code></pre></div>
+              <p class="note">
+                <strong>0.500 бастапқы шегіне қарсы 0.784.</strong> Сөздер мен
+                биграмдар бойынша TF-IDF және тек санайтын модель бұл тапсырмада жолдың
+                көп бөлігін өтейді. Қателер матрицасы дерлік симметриялы — 213 теріс пікір
+                оң деп, 219 оң пікір теріс деп аталған, — демек қателер бір класқа
+                шоғырланбаған.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="logistic-regression">
+            <div class="container">
+              <span class="section__eyebrow">2-алгоритм</span>
+              <h2 id="logistic-regression">Logistic Regression</h2>
+              <div class="definition">
+                <p>
+                  <strong>Logistic Regression</strong> әр сөзге салмақ береді, бар
+                  сөздердің салмағын қосады да, қосындыны 0 мен 1 арасындағы
+                  ықтималдыққа сығады. Оқыту — болжамдар белгілермен сәйкескенше
+                  салмақтарды түзету.
+                </p>
+              </div>
+              <div class="code-block" data-lang="text"><pre><code>z = w₁·x₁ + w₂·x₂ + … + b        P(class) = 1 / (1 + e⁻ᶻ)</code></pre></div>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-boundary-t">
+                <title id="fig-boundary-t">Түзу сызықпен бөлінген құжаттардың екі класы</title>
+                <line x1="10" y1="185" x2="310" y2="185" stroke="#d1d6de" stroke-width="1" />
+                <line x1="10" y1="185" x2="10" y2="12" stroke="#d1d6de" stroke-width="1" />
+                <line x1="150" y1="12" x2="185" y2="185" stroke="#2563eb" stroke-width="2.5" />
+                <circle cx="55" cy="60" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="78" cy="105" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="42" cy="140" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="100" cy="45" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="118" cy="150" r="6" fill="#2563eb" opacity="0.85" />
+                <rect x="215" y="115" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="248" y="80" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="200" y="55" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="272" y="130" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="235" y="160" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <text x="205" y="26" font-size="11" fill="#2563eb">w · x + b = 0</text>
+              </svg>
+                <ul class="figure__legend">
+                  <li><span class="figure__swatch" style="background:#2563eb"></span> оң</li>
+                  <li><span class="figure__swatch" style="background:#b91c1c"></span> теріс</li>
+                </ul>
+                <p class="figure__caption">
+                  Әр құжат — нүкте; модель кластарды бөлетін түзу іздейді. Шын мәнінде
+                  кеңістікте әр сөзге бір өлшемнен келеді — олар мыңдап саналады — бірақ
+                  сурет сол күйінде қалады.
+                </p>
+              </div>
+              <p class="narrow">
+                Naive Bayes-пен салыстырғанда мұнда тәуелсіздік болжамы алынып
+                тасталған: салмақтар <em>бірге</em> таңдалады, сондықтан тек басқа
+                сөздің қасында ғана мәнді сөздің салмағын төмендетуге болады. Үлкен
+                деректерде әдетте ол ұтады әрі шек қоюға болатын калибрленген
+                ықтималдық береді.
+              </p>
+              <div class="callout">
+                <strong>Сіз шын мәнінде баптайтын жалғыз параметр.</strong>
+                <code>C</code> регуляризацияны басқарады: кіші <code>C</code>
+                салмақтарды кіші, модельді қарапайым ұстайды; үлкен <code>C</code> оған
+                оқыту деректеріне тығыз бейімделуге — және қайта оқып кетуге —
+                мүмкіндік береді. <code>C=1</code> мәнінен бастап, он есе қадаммен
+                өзгертіңіз.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="svm">
+            <div class="container">
+              <span class="section__eyebrow">3-алгоритм</span>
+              <h2 id="svm">Support Vector Machines</h2>
+              <div class="definition">
+                <p>
+                  <strong>SVM</strong> та түзу жүргізеді — бірақ кез келгенін емес. Ол
+                  айналасындағы бос дәліз ең кең болатынын іздейді, бұл —
+                  <strong>margin</strong>. Тек сол дәліздің шетіндегі нүктелер маңызды —
+                  <strong>тірек векторлар</strong>.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-margin-t">
+                <title id="fig-margin-t">Шекара айналасында margin бар дәл сол нүктелер</title>
+                <line x1="10" y1="185" x2="310" y2="185" stroke="#d1d6de" stroke-width="1" />
+                <line x1="10" y1="185" x2="10" y2="12" stroke="#d1d6de" stroke-width="1" />
+                <polygon points="128,12 163,185 207,185 172,12" fill="#eff4ff" />
+                <line x1="128" y1="12" x2="163" y2="185" stroke="#c7d9ff" stroke-width="2" stroke-dasharray="5 4" />
+                <line x1="172" y1="12" x2="207" y2="185" stroke="#c7d9ff" stroke-width="2" stroke-dasharray="5 4" />
+                <line x1="150" y1="12" x2="185" y2="185" stroke="#2563eb" stroke-width="2.5" />
+                <circle cx="55" cy="60" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="78" cy="105" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="42" cy="140" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="100" cy="45" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="118" cy="150" r="7" fill="#2563eb" stroke="#111111" stroke-width="2" />
+                <rect x="215" y="115" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="248" y="80" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="272" y="130" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="235" y="160" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="199" y="54" width="13" height="13" fill="#b91c1c" stroke="#111111" stroke-width="2" />
+                <text x="214" y="30" font-size="11" fill="#5b6270">margin</text>
+              </svg>
+                <p class="figure__caption">
+                  Көлеңкеленген дәліз — margin. Айналдырылған екі нүкте — тірек
+                  векторлар; кез келген басқа нүктені жылжытыңыз, шекара мүлде
+                  өзгермейді.
+                </p>
+              </div>
+              <p class="narrow">
+                Мәтін үшін бұл маңызды: мыңдаған сирек белгі болғанда көптеген
+                бөлуші түзу оқыту деректерін мінсіз сипаттайды, ал ең жақсы
+                жалпылайтыны — margin-і кеңірегі. <code>LinearSVC</code> мәтінді жіктеу
+                үшін жиі ең күшті классикалық бастапқы шек болып шығады.
+              </p>
+              <div class="callout">
+                <strong>Мәтін үшін — әрқашан сызықтық ядро.</strong> RBF ядросы
+                әйгілі, бірақ сирек әрі көп өлшемді мәтін деректерінде ол баяуырақ және
+                сирек жақсырақ. <code>LinearSVC</code> қолданыңыз. Оның жалғыз кемшілігі:
+                ол ықтималдық емес, тек шешім береді — сенімділік бағасы керек болса,
+                Logistic Regression алыңыз.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="other-algorithms">
+            <div class="container">
+              <span class="section__eyebrow">4 және 5-алгоритмдер</span>
+              <h2 id="other-algorithms">k жақын көрші, ағаштар және ормандар</h2>
+              <h3>kNN — оқыту мүлде жоқ</h3>
+              <p class="narrow">
+                kNN оқыту жинағын сақтайды да, жаңа құжат үшін ең ұқсас
+                <span class="token">k</span> данасын табады — 2-дәрістегі косинустық
+                жақындық бойынша — және дауыс беру өткізеді.
+              </p>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-knn-t">
+                <title id="fig-knn-t">Жаңа құжат және оның үш жақын көршісі</title>
+                <circle cx="160" cy="100" r="62" fill="none" stroke="#5b6270" stroke-width="1.5" stroke-dasharray="6 5" />
+                <circle cx="120" cy="70" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="205" cy="120" r="6" fill="#2563eb" opacity="0.85" />
+                <rect x="145" y="145" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <circle cx="45" cy="40" r="6" fill="#2563eb" opacity="0.35" />
+                <circle cx="60" cy="165" r="6" fill="#2563eb" opacity="0.35" />
+                <rect x="265" y="45" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <rect x="280" y="150" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <rect x="35" y="95" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <path d="M154 94 l12 12 M166 94 l-12 12" stroke="#111111" stroke-width="3" />
+                <text x="176" y="40" font-size="11" fill="#5b6270">k = 3 → 2 көк, 1 қызыл</text>
+              </svg>
+                <p class="figure__caption">
+                  Крестик — жаңа пікір. Шеңбердің ішінде екі оң көрші және бір теріс
+                  көрші бар, сондықтан дауыс беру «оң» деп шешеді.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Құн орын ауыстырады.</strong> Оқытатын ештеңе жоқ, бірақ әр
+                болжам жаңа пікірді барлық 8 000 оқыту пікірімен салыстырады. Бұл
+                датасетте kNN болжау кезінде Naive Bayes-тен әлдеқайда баяу, ал дәлдікте
+                ұтыс жоқ — сондықтан оны мәтін үшін сирек алады.
+              </p>
+              <h3 style="margin-top: 44px">Шешім ағаштары және кездейсоқ ормандар</h3>
+              <p class="narrow">
+                Шешім ағашы иә/жоқ сұрақтарын қояды — «пікірде
+                <span class="token">нашар</span> бар ма?» — және бұтақтармен класқа
+                келеді. Бір ағаш қатты қайта оқып кетеді;
+                <strong>кездейсоқ орман</strong> кездейсоқ ішкі жинақтарда жүздеген ағаш
+                оқытып, дауыстарды орташалайды.
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">«нашар» бар ма?</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">иә → теріс</span></li>
+                <li><span class="diagram__node">жоқ → «керемет» бар ма?</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">иә → оң</span></li>
+              </ul>
+              <div class="callout">
+                <strong>Ал мұнда олар шын мәнінде нені көрсетеді.</strong> Жалғыз ағаш —
+                дәрістегі ең әлсіз модель: тестте 0.750, кросс-валидацияда 0.732, әрі
+                фолдтар бойынша дисперсиясы сызықтық модельдерден екі есе жоғары. Орман
+                мұның көбін түзейді (0.775), бірақ Naive Bayes-ті бәрібір қуып жетпейді,
+                оның үстіне оқыту деректеріне дерлік мінсіз бейімделеді (0.980) және бес
+                есе ұзақ оқытылады.
+              </div>
+              <div class="callout">
+                <strong>Неге оларға қиын.</strong> Ағаш бір мезгілде бір белгі бойынша
+                бөледі, ал TF-IDF матрицасында 9 419 сирек баған бар, олардың дерлік бәрі
+                нөл. Мәтін үшін ағаштарды сөздерді басқа белгілермен — пікір ұзындығымен,
+                баға тарихымен, тәулік уақытымен — біріктіргенде алыңыз: белгі түрлерін
+                араластыруды олар жақсы істейді.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="comparison">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Таңдау</span>
+              <h2 id="comparison">Қай алгоритм және қашан</h2>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Классикалық алгоритмдерді салыстыру</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Алгоритм</th>
+                      <th scope="col">Күшті жағы</th>
+                      <th scope="col">Әлсіз жағы</th>
+                      <th scope="col">Қашан алу керек…</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Naive Bayes</td>
+                      <td>лезде оқытылады, өте аз деректе жұмыс істейді</td>
+                      <td>сөздерді тәуелсіз деп санайды</td>
+                      <td>бастапқы шек бес минутта керек</td>
+                    </tr>
+                    <tr>
+                      <td>Logistic Regression</td>
+                      <td>калибрленген ықтималдық, оқылатын салмақтар</td>
+                      <td>Naive Bayes-ке қарағанда деректер көбірек керек</td>
+                      <td>сенімділік бағасы не шек керек</td>
+                    </tr>
+                    <tr>
+                      <td>Linear SVM</td>
+                      <td>ұзын құжаттар мен үлкен сөздіктерде күшті</td>
+                      <td>ықтималдық жоқ</td>
+                      <td>құжаттар ұзын әрі деректер көп</td>
+                    </tr>
+                    <tr>
+                      <td>kNN</td>
+                      <td>оқытусыз, деректер келген сайын бейімделеді</td>
+                      <td>болжау кезінде баяу әрі әлсіз</td>
+                      <td>деректер аз әрі үнемі өзгереді</td>
+                    </tr>
+                    <tr>
+                      <td>Decision Tree</td>
+                      <td>блок-схема ретінде оқуға болатын жалғыз модель</td>
+                      <td>мұнда ең әлсіз әрі ең тұрақсыз: 0.750, ±0.012</td>
+                      <td>шешімді қадам-қадаммен түсіндіру керек</td>
+                    </tr>
+                    <tr>
+                      <td>Random Forest</td>
+                      <td>мәтінді сандық белгілермен араластырады, 0.775</td>
+                      <td>ең кең алшақтық (+0.205), ең ұзақ оқытылады</td>
+                      <td>сөзден бөлек метадеректер бар</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Содан кейін өлшеңіз, өйткені кесте — тек алдын ала күтім.</strong>
+                Бұл датасетте рет әдеттегі кеңеске қарама-қарсы: Naive Bayes 0.784,
+                Logistic Regression 0.780, Random Forest 0.775, Linear SVM 0.762,
+                Decision Tree 0.750. Қысқа пікірлер мен шағын сөздік ең қарапайым модельдің
+                пайдасына ойнайды. Бесеуін де іске қосу шамамен он секунд — шешімді
+                сандарға қалдырыңыз.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="metrics">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Өлшеу</span>
+              <h2 id="metrics">Метрикалар: accuracy жеткіліксіз</h2>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Precision</h3>
+                  <p>Модель теріс деп атағанның қаншасы шын мәнінде теріс болды? Жалған дабылды жазалайды.</p>
+                </div>
+                <div class="card">
+                  <h3>Recall</h3>
+                  <p>Барлық шынайы теріс пікірдің қаншасын тапты? Өткізіп жіберуді жазалайды.</p>
+                </div>
+                <div class="card">
+                  <h3>F1</h3>
+                  <p>Екеуінің гармониялық ортасы — дәл бір сан керек болғанда бір сан.</p>
+                </div>
+                <div class="card">
+                  <h3>Қателер матрицасы</h3>
+                  <p>Қай класты қай класпен шатастырады. Нені түзету керегін айтатын жалғыз метрика.</p>
+                </div>
+              </div>
+              <p class="narrow" style="margin-top: 28px">
+                Жоғарыдағы нәтижеден: теріс класта precision 0.782, recall 0.787. Екеуі
+                дерлік тең, яғни модель бірін екіншісіне айырбастамайды — ол жай ғана
+                шағымдардың бестен бірін жіберіп алады және шамамен сонша жалған дабыл
+                көтереді. Бұл қолайлы ма — қай қате қымбат екеніне байланысты.
+              </p>
+
+              <h3 style="margin-top: 44px">Теңгерусіз не болады</h3>
+              <p class="narrow">
+                Дәл сол тапсырма, бірақ оқыту бастапқы үлестірімде:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build
+
+train_raw = load("train")
+test = balance(load("test"), 1000)
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+balanced = balance(train_raw, 4000)
+raw = train_raw.sample(8000, random_state=0)
+print("raw training balance:", raw["label"].value_counts().sort_index().to_dict())
+
+for name, data in (("balanced", balanced), ("raw     ", raw)):
+    model = build("nb")
+    model.fit(data["text_cleaned"].astype(str), data["label"])
+    predicted = model.predict(x_test)
+    recall_negative = ((predicted == 0) &amp; (y_test == 0)).sum() / (y_test == 0).sum()
+    print(f"{name} → accuracy={model.score(x_test, y_test):.3f}"
+          f"  recall(negative)={recall_negative:.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>raw training balance: {0: 1384, 1: 6616}
+balanced → accuracy=0.784  recall(negative)=0.787
+raw      → accuracy=0.574  recall(negative)=0.154</code></pre></div>
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Теріс класта recall 0.787-ден 0.154-ке құлайды.</strong>
+                82% оң пікірде оқыған модель «оң» деп жауап беру әдетте дұрыс екенін
+                үйренеді де, шағымдарды мүлде таппай қалады. Ал міне тұзақ:
+                <em>теңгерілмеген</em> тестте дәл сол модель 0.842 береді — ал әрқашан
+                «оң» деп жауап беретін модель 0.820 алады. Сырты жақсы, ал үйренгені
+                жоқтың қасы.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="validation">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Санға сену</span>
+              <h2 id="validation">Қанша дерек және қанша сенім</h2>
+              <p class="narrow lead">
+                Кез келген жарияланған дәлдікке қойылатын екі сұрақ: деректі көбейтсе
+                жақсарар ма еді және басқаша бөлгенде ол қаншалық жылжыр еді.
+              </p>
+
+              <h3 style="margin-top: 40px">Деректі көбейту</h3>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build
+
+train_raw = load("train")
+test = balance(load("test"), 1000)
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+for per_class in (250, 500, 1000, 2000, 4000):
+    train = balance(train_raw, per_class)
+    model = build("nb")
+    model.fit(train["text_cleaned"].astype(str), train["label"])
+    print(f"{2 * per_class:&gt;5} training reviews → accuracy {model.score(x_test, y_test):.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  500 training reviews → accuracy 0.733
+ 1000 training reviews → accuracy 0.746
+ 2000 training reviews → accuracy 0.773
+ 4000 training reviews → accuracy 0.779
+ 8000 training reviews → accuracy 0.784</code></pre></div>
+              <p class="note">
+                Деректің он алты есе өсуі бес пункт береді, ал қисық жайпақтала бастады.
+                Бұл — сөздер қабы моделіне тән пішін: жылдам көтеріліп, содан кейін
+                тоқтайды, себебі модель екі түрлі тұлғаның бір мағына беретінін ешқашан
+                білмейді. Бұл шыңырауды тесу үшін жаңа жолдар емес, басқа белгілер керек.
+              </p>
+
+              <h3 style="margin-top: 44px">Кросс-валидация</h3>
+              <p class="narrow">
+                Бір тест бағасы — бір ғана бақылау. Бес фолдтық кросс-валидация оқыту
+                деректерін бес бөлікке бөліп, әр модельді бес рет оқытады:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.model_selection import cross_val_score
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+x, y = train["text_cleaned"].astype(str), train["label"]
+
+for name in ("nb", "logreg", "svm", "tree", "forest"):
+    scores = cross_val_score(build(name), x, y, cv=5)
+    print(f"{name:&gt;7}  {scores.mean():.3f} ± {scores.std():.3f}   {scores.round(3)}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>     nb  0.792 ± 0.006   [0.789 0.788 0.785 0.797 0.801]
+ logreg  0.780 ± 0.006   [0.778 0.77  0.782 0.786 0.784]
+    svm  0.768 ± 0.005   [0.768 0.761 0.768 0.772 0.774]
+   tree  0.732 ± 0.012   [0.749 0.716 0.732 0.721 0.742]
+ forest  0.777 ± 0.011   [0.799 0.768 0.773 0.771 0.778]</code></pre></div>
+              <p class="note">
+                Рет фолдтар бойынша тұрақты, ал стандартты ауытқулар екі отбасын
+                ажыратады: сызықтық модельдерде 0.005–0.006, ағаштарда 0.011–0.012. Бір
+                шешім ағашы әрі ең әлсіз, әрі ең тұрақсыз. Naive Bayes Logistic
+                Regression-нан 0.012-ге озады — бұл өз шашырауынан екі есе көп, сондықтан
+                ранжирлеуге сенуге болады.
+              </p>
+
+              <h3 style="margin-top: 44px">Модель сыйымдылығы және қайта оқу</h3>
+              <p class="narrow">
+                Барлық модель, енді оқыту жинағына қарсы тест жинағында, әрқайсысының
+                оқыту уақытымен бірге:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import time
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+x_train, y_train = train["text_cleaned"].astype(str), train["label"]
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+for name in ("nb", "logreg", "svm", "tree", "forest"):
+    model = build(name)
+    started = time.time()
+    model.fit(x_train, y_train)
+    seconds = time.time() - started
+    train_score = model.score(x_train, y_train)
+    test_score = model.score(x_test, y_test)
+    print(f"{name:&gt;7}  train={train_score:.3f}  test={test_score:.3f}"
+          f"  gap={train_score - test_score:+.3f}  fit={seconds:5.1f}s")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>     nb  train=0.867  test=0.784  gap=+0.083  fit=  0.1s
+ logreg  train=0.923  test=0.780  gap=+0.142  fit=  0.1s
+    svm  train=0.945  test=0.762  gap=+0.182  fit=  0.1s
+   tree  train=0.878  test=0.750  gap=+0.128  fit=  0.2s
+ forest  train=0.980  test=0.775  gap=+0.205  fit=  0.5s</code></pre></div>
+              <p class="note">
+                <strong>Алшақтық модель қуатымен бірге өседі.</strong> Naive Bayes оқыту
+                деректерін ең нашар сипаттайды (0.867), бірақ ең жақсы жалпылайды (0.784).
+                Кездейсоқ орман дерлік мінсіз бейімделеді (0.980) және ең кең алшақтық
+                береді (+0.205). 8 000 қысқа пікірде икемді модельді ақтайтын сигнал
+                жеткіліксіз: артық сыйымдылық жаттауға кетеді. Оқыту уақытына да қараңыз:
+                орман сызықтық модельдерден бес есе қымбат, ал нәтижесі бәрібір төмен.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="imbalance">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Жиі кездесетін тұзақ</span>
+              <h2 id="imbalance">Теңгерімсіз кластар</h2>
+              <p class="narrow lead">
+                Нақты деректер ешқашан теңгерімді болмайды. KazSAnDRA-да 82% оң пікір;
+                алаяқтық датасетінде таза жазбалар 99,9% болуы мүмкін. Ал маңыздысы
+                әдетте дәл сол сирек класс.
+              </p>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Кластарды салмақтау</h3>
+                  <p>
+                    scikit-learn-дегі <code>class_weight="balanced"</code> сирек
+                    кластағы қатені қымбатырақ етеді. Бір параметр, әрі әдетте бірінші
+                    байқап көретін нәрсе осы.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Қайта іріктеу</h3>
+                  <p>
+                    Жиі кластың бір бөлігін алып тастау немесе сиректі көбейту. Арзан —
+                    әрі сәйкесінше ақпаратты жоғалтады не қайта оқуға итермелейді.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Шекті жылжыту</h3>
+                  <p>
+                    Logistic Regression-де шекті сіз таңдайсыз: өткізіп жіберу қымбатқа
+                    түссе, «алаяқтық» деп 0.5 емес, 0.2 ықтималдықта-ақ болжауға болады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Дұрыс метриканы хабарлау</h3>
+                  <p>
+                    macro-F1 немесе кластар бойынша recall қолданыңыз. Теңгерімсіз
+                    деректердегі accuracy — бәрін тыныштандыратын, бірақ ешкімге ештеңе
+                    айтпайтын сан.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="interpretability">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Ішіне үңілеміз</span>
+              <h2 id="interpretability">Модель нені үйренді</h2>
+              <p class="narrow lead">
+                Мұндағы кез келген модельден әр класқа қай белгілер қатты тартатынын
+                сұрауға болады. Нақты пікірлерде бұл — модель сентиментті үйренді ме, әлде
+                басқа нәрсені ме, соны білудің ең жылдам жолы.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build, top_words
+
+train = balance(load("train"), 4000)
+model = build("logreg")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+
+negative, positive = top_words(model)
+print("negative:", ", ".join(negative))
+print("positive:", ", ".join(positive))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>negative: нашар, не, ұнамады, өте жаман, қате, мүлдем, түсініксіз, шығып, жаман, өте нашар
+positive: жақсы, рахмет, керемет, keremet, ыңғайлы, жаман емес, жаксы, мықты, ұнайды, топ</code></pre></div>
+              <p class="note">
+                <strong>Екі тізім де — сентимент</strong>, дәл осыны көргіңіз келеді:
+                <code>нашар</code>, <code>ұнамады</code>, <code>түсініксіз</code> дегенге
+                қарсы <code>жақсы</code>, <code>рахмет</code>, <code>ыңғайлы</code>.
+                <strong>Биграмдарға қараңыз.</strong> <code>өте нашар</code> және
+                <code>маған ұнамады</code> жеке сөздерінен көбірек мағына береді, ал
+                <code>жаман емес</code> — <em>оң</em> тізімде тұр. Униграм моделі ол жерде
+                тек <code>жаман</code> сөзін көріп, керісінше түсінер еді. Бұл — 2-дәрістегі
+                болымсыздық мәселесі, <code>ngram_range=(1, 2)</code> арқылы шешілген.
+              </p>
+              <div class="callout">
+                Нақты пікірлерде боғауыз сөз де бар, әрі ол теріс тізімде жоғары тұрады,
+                себебі шынымен де болжағыш. <code>lesson3.py</code> басып шығарғанда екі
+                осындай token-ді өткізіп жібереді. Өндірістік жүйеде олар туралы
+                кездейсоқтық емес, шешім болуы керек.
+              </div>
+
+              <h3 style="margin-top: 44px">Қателер</h3>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build, LABELS
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+model = build("nb")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+predicted = model.predict(test["text_cleaned"].astype(str))
+
+probabilities = model.predict_proba(test["text_cleaned"].astype(str))
+shown = 0
+for text, true, got, prob in zip(test["text"], test["label"], predicted, probabilities):
+    if true == got:
+        continue
+    print(f"true={LABELS[true]:&gt;8} predicted={LABELS[got]:&gt;8} "
+          f"confidence={prob.max():.2f}  «{str(text)[:45]}»")
+    shown += 1
+    if shown == 4:
+        break</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>true=positive predicted=negative confidence=0.52  «Мен қазақшамың қазақстанда тұрамын»
+true=positive predicted=negative confidence=0.62  «Ма шааЛлагь»
+true=negative predicted=positive confidence=0.56  «Бауырларым менде жүмғой»
+true=positive predicted=negative confidence=0.68  «Жаңа әндер мен өлеңдер жинағы мен сені чаттан»</code></pre></div>
+              <p class="note">
+                <strong>Тек белгілерді емес, пікірлерді оқыңыз.</strong>
+                <code>«Мен қазақшамың қазақстанда тұрамын»</code> дегенде баға мүлде жоқ,
+                бірақ ол оң деп белгіленген. <code>«Ма шааЛлагь»</code> — бұл леп сөзі.
+                Бұлар модельдің сәтсіздігі емес: бұлар — пікір жоқ пікірлер, ал жоқ
+                сигналды ешбір жіктеуіш қалпына келтіре алмайды. Сенімділік бағанына
+                назар аударыңыз: 0.52 мен 0.56 модельдің шешім қабылдай алмағанын
+                білдіреді — сентименті жоқ пікір дәл осындай нәтиже беруі керек.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="kazakh-data">
+            <div class="container">
+              <span class="section__eyebrow">Қазақстан</span>
+              <h2 id="kazakh-data">Қазақша пікірлер немен қиын</h2>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import CountVectorizer
+from lesson3 import load, balance
+
+train = balance(load("train"), 4000)
+
+counts = CountVectorizer().fit_transform(train["text_cleaned"].astype(str))
+frequency = counts.sum(axis=0).A1
+vectorizer = CountVectorizer().fit(train["text_cleaned"].astype(str))
+
+print("reviews          :", counts.shape[0])
+print("vocabulary       :", counts.shape[1])
+print("tokens           :", int(frequency.sum()))
+print("seen exactly once:", int((frequency == 1).sum()),
+      f"({100 * (frequency == 1).mean():.1f}% of the vocabulary)")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews          : 8000
+vocabulary       : 19125
+tokens           : 71478
+seen exactly once: 13266 (69.4% of the vocabulary)</code></pre></div>
+              <p class="note">
+                <strong>Сөздіктің 69%-ы дәл бір рет кездеседі.</strong> Жетпіс екі мың
+                token-ге он тоғыз мың бөлек тұлға — модель сөздердің көбін бір рет көреді
+                де, олардан ештеңе дерлік үйрене алмайды. Бұл — 2-дәрістегі морфология
+                сабағының сан түрінде келуі: әр септік пен тәуелдік жалғауы Bag of Words
+                бөлек сөз деп санайтын тағы бір тұлға жасайды.
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Үш мәселе, үшеуі де деректерде көрінеді</span>
+                <ul>
+                  <li>
+                    <strong>Морфология дәлелдерді бөлшектейді.</strong> Жиі кездесетін
+                    сөздер — түрленуге көнбейтіндері: <code>өте</code>,
+                    <code>жақсы</code>, <code>керемет</code>. Түрленетіннің бәрі тұлғаларға
+                    шашырап кетеді.
+                  </li>
+                  <li>
+                    <strong>Пікірлер өте қысқа.</strong> Медианасы алты сөз, 23%-ында үш
+                    не одан аз. <code>«Әлі қатады го»</code> дегенде сөз санайтын модель
+                    үшін сигнал жоқтың қасы.
+                  </li>
+                  <li>
+                    <strong>Мәтін аралас.</strong> Орыс сөздері
+                    (<code>регистрация</code>, <code>реклама</code>, <code>ужас</code>)
+                    қазақ сөйлемдерінің ішінде тұр — 0-дәрістегі тілдердің араласуының дәл
+                    өзі, әрі олар ең болжағыш белгілердің қатарында.
+                  </li>
+                </ul>
+              </div>
+              <div class="callout">
+                <strong>Әрі қарай не істеу керек.</strong> Таңбалық n-грамдар —
+                <code>TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5))</code> —
+                әртүрлі тұлғадағы ортақ түбірлерді ұстайды әрі қазақ тілінде сөздік
+                белгілерден жиі ұтады. Жақсы талдағыш болса, Lemmatization сол жұмысты
+                атқарар еді. Екеуі де беттің соңындағы тапсырмаларда бар.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Скрипт</span>
+              <h2 id="code">Өзіңіз қалай іске қосасыз</h2>
+              <p class="narrow lead">
+                Осы беттегінің бәрі мына файлдан алынған:
+                <a href="../../code_files/lesson3.py">code_files/lesson3.py</a>. Ол
+                датасетті <code>datasets</code> арқылы оқиды, оны pandas-қа береді және
+                бес модельді scikit-learn pipeline-дары арқылы жүргізеді.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code># жоба қасындағы .env:  HF_TOKEN=hf_...   (алдымен датасет бетінде шарттарды қабылдаңыз)
+
+pip install -r requirements.txt
+
+python3 lesson3.py                     # load → explore → balance → train → test → inspect
+python3 lesson3.py --model forest      # тек бір модель
+python3 lesson3.py --train-size 1000   # азырақ әрі жылдамырақ
+python3 lesson3.py --figure cm.png     # қателер матрицасын сақтау</code></pre></div>
+              <p class="narrow" style="margin-top: 32px">
+                Міндетті емес салыстыру — он бес жол. <code>Pipeline</code> векторизатор
+                мен жіктеуішті бірге ұстайды, сондықтан бірдей түрлендіру оқытуда да,
+                болжауда да қолданылады:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import LinearSVC
+
+for name, clf in (("Naive Bayes", MultinomialNB()),
+                  ("Logistic Regression", LogisticRegression(max_iter=1000)),
+                  ("Linear SVM", LinearSVC())):
+    model = make_pipeline(TfidfVectorizer(ngram_range=(1, 2), min_df=2), clf)
+    model.fit(x_train, y_train)
+    print(name, model.score(x_test, y_test))</code></pre></div>
+              <p class="note">
+                <code>--figure</code> қателер матрицасын <code>ConfusionMatrixDisplay</code>
+                арқылы PNG етіп сақтайды — нәтижені есепке қоюдың ең жылдам жолы.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Дәрісте</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">Аяқтар алдында бірге жауап беретін бес сұрақ.</p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">KazSAnDRA-да 82% оң пікір. Деректерді неге теңгердік және онсыз accuracy нені білдірер еді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бастапқы үлестірімде әрқашан «оң» деп жауап беретін модель 0.82
+                      алады, сондықтан accuracy жұмыс істейтін модельді пайдасызынан
+                      ажыратпай қалады. Теңгеруден кейін 0.500 — тиын, ал 0.784 — нағыз
+                      нәтиже. Теңгермеудің құнын өлшедік: теріс класта recall 0.787-ден
+                      0.154-ке түседі.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">Naive Bayes-те «аңғал» деген не және мұнда ол неге бәрібір жұмыс істейді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Ол берілген класта сөздерді тәуелсіз деп санайды, ал тіл үшін бұл
+                      қате. Жіктеу үшін тек рет маңызды: дұрыс кластың бағасы ең жоғары
+                      болса жеткілікті, ал ықтималдықтардың өзі қатты дәлсіз болуы мүмкін.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">Теріс класта precision 0.825, ал recall 0.735. Айырмашылықты продакт-менеджерге түсіндіріңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жүйе пікірді шағым деп белгілегенде шамамен 83% жағдайда дұрыс
+                      болады. Бірақ ол шынайы шағымдардың тек 74%-ын табады — әрбір
+                      төртіншісі жоғалады. Қай сан маңыздырақ екені жалған дабыл мен
+                      жіберіп алудың қайсысы қымбат екеніне байланысты.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Кросс-валидация 0.792 ± 0.006 береді, бір тест бөлуі — 0.784. Қайсысын хабарлайсыз?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Шамамен 0.78 — әрі саны қайдан алынғанын айтыңыз. Кросс-валидация
+                      тек оқыту деректерін пайдаланады, тест жинағы бөлек қалады, ал
+                      екеуінің арасындағы айырма фолдтар шашырауының ішінде жатыр. Екі
+                      санның үлкенін қалай алынғанын айтпай ешқашан хабарламаңыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">«Жақсы бəрін көруге болады» теріс деп белгіленген, модель оң дейді. Кім қателеседі?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бәлкім, белгі. Нақты датасеттерде белгілеу шуы болады, әрі кез келген
+                      дәлдік алшақтығының бір бөлігі модельге емес, деректерге тиесілі. Бір
+                      нәрсені баптамас бұрын қателердің бір бөлігін оқып, олардың қаншасы
+                      шын мәнінде белгілеу мәселесі екенін бағалаңыз.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Дәрістен кейін</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                <code>lesson3.py</code> тұрған қалтада жұмыс істеңіз — әр тапсырма оның
+                үстіне жазылатын бірнеше жол.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>1-тапсырма — Үшеуін де іске қосыңыз</h3>
+                  <p class="challenge__task">lesson3.py файлын --train-size 250, 1000 және 4000 мәнімен іске қосыңыз. Дәлдіктің оқыту көлеміне тәуелділік графигін салыңыз. Қисық қай жерде жайпақталады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      0.727 → 0.752 → 0.778, өсу бар, бірақ баяу. Деректің он алты есе
+                      артуы шамамен алты пункт береді, демек келесі ұтыс жаңа жолдардан
+                      емес, белгілерден келуі керек.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-тапсырма — Тегістеуді бұзыңыз</h3>
+                  <p class="challenge__task">MultinomialNB(alpha=…) ішіне 0.01, 0.1, 1 және 5 мәндерін қойыңыз. Қайсысы ұтады және екі шеткі мән неге ұтылады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Кіші alpha сирек сөздерге тым сенеді; үлкені дәлелдерді класс
+                      априорлығына қарай тегістейді. Өлшеген төрт саныңызды хабарлаңыз да,
+                      баптауды валидацияда жүргізіңіз, өзіңіз жариялайтын тестте емес.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-тапсырма — Домен ауысуы</h3>
+                  <p class="challenge__task">Тек бір доменде (appstore) оқытып, басқасында (market) тексеріңіз. Дәлдік қанша төмендейді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Төмендеуін күтіңіз: қолданба дүкеніндегі және маркетплейстегі
+                      шағымдар әртүрлі лексикамен жазылады. Бұл — домен ауысуы, әрі бір
+                      дереккөзде тексерілген модель екіншісінде неге құлайтынының себебі.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-тапсырма — Таңбалық n-грамдар</h3>
+                  <p class="challenge__task">tokenize() функциясын сөздердің орнына таңбалық 4-грам беретін етіп өзгертіңіз. Дәлдік жақсарды ма?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Қазақ тілінде таңбалық n-грамдар әдетте көмектеседі: олар сөздік
+                      белгілер байланыссыз деп санайтын түрлі тұлғаларға ортақ бөліктер
+                      береді. Күткен емес, өлшеген саныңызды хабарлаңыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-тапсырма — Теңгерімсіздік</h3>
+                  <p class="challenge__task">4000 оң және небәрі 400 теріс пікірде оқытыңыз. Accuracy мен кластар бойынша recall мәнін хабарлаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Accuracy лайықты күйінде қалады, ал теріс кластың recall мәні
+                      құлайды — бастапқы үлестірім экспериментіндегі әсердің дәл өзі, тек
+                      өткірлеу.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-тапсырма — Бөлудегі ағып кету</h3>
+                  <p class="challenge__task">200 тест пікірін оқыту жинағына көшіріп, қайта іске қосыңыз. Дәлдікке не болады және бұл қате қалай аталады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Дәлдік тегін өседі — модель жаттап алған нәрсесінде тексеріледі.
+                      Бұл — <strong>деректердің ағып кетуі</strong>. Парсингпен жиналған
+                      деректерде қайталанатын пікірлер жиі кездеседі, сондықтан бұл әдейі
+                      емес, байқаусызда болады.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-тапсырма — Қателерді талдау</h3>
+                  <p class="challenge__task">Тест жинағын екі класс бағасының арасындағы алшақтық бойынша сұрыптаңыз. Ең кіші он алшақтықты оқыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      lesson3.py ішіндегі <code>score()</code> қолданыңыз. Ең кіші
+                      алшақтықтар — сәл өзгеше оқыту жинағында аударылып кететін пікірлер,
+                      әрі оларды оқу әдетте ең қызықты.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-тапсырма — Нақты деректер</h3>
+                  <p class="challenge__task">TfidfVectorizer ішіндегі min_df мәнін 1, 2 және 5 етіп қойыңыз. Белгілер саны қалай өзгереді және дәлдік соған ере ме?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      min_df=2 сөздіктің басым бөлігін қазірдің өзінде алып тастайды,
+                      себебі сөздердің 69%-ы бір рет кездеседі. Белгілер аз болса, train мен
+                      test арасындағы алшақтық та әдетте кішірейеді. Кез келген ұтысты
+                      шамамен 0.006 фолд шашырауымен салыстырыңыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>9-тапсырма — Қазақша датасет жинаңыз</h3>
+                  <p class="challenge__task">Датасеттен 50 теріс пікірді оқыңыз. Қаншасын басқаша белгілер едіңіз және мұндай жағдайларды қандай ереже шешер еді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бірнешеуімен келіспейтініңіз анық. Жазылған ережелер деректердің
+                      өзінен маңыздырақ: онсыз екі белгілеуші келіспей қалады да, модель
+                      солардың келіспеушілігін үйренеді. Жобаларда мұны белгілеушілер
+                      келісімі ретінде өлшейді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>10-тапсырма — Бастапқы шекті жеңіңіз</h3>
+                  <p class="challenge__task">Дәл сол теңгерілген тестте 0.784-ті жеңіңіз. Тест жинағын пайдаланудан басқасының бәрі рұқсат.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Үміткерлер: таңбалық n-грамдар, биграмдар, көбірек оқыту деректері
+                      және сызықтық SVM. Кез келген ұтысты жариялар алдында фолдтар
+                      шашырауымен салыстырыңыз.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Өзін-өзі тексеру тесті</h3>
+              <p class="narrow lead">Бірден кері байланыс беретін он сұрақ.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">«Мұғаліммен» дегеніміз не?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">оқытуды адам бақылайды</button>
+                    <button class="quiz__option" type="button" data-correct>оқыту мысалдарында дұрыс белгілер бар</button>
+                    <button class="quiz__option" type="button">модель өзін-өзі түзетеді</button>
+                    <button class="quiz__option" type="button">деректер алдын ала тазаланған</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Мұғалім — бұл белгі: модель (мәтін, жауап) жұптарынан үйренеді.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Naive Bayes ықтималдықтарды көбейтудің орнына неге логарифмдерді қосады?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">логарифмдер дәлірек</button>
+                    <button class="quiz__option" type="button" data-correct>көптеген кіші санның көбейтіндісі нөлге кетеді</button>
+                    <button class="quiz__option" type="button">бұл модельді түсіндірмелі етеді</button>
+                    <button class="quiz__option" type="button">теріс сандардан құтылу үшін</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Логарифмдерді қосу сандық нөлденусіз дәл сол ретті береді.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Лаплас тегістеуі не үшін керек?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">оқытуды жылдамдату</button>
+                    <button class="quiz__option" type="button">кластарды теңгеру</button>
+                    <button class="quiz__option" type="button" data-correct>таныс емес сөз нөл ықтималдық бермеуі үшін</button>
+                    <button class="quiz__option" type="button">стоп-сөздерді алып тастау</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Бір нөл бүкіл көбейтіндіні нөлдер еді — alpha бәрін мүмкін күйінде қалдырады.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Модель оқыту деректерінде 0.98, тестте 0.78 береді. Бұл не?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">жеткіліксіз оқу</button>
+                    <button class="quiz__option" type="button" data-correct>қайта оқу</button>
+                    <button class="quiz__option" type="button">деректердің ағып кетуі</button>
+                    <button class="quiz__option" type="button">кластар теңгерімсіздігі</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Модель оқыту жинағын шындықтан жақсырақ сипаттайды — алшақтық сол симптом.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Модель 1000 шынайы теріс пікірдің 735-ін тапты. Қай метрика 0.735-ке тең?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">precision</button>
+                    <button class="quiz__option" type="button" data-correct>recall</button>
+                    <button class="quiz__option" type="button">accuracy</button>
+                    <button class="quiz__option" type="button">F1</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Recall қанша шынайы жағдай табылғанын санайды: 1000-нан 735.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Оқыту жинағынан бөлек тест жинағын да неге теңгереміз?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">бұл оқытуды жылдамдатады</button>
+                    <button class="quiz__option" type="button">мұны scikit-learn талап етеді</button>
+                    <button class="quiz__option" type="button" data-correct>accuracy-де 0.500 деген белгілі бастапқы шек болуы үшін</button>
+                    <button class="quiz__option" type="button">белгілеу шуын жою үшін</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>82% оң пікірі бар бастапқы тестте дәл сол модель шамамен 0.85 көрсетіп, шын жағдайынан жақсы көрінеді.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Қай модель шек қоюға болатын ықтималдық береді?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">LinearSVC</button>
+                    <button class="quiz__option" type="button" data-correct>Logistic Regression</button>
+                    <button class="quiz__option" type="button">k=1 кезіндегі kNN</button>
+                    <button class="quiz__option" type="button">тереңдігі 1 шешім ағашы</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Сигмоида калибрленген ықтималдық береді; LinearSVC тек шешім қайтарады.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Сөздіктің 69%-ы дәл бір рет кездеседі. Бұл неге әкеледі?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">оқыту баяулайды</button>
+                    <button class="quiz__option" type="button" data-correct>сөздердің көбі үйренуге жарамды дәлел бермейді</button>
+                    <button class="quiz__option" type="button">қателер матрицасы оқылмайтын болады</button>
+                    <button class="quiz__option" type="button">precision мен recall теңеседі</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Қазақ морфологиясы бір мағынаны көп тұлғаға жаяды, ал бір рет кездескен тұлға ештеңе үйретпейді.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Бұл датасетте қай модель ең жақсы жалпылады?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">әдеттегідей Linear SVM</button>
+                    <button class="quiz__option" type="button">Logistic Regression</button>
+                    <button class="quiz__option" type="button" data-correct>Naive Bayes</button>
+                    <button class="quiz__option" type="button">үшеуі де бірдей</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>0.780 мен 0.762-ге қарсы 0.784 — қысқа пікірлерде ең қарапайым модель ұтты, ал кросс-валидация ретті растады.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">82% оң пікірі бар бастапқы деректерде оқытқанда теріс кластың recall мәні 0.154-ке түседі. Неге?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">теріс пікірлер ұзынырақ</button>
+                    <button class="quiz__option" type="button">Naive Bayes екі класпен жұмыс істей алмайды</button>
+                    <button class="quiz__option" type="button" data-correct>«оң» деп жауап беру әдетте дұрыс, сондықтан модель шағым іздеуін қояды</button>
+                    <button class="quiz__option" type="button">тегістеу тұрақтысы тым кіші</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Мұны априорлық ықтималдық істейді: 82% оң пікірде «оң» деп жауап беру арзан әрі көбіне дұрыс.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Қорытынды</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Мұғаліммен оқыту pipeline-ы: EDA-дан қателерді талдауға дейін</li>
+                <li>Naive Bayes: санау, логарифмдер және тегістеу</li>
+                <li>Logistic Regression: салмақтар және бөлуші шекара</li>
+                <li>SVM: ең кең margin және оның сыйымдылығы қашан ақталады</li>
+                <li>kNN мен ағаштар — болжанған емес, өлшенген</li>
+                <li>Precision, recall, F1 және қателер матрицасы</li>
+                <li>Кросс-валидация және бір бағаға қаншалық сенуге болатыны</li>
+                <li>Кластар теңгерімсіздігі және accuracy оны қалай жасыратыны</li>
+                <li>Модель сүйенетін сөздерді оқу</li>
+                <li>Белгілеу шуы ешбір алгоритм баса алмайтын шек қоятыны</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · 3-дәріс · 31 тамыз 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

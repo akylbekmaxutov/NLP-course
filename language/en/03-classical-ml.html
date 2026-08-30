@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Classical Machine Learning for Text | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 3: classical Machine Learning algorithms for text data — Naive Bayes, Logistic Regression, SVM, kNN and trees — trained on Kazakh reviews from KazSAnDRA, with metrics, validation and runnable code."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/03-classical-ml.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/03-classical-ml.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/03-classical-ml.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/03-classical-ml.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/03-classical-ml.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/03-classical-ml.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 3</span>
+              <h1>Classical Machine Learning for Text Data</h1>
+              <p class="hero__subtitle">
+                The vectors from Lecture 2 meet a model. Five algorithms and one
+                task: telling positive Kazakh reviews from negative ones.
+              </p>
+              <p class="hero__date">31 August 2026</p>
+              <ul class="topic-chips">
+                <li>Naive Bayes</li>
+                <li>Logistic Regression</li>
+                <li>SVM</li>
+                <li>kNN</li>
+                <li>Decision Trees</li>
+                <li>Metrics</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Train a classifier</h3>
+                  <p>Go from a raw dataset to a working model on real Kazakh reviews.</p>
+                </div>
+                <div class="card">
+                  <h3>Choose an algorithm</h3>
+                  <p>Say why Naive Bayes, Logistic Regression or an SVM fits a given task.</p>
+                </div>
+                <div class="card">
+                  <h3>Read the metrics</h3>
+                  <p>Explain accuracy, precision, recall and F1 — and when accuracy lies.</p>
+                </div>
+                <div class="card">
+                  <h3>Debug a model</h3>
+                  <p>Find why a prediction was wrong and decide what would actually fix it.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>How this lecture is organised.</strong> Theory first — the
+                pipeline, the algorithms, the metrics. Then practice on real data: every
+                number on this page comes from
+                <a href="../../code_files/lesson3.py">code_files/lesson3.py</a>, run on
+                the KazSAnDRA dataset.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="when-classical">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Why bother</span>
+              <h2 id="when-classical">Why classical algorithms, in the age of LLMs?</h2>
+              <p class="narrow lead">
+                Because for a great many real tasks they are still the right answer —
+                and because everything that comes later is easier to understand once
+                you have seen a model learn from counted words.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <div class="card">
+                  <h3>They need little data</h3>
+                  <p>
+                    Eight thousand reviews and a laptop are enough to reach 0.784 on
+                    this task. For most languages other than English, datasets of that
+                    size are what you actually have.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>They are readable</h3>
+                  <p>
+                    You can print the exact words behind every decision. Try
+                    explaining a refused loan application with “the neural network
+                    said so”.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>They are cheap and fast</h3>
+                  <p>
+                    Training takes seconds on a laptop, prediction takes
+                    microseconds, and deployment is a file of numbers — no GPU.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>They are the baseline</h3>
+                  <p>
+                    You cannot claim a large model helps until a TF-IDF baseline has
+                    been beaten. Surprisingly often, it has not been.
+                  </p>
+                </div>
+              </div>
+              <div class="callout">
+                <strong>The honest limit.</strong> These models see only the words you
+                counted. Word order, meaning and context are still out of reach —
+                everything Lecture 2 warned about. When the task needs those, the later
+                lectures are where you go.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="pipeline">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The map</span>
+              <h2 id="pipeline">The supervised learning pipeline</h2>
+              <div class="definition">
+                <p>
+                  <strong>Supervised learning</strong> means learning from examples
+                  that already carry the right answer. You give the model pairs of
+                  (text, label); it finds the pattern that connects them.
+                </p>
+              </div>
+              <ul class="diagram" aria-label="The supervised pipeline">
+                <li><span class="diagram__node">Labelled text</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">TF-IDF features</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">Train / test split</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">Model</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">Metrics</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Error analysis</span></li>
+              </ul>
+              <p class="narrow">
+                The last arrow points back to the first box. Error analysis tells you
+                what to change — usually the data, not the algorithm — and you go
+                round again. That loop is the actual job.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="dataset">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The data</span>
+              <h2 id="dataset">The dataset: KazSAnDRA</h2>
+              <p class="narrow lead">
+                <strong>KazSAnDRA</strong> — the Kazakh Sentiment Analysis Dataset of
+                Reviews and Attitudes — collects reviews from app stores, marketplaces,
+                maps and bookstores. We use its polarity split: every review is either
+                negative (0) or positive (1).
+              </p>
+              <div class="callout">
+                <strong>The dataset is gated.</strong> Accept the terms at
+                <code>huggingface.co/datasets/issai/kazsandra</code> and put
+                <code>HF_TOKEN=hf_…</code> in a <code>.env</code> file.
+                <code>python-dotenv</code> reads it, <code>datasets</code> downloads and
+                caches the split, and <code>to_pandas()</code> hands it to pandas.
+              </div>
+
+              <h3 style="margin-top: 44px">Step 1 — look before you train</h3>
+              <p class="narrow">
+                Never fit a model on data you have not inspected. Class balance, text
+                length and a handful of examples decide most of what happens later.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load
+
+train = load("train")
+
+print("reviews:", len(train))
+print(train["label"].value_counts(normalize=True).round(3).to_dict())
+print("domains:", train["domain"].value_counts().to_dict())
+
+words = train["text_cleaned"].astype(str).str.split().str.len()
+print("median words:", int(words.median()))
+print("short reviews (&lt;= 3 words):", f"{100 * (words &lt;= 3).mean():.1f}%")
+
+for label in (0, 1):
+    print(f"label {label}: «{train.loc[train['label'] == label, 'text'].iloc[0][:55]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews: 134368
+{1: 0.822, 0: 0.178}
+domains: {'appstore': 101477, 'market': 22561, 'mapping': 6509, 'bookstore': 3821}
+median words: 6
+short reviews (&lt;= 3 words): 22.8%
+label 0: «Реклама коп»
+label 1: «Өтте күшті»</code></pre></div>
+              <p class="note">
+                Four facts to carry forward. <strong>The classes are skewed</strong> —
+                82% positive, so a model that always answers “positive” already scores
+                0.82. <strong>The reviews are short</strong> — a median of six words,
+                and 23% have three words or fewer, which leaves the model very little
+                evidence per document. <strong>The domains are uneven</strong> — three
+                quarters of everything comes from the app store. And the first negative
+                example is <code>«Реклама коп»</code>, two words: “too much advertising”.
+              </p>
+
+              <h3 style="margin-top: 44px">Step 2 — balance both sides</h3>
+              <p class="narrow">
+                With 82% positive, accuracy stops meaning anything. We take an equal
+                number of each class for training <em>and</em> for testing, so 0.500 is
+                the score of a coin flip and every point above it is real learning.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+print("train:", len(train), train["label"].value_counts().sort_index().to_dict())
+print("test :", len(test), test["label"].value_counts().sort_index().to_dict())</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train: 8000 {0: 4000, 1: 4000}
+test : 2000 {0: 1000, 1: 1000}</code></pre></div>
+              <p class="note">
+                8 000 reviews for training and 2 000 for testing, out of the 134 368
+                available. Using everything would be slower and would teach nothing
+                extra — and the balanced test set is what makes the metrics readable.
+                We keep the dataset's own train/test files apart: the test reviews are
+                never seen during training.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="naive-bayes">
+            <div class="container">
+              <span class="section__eyebrow">Algorithm 1</span>
+              <h2 id="naive-bayes">Naive Bayes</h2>
+              <div class="definition">
+                <p>
+                  <strong>Naive Bayes</strong> asks a simple question: which class was
+                  most likely to have produced these words? It multiplies the
+                  probability of each word given each class, and picks the winner.
+                </p>
+              </div>
+              <p class="narrow">The rule behind it is Bayes' theorem, with one bold simplification:</p>
+              <div class="code-block" data-lang="text"><pre><code>P(class | words) ∝ P(class) × P(word₁ | class) × P(word₂ | class) × …</code></pre></div>
+              <p class="narrow">
+                The simplification — the “naive” part — is that the words are assumed
+                <strong>independent</strong> of each other. That is plainly false in
+                language: <span class="token">жақсы</span> and
+                <span class="token">емес</span> are not independent. The model works
+                anyway, which is one of the pleasant surprises of the field.
+              </p>
+              <h3 style="margin-top: 40px">Two details that make it work</h3>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Logarithms</h3>
+                  <p>
+                    Multiplying hundreds of small probabilities underflows to zero, so
+                    we add logarithms instead. That is why the scores below are
+                    negative numbers.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Smoothing</h3>
+                  <p>
+                    A word never seen with a class would give probability 0 and wipe out
+                    the whole product. Laplace smoothing adds
+                    <span class="token">alpha</span> to every count so nothing is ever
+                    impossible.
+                  </p>
+                </div>
+              </div>
+              <h3 style="margin-top: 44px">The whole model, in six lines</h3>
+              <p class="narrow">
+                A <code>Pipeline</code> chains the vectorizer and the classifier into one
+                object. That matters: the same vocabulary and the same weighting are
+                applied at training and at prediction time, which is where hand-written
+                pipelines usually go wrong.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
+
+model = Pipeline([
+    ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=2, sublinear_tf=True)),
+    ("clf", MultinomialNB(alpha=1.0)),
+])
+model.fit(x_train, y_train)</code></pre></div>
+              <p class="note">
+                Three choices are worth naming. <code>ngram_range=(1, 2)</code> keeps
+                single words <em>and</em> pairs, so <code>өте нашар</code> becomes its own
+                feature. <code>min_df=2</code> drops everything that appears in one review
+                only — on this data that is most of the vocabulary.
+                <code>alpha=1.0</code> is the Laplace smoothing from the formula above.
+              </p>
+              <h3 style="margin-top: 44px">Training and testing</h3>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.metrics import classification_report, confusion_matrix
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+model = build("nb")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+predicted = model.predict(test["text_cleaned"].astype(str))
+
+print("features:", len(model.named_steps["tfidf"].get_feature_names_out()))
+print(classification_report(test["label"], predicted,
+                            target_names=["negative", "positive"], digits=3))
+print(confusion_matrix(test["label"], predicted))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>features: 9419
+              precision    recall  f1-score   support
+
+    negative      0.782     0.787     0.785      1000
+    positive      0.786     0.781     0.783      1000
+
+    accuracy                          0.784      2000
+   macro avg      0.784     0.784     0.784      2000
+weighted avg      0.784     0.784     0.784      2000
+
+[[787 213]
+ [219 781]]</code></pre></div>
+              <p class="note">
+                <strong>0.784 against a 0.500 baseline.</strong> TF-IDF over words and
+                bigrams, and a model that only counts, gets most of the way on this task.
+                The confusion matrix is almost symmetric — 213 negative reviews called
+                positive, 219 positive ones called negative — so the errors are not
+                concentrated in one class.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="logistic-regression">
+            <div class="container">
+              <span class="section__eyebrow">Algorithm 2</span>
+              <h2 id="logistic-regression">Logistic Regression</h2>
+              <div class="definition">
+                <p>
+                  <strong>Logistic Regression</strong> gives every word a weight,
+                  adds up the weights of the words present, and squeezes the total into
+                  a probability between 0 and 1. Training means adjusting the weights
+                  until the predictions match the labels.
+                </p>
+              </div>
+              <div class="code-block" data-lang="text"><pre><code>z = w₁·x₁ + w₂·x₂ + … + b        P(class) = 1 / (1 + e⁻ᶻ)</code></pre></div>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-boundary-t">
+                <title id="fig-boundary-t">Two classes of documents separated by a straight line</title>
+                <line x1="10" y1="185" x2="310" y2="185" stroke="#d1d6de" stroke-width="1" />
+                <line x1="10" y1="185" x2="10" y2="12" stroke="#d1d6de" stroke-width="1" />
+                <line x1="150" y1="12" x2="185" y2="185" stroke="#2563eb" stroke-width="2.5" />
+                <circle cx="55" cy="60" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="78" cy="105" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="42" cy="140" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="100" cy="45" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="118" cy="150" r="6" fill="#2563eb" opacity="0.85" />
+                <rect x="215" y="115" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="248" y="80" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="200" y="55" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="272" y="130" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <rect x="235" y="160" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <text x="205" y="26" font-size="11" fill="#2563eb">w · x + b = 0</text>
+              </svg>
+                <ul class="figure__legend">
+                  <li><span class="figure__swatch" style="background:#2563eb"></span> positive</li>
+                  <li><span class="figure__swatch" style="background:#b91c1c"></span> negative</li>
+                </ul>
+                <p class="figure__caption">
+                  Every document is a point; the model looks for a straight line that
+                  separates the classes. In reality the space has one dimension per
+                  word — thousands of them — but the picture is the same.
+                </p>
+              </div>
+              <p class="narrow">
+                Compared with Naive Bayes it drops the independence assumption: weights
+                are fitted <em>together</em>, so a word that only matters next to
+                another one can be down-weighted. It usually wins on larger datasets,
+                and it gives calibrated probabilities you can threshold.
+              </p>
+              <div class="callout">
+                <strong>The one parameter you will actually tune.</strong>
+                <code>C</code> controls regularisation: small <code>C</code> keeps the
+                weights small and the model simple, large <code>C</code> lets it fit the
+                training data closely — and overfit. Start at <code>C=1</code> and move
+                by factors of ten.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="svm">
+            <div class="container">
+              <span class="section__eyebrow">Algorithm 3</span>
+              <h2 id="svm">Support Vector Machines</h2>
+              <div class="definition">
+                <p>
+                  An <strong>SVM</strong> also draws a line — but not just any line. It
+                  looks for the one with the widest empty corridor around it, the
+                  <strong>margin</strong>. Only the points on the edge of that corridor
+                  matter; they are the <strong>support vectors</strong>.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-margin-t">
+                <title id="fig-margin-t">The same points with a margin around the boundary</title>
+                <line x1="10" y1="185" x2="310" y2="185" stroke="#d1d6de" stroke-width="1" />
+                <line x1="10" y1="185" x2="10" y2="12" stroke="#d1d6de" stroke-width="1" />
+                <polygon points="128,12 163,185 207,185 172,12" fill="#eff4ff" />
+                <line x1="128" y1="12" x2="163" y2="185" stroke="#c7d9ff" stroke-width="2" stroke-dasharray="5 4" />
+                <line x1="172" y1="12" x2="207" y2="185" stroke="#c7d9ff" stroke-width="2" stroke-dasharray="5 4" />
+                <line x1="150" y1="12" x2="185" y2="185" stroke="#2563eb" stroke-width="2.5" />
+                <circle cx="55" cy="60" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="78" cy="105" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="42" cy="140" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="100" cy="45" r="6" fill="#2563eb" opacity="0.55" />
+                <circle cx="118" cy="150" r="7" fill="#2563eb" stroke="#111111" stroke-width="2" />
+                <rect x="215" y="115" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="248" y="80" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="272" y="130" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="235" y="160" width="11" height="11" fill="#b91c1c" opacity="0.55" />
+                <rect x="199" y="54" width="13" height="13" fill="#b91c1c" stroke="#111111" stroke-width="2" />
+                <text x="214" y="30" font-size="11" fill="#5b6270">margin</text>
+              </svg>
+                <p class="figure__caption">
+                  The shaded corridor is the margin. The two outlined points are the
+                  support vectors — move any other point and the boundary does not
+                  change at all.
+                </p>
+              </div>
+              <p class="narrow">
+                For text this matters: with thousands of sparse features, many
+                separating lines fit the training data perfectly, and the widest-margin
+                one generalises best. <code>LinearSVC</code> is often the strongest
+                classical baseline for text classification.
+              </p>
+              <div class="callout">
+                <strong>Linear kernel, always — for text.</strong> The RBF kernel is
+                famous, but on high-dimensional sparse text data it is slower and rarely
+                better. Use <code>LinearSVC</code>. Its one drawback: it gives no
+                probabilities, only decisions — if you need a confidence score, use
+                Logistic Regression.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="other-algorithms">
+            <div class="container">
+              <span class="section__eyebrow">Algorithms 4 and 5</span>
+              <h2 id="other-algorithms">k Nearest Neighbours, trees and forests</h2>
+              <h3>kNN — no training at all</h3>
+              <p class="narrow">
+                kNN stores the training set and, for a new document, finds the
+                <span class="token">k</span> most similar ones — cosine similarity from
+                Lecture 2 — and takes a vote.
+              </p>
+              <div class="figure">
+                              <svg viewBox="0 0 320 200" role="img" aria-labelledby="fig-knn-t">
+                <title id="fig-knn-t">A new document and its three nearest neighbours</title>
+                <circle cx="160" cy="100" r="62" fill="none" stroke="#5b6270" stroke-width="1.5" stroke-dasharray="6 5" />
+                <circle cx="120" cy="70" r="6" fill="#2563eb" opacity="0.85" />
+                <circle cx="205" cy="120" r="6" fill="#2563eb" opacity="0.85" />
+                <rect x="145" y="145" width="11" height="11" fill="#b91c1c" opacity="0.85" />
+                <circle cx="45" cy="40" r="6" fill="#2563eb" opacity="0.35" />
+                <circle cx="60" cy="165" r="6" fill="#2563eb" opacity="0.35" />
+                <rect x="265" y="45" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <rect x="280" y="150" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <rect x="35" y="95" width="11" height="11" fill="#b91c1c" opacity="0.35" />
+                <path d="M154 94 l12 12 M166 94 l-12 12" stroke="#111111" stroke-width="3" />
+                <text x="176" y="40" font-size="11" fill="#5b6270">k = 3 → 2 blue, 1 red</text>
+              </svg>
+                <p class="figure__caption">
+                  The cross is a new review. Inside the circle: two positive
+                  neighbours and one negative, so the vote says positive.
+                </p>
+              </div>
+              <p class="note">
+                <strong>The cost moves.</strong> There is nothing to train, but every
+                prediction compares the new review against all 8 000 training reviews.
+                On this dataset that makes kNN far slower than Naive Bayes at prediction
+                time, for no gain in accuracy — the reason it is rarely used for text.
+              </p>
+              <h3 style="margin-top: 44px">Decision trees and random forests</h3>
+              <p class="narrow">
+                A decision tree asks yes/no questions —
+                “does the review contain <span class="token">нашар</span>?” — and follows
+                the branches to a class. A single tree overfits badly; a
+                <strong>random forest</strong> trains hundreds of them on random subsets
+                and averages the votes.
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">contains “нашар”?</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">yes → negative</span></li>
+                <li><span class="diagram__node">no → contains “керемет”?</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">yes → positive</span></li>
+              </ul>
+              <div class="callout">
+                <strong>And this is what they actually score here.</strong> The single
+                tree is the weakest model in the lecture — 0.750 on the test set, 0.732
+                under cross-validation, with double the fold-to-fold variance of the
+                linear models. The forest repairs most of that (0.775) but still does not
+                catch Naive Bayes, while fitting almost perfectly on the training data
+                (0.980) and taking five times longer.
+              </div>
+              <div class="callout">
+                <strong>Why they struggle.</strong> A tree splits on one feature at a
+                time, and a TF-IDF matrix has 9 419 sparse columns where almost every
+                value is zero. Use trees for text when you combine words with other
+                features — review length, rating history, time of day — because mixing
+                feature types is exactly what they are good at.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="comparison">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Choosing</span>
+              <h2 id="comparison">Which algorithm, when</h2>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Comparison of the classical algorithms</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Algorithm</th>
+                      <th scope="col">Strength</th>
+                      <th scope="col">Weakness</th>
+                      <th scope="col">Reach for it when…</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Naive Bayes</td>
+                      <td>trains instantly, works on tiny data</td>
+                      <td>assumes words are independent</td>
+                      <td>you need a baseline in five minutes</td>
+                    </tr>
+                    <tr>
+                      <td>Logistic Regression</td>
+                      <td>calibrated probabilities, readable weights</td>
+                      <td>needs more data than Naive Bayes</td>
+                      <td>you need a confidence score or a threshold</td>
+                    </tr>
+                    <tr>
+                      <td>Linear SVM</td>
+                      <td>strong on long documents and large vocabularies</td>
+                      <td>no probabilities</td>
+                      <td>documents are long and there is plenty of data</td>
+                    </tr>
+                    <tr>
+                      <td>kNN</td>
+                      <td>no training, adapts as data arrives</td>
+                      <td>slow and weak at prediction time</td>
+                      <td>the dataset is small and changes constantly</td>
+                    </tr>
+                    <tr>
+                      <td>Decision Tree</td>
+                      <td>the only model you can read as a flowchart</td>
+                      <td>weakest and least stable here: 0.750, ±0.012</td>
+                      <td>you must explain a decision step by step</td>
+                    </tr>
+                    <tr>
+                      <td>Random Forest</td>
+                      <td>mixes text with numeric features, 0.775</td>
+                      <td>widest overfitting gap (+0.205), slowest to fit</td>
+                      <td>you have metadata as well as words</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>And then measure, because the table is only a prior.</strong>
+                On this dataset the ranking is the reverse of the usual advice: Naive
+                Bayes 0.784, Logistic Regression 0.780, Random Forest 0.775, Linear SVM
+                0.762, Decision Tree 0.750. Short reviews and a small vocabulary favour
+                the simplest model. Running all five costs about ten seconds — let the
+                numbers decide.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="metrics">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Measuring</span>
+              <h2 id="metrics">Metrics: accuracy is not enough</h2>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Precision</h3>
+                  <p>Of everything the model called negative, how much really was? Punishes false alarms.</p>
+                </div>
+                <div class="card">
+                  <h3>Recall</h3>
+                  <p>Of all the real negative reviews, how many did it find? Punishes misses.</p>
+                </div>
+                <div class="card">
+                  <h3>F1</h3>
+                  <p>The harmonic mean of the two — one number when you must have one number.</p>
+                </div>
+                <div class="card">
+                  <h3>Confusion matrix</h3>
+                  <p>Which class is mistaken for which. The only one that tells you what to fix.</p>
+                </div>
+              </div>
+              <p class="narrow" style="margin-top: 28px">
+                From the run above: negative precision 0.782, recall 0.787. The two are
+                nearly equal, which means the model is not trading one for the other — it
+                simply misses about a fifth of the complaints and raises about as many
+                false alarms. Whether that is acceptable depends on which mistake costs
+                more.
+              </p>
+
+              <h3 style="margin-top: 44px">What happens without balancing</h3>
+              <p class="narrow">
+                This is the same task, trained on the raw distribution instead:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build
+
+train_raw = load("train")
+test = balance(load("test"), 1000)
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+balanced = balance(train_raw, 4000)
+raw = train_raw.sample(8000, random_state=0)
+print("raw training balance:", raw["label"].value_counts().sort_index().to_dict())
+
+for name, data in (("balanced", balanced), ("raw     ", raw)):
+    model = build("nb")
+    model.fit(data["text_cleaned"].astype(str), data["label"])
+    predicted = model.predict(x_test)
+    recall_negative = ((predicted == 0) &amp; (y_test == 0)).sum() / (y_test == 0).sum()
+    print(f"{name} → accuracy={model.score(x_test, y_test):.3f}"
+          f"  recall(negative)={recall_negative:.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>raw training balance: {0: 1384, 1: 6616}
+balanced → accuracy=0.784  recall(negative)=0.787
+raw      → accuracy=0.574  recall(negative)=0.154</code></pre></div>
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Negative recall collapses from 0.787 to 0.154.</strong> Trained
+                on 82% positive data, the model learns that answering “positive” is
+                usually right and stops finding complaints almost entirely. And here is
+                the trap: measured on the <em>unbalanced</em> test set that same model
+                scores 0.842 — while a model that always answers “positive” scores 0.820.
+                It looks respectable and it has learned almost nothing.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="validation">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Trusting the number</span>
+              <h2 id="validation">How much data, and how much trust</h2>
+              <p class="narrow lead">
+                Two questions worth asking about any reported accuracy: would more data
+                improve it, and how much would it move if you had split differently?
+              </p>
+
+              <h3 style="margin-top: 40px">More data</h3>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build
+
+train_raw = load("train")
+test = balance(load("test"), 1000)
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+for per_class in (250, 500, 1000, 2000, 4000):
+    train = balance(train_raw, per_class)
+    model = build("nb")
+    model.fit(train["text_cleaned"].astype(str), train["label"])
+    print(f"{2 * per_class:&gt;5} training reviews → accuracy {model.score(x_test, y_test):.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  500 training reviews → accuracy 0.733
+ 1000 training reviews → accuracy 0.746
+ 2000 training reviews → accuracy 0.773
+ 4000 training reviews → accuracy 0.779
+ 8000 training reviews → accuracy 0.784</code></pre></div>
+              <p class="note">
+                Sixteen times more data buys five points, and the curve is flattening.
+                That is the shape to expect from a bag-of-words model: it climbs quickly,
+                then stalls, because it never learns that two different word forms mean
+                the same thing. Breaking through that ceiling needs different features,
+                not more rows.
+              </p>
+
+              <h3 style="margin-top: 44px">Cross-validation</h3>
+              <p class="narrow">
+                A single test score is one sample. Five-fold cross-validation splits the
+                training data five ways and trains five times, for every model:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.model_selection import cross_val_score
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+x, y = train["text_cleaned"].astype(str), train["label"]
+
+for name in ("nb", "logreg", "svm", "tree", "forest"):
+    scores = cross_val_score(build(name), x, y, cv=5)
+    print(f"{name:&gt;7}  {scores.mean():.3f} ± {scores.std():.3f}   {scores.round(3)}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>     nb  0.792 ± 0.006   [0.789 0.788 0.785 0.797 0.801]
+ logreg  0.780 ± 0.006   [0.778 0.77  0.782 0.786 0.784]
+    svm  0.768 ± 0.005   [0.768 0.761 0.768 0.772 0.774]
+   tree  0.732 ± 0.012   [0.749 0.716 0.732 0.721 0.742]
+ forest  0.777 ± 0.011   [0.799 0.768 0.773 0.771 0.778]</code></pre></div>
+              <p class="note">
+                The order is stable across folds, and the standard deviations separate
+                the two families: 0.005–0.006 for the linear models against 0.011–0.012
+                for the trees. A single decision tree is both the weakest and the least
+                stable. Naive Bayes leads Logistic Regression by 0.012, which is twice
+                its own fold-to-fold spread — that is what makes the ranking believable.
+              </p>
+
+              <h3 style="margin-top: 44px">Capacity and overfitting</h3>
+              <p class="narrow">
+                Every model, this time on the training set against the test set, with the
+                time each one took to fit:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import time
+from lesson3 import load, balance, build
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+x_train, y_train = train["text_cleaned"].astype(str), train["label"]
+x_test, y_test = test["text_cleaned"].astype(str), test["label"]
+
+for name in ("nb", "logreg", "svm", "tree", "forest"):
+    model = build(name)
+    started = time.time()
+    model.fit(x_train, y_train)
+    seconds = time.time() - started
+    train_score = model.score(x_train, y_train)
+    test_score = model.score(x_test, y_test)
+    print(f"{name:&gt;7}  train={train_score:.3f}  test={test_score:.3f}"
+          f"  gap={train_score - test_score:+.3f}  fit={seconds:5.1f}s")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>     nb  train=0.867  test=0.784  gap=+0.083  fit=  0.1s
+ logreg  train=0.923  test=0.780  gap=+0.142  fit=  0.1s
+    svm  train=0.945  test=0.762  gap=+0.182  fit=  0.1s
+   tree  train=0.878  test=0.750  gap=+0.128  fit=  0.2s
+ forest  train=0.980  test=0.775  gap=+0.205  fit=  0.5s</code></pre></div>
+              <p class="note">
+                <strong>The gap grows with the power of the model.</strong> Naive Bayes
+                fits the training data least well (0.867) and generalises best (0.784).
+                The random forest fits it almost perfectly (0.980) and carries the widest
+                gap of all (+0.205). On 8 000 short reviews there is not enough signal to
+                justify a flexible model — the extra capacity goes into memorising.
+                Note the fit times too: the forest costs five times the linear models for
+                a result that is still behind them.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="imbalance">
+            <div class="container">
+              <span class="section__eyebrow">Theory · A common trap</span>
+              <h2 id="imbalance">Class imbalance</h2>
+              <p class="narrow lead">
+                Real data is never balanced. KazSAnDRA is 82% positive; a fraud
+                dataset might be 99.9% clean. The rare class is usually the one you care
+                about.
+              </p>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Weight the classes</h3>
+                  <p>
+                    <code>class_weight="balanced"</code> in scikit-learn makes each
+                    mistake on a rare class count more. One parameter, usually the first
+                    thing to try.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Resample</h3>
+                  <p>
+                    Drop examples of the frequent class, or duplicate the rare one. Cheap,
+                    and it throws away information or invites overfitting — respectively.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Move the threshold</h3>
+                  <p>
+                    With Logistic Regression you decide the cut-off yourself: predict
+                    “fraud” at probability 0.2 rather than 0.5 when a miss is expensive.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Report the right metric</h3>
+                  <p>
+                    Use macro-F1 or per-class recall. Accuracy on imbalanced data is a
+                    number that makes everyone comfortable and tells no one anything.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="interpretability">
+            <div class="container">
+              <span class="section__eyebrow">Theory · Looking inside</span>
+              <h2 id="interpretability">What the model learned</h2>
+              <p class="narrow lead">
+                Every model here can be asked which features push hardest towards each
+                class. On real reviews this is the fastest way to find out whether it
+                learned sentiment or something else.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build, top_words
+
+train = balance(load("train"), 4000)
+model = build("logreg")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+
+negative, positive = top_words(model)
+print("negative:", ", ".join(negative))
+print("positive:", ", ".join(positive))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>negative: нашар, не, ұнамады, өте жаман, қате, мүлдем, түсініксіз, шығып, жаман, өте нашар
+positive: жақсы, рахмет, керемет, keremet, ыңғайлы, жаман емес, жаксы, мықты, ұнайды, топ</code></pre></div>
+              <p class="note">
+                <strong>Both lists are sentiment</strong>, which is what you want to
+                see: <code>нашар</code> (bad), <code>ұнамады</code> (did not like),
+                <code>түсініксіз</code> (unclear) against <code>жақсы</code> (good),
+                <code>рахмет</code> (thanks), <code>ыңғайлы</code> (convenient).
+                <strong>Look at the bigrams.</strong> <code>өте нашар</code> (very bad)
+                and <code>маған ұнамады</code> carry more than their words alone — and
+                <code>жаман емес</code>, “not bad”, sits in the <em>positive</em> list.
+                A unigram model sees only <code>жаман</code> there and gets it backwards.
+                That is the negation problem from Lecture 2, solved by
+                <code>ngram_range=(1, 2)</code>.
+              </p>
+              <div class="callout">
+                Real review data also contains profanity, and it lands high in the
+                negative list because it is genuinely predictive. <code>lesson3.py</code>
+                skips two such tokens when printing. A production system needs a decision
+                about them, not an accident.
+              </div>
+
+              <h3 style="margin-top: 44px">The mistakes</h3>
+              <div class="code-block" data-lang="python"><pre><code>from lesson3 import load, balance, build, LABELS
+
+train = balance(load("train"), 4000)
+test = balance(load("test"), 1000)
+
+model = build("nb")
+model.fit(train["text_cleaned"].astype(str), train["label"])
+predicted = model.predict(test["text_cleaned"].astype(str))
+
+probabilities = model.predict_proba(test["text_cleaned"].astype(str))
+shown = 0
+for text, true, got, prob in zip(test["text"], test["label"], predicted, probabilities):
+    if true == got:
+        continue
+    print(f"true={LABELS[true]:&gt;8} predicted={LABELS[got]:&gt;8} "
+          f"confidence={prob.max():.2f}  «{str(text)[:45]}»")
+    shown += 1
+    if shown == 4:
+        break</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>true=positive predicted=negative confidence=0.52  «Мен қазақшамың қазақстанда тұрамын»
+true=positive predicted=negative confidence=0.62  «Ма шааЛлагь»
+true=negative predicted=positive confidence=0.56  «Бауырларым менде жүмғой»
+true=positive predicted=negative confidence=0.68  «Жаңа әндер мен өлеңдер жинағы мен сені чаттан»</code></pre></div>
+              <p class="note">
+                <strong>Read the reviews, not just the labels.</strong>
+                <code>«Мен қазақшамың қазақстанда тұрамын»</code> — “I am Kazakh-speaking,
+                I live in Kazakhstan” — carries no sentiment at all, yet it is labelled
+                positive. <code>«Ма шааЛлагь»</code> is an exclamation. These are not
+                model failures; they are reviews that contain no opinion, and no
+                classifier can recover a signal that is not there. Note the confidence
+                column: 0.52 and 0.56 mean the model was almost undecided, which is
+                exactly what a review with no sentiment should produce.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="kazakh-data">
+            <div class="container">
+              <span class="section__eyebrow">Kazakhstan</span>
+              <h2 id="kazakh-data">What makes Kazakh reviews hard</h2>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import CountVectorizer
+from lesson3 import load, balance
+
+train = balance(load("train"), 4000)
+
+counts = CountVectorizer().fit_transform(train["text_cleaned"].astype(str))
+frequency = counts.sum(axis=0).A1
+vectorizer = CountVectorizer().fit(train["text_cleaned"].astype(str))
+
+print("reviews          :", counts.shape[0])
+print("vocabulary       :", counts.shape[1])
+print("tokens           :", int(frequency.sum()))
+print("seen exactly once:", int((frequency == 1).sum()),
+      f"({100 * (frequency == 1).mean():.1f}% of the vocabulary)")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews          : 8000
+vocabulary       : 19125
+tokens           : 71478
+seen exactly once: 13266 (69.4% of the vocabulary)</code></pre></div>
+              <p class="note">
+                <strong>69% of the vocabulary appears exactly once.</strong> Nineteen
+                thousand distinct forms from seventy-two thousand tokens — the model sees
+                most words a single time and can learn almost nothing from them. This is
+                the morphology lesson from Lecture 2 arriving as a number: every case and
+                possessive suffix creates another form that Bag of Words treats as an
+                unrelated word.
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Three problems, all visible in the data</span>
+                <ul>
+                  <li>
+                    <strong>Morphology splits the evidence.</strong> The frequent words
+                    are the ones that resist inflection — <code>өте</code> (very),
+                    <code>жақсы</code> (good), <code>керемет</code> (great). Anything
+                    inflected is scattered across forms.
+                  </li>
+                  <li>
+                    <strong>Reviews are very short.</strong> A median of six words, 23%
+                    with three or fewer. <code>«Әлі қатады го»</code> carries almost no
+                    signal for a word-counting model.
+                  </li>
+                  <li>
+                    <strong>The text is mixed.</strong> Russian words
+                    (<code>регистрация</code>, <code>реклама</code>, <code>ужас</code>)
+                    sit inside Kazakh sentences, exactly the code-switching from
+                    Lecture 0 — and they are among the most predictive features.
+                  </li>
+                </ul>
+              </div>
+              <div class="callout">
+                <strong>What to try next.</strong> Character n-grams —
+                <code>TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5))</code> —
+                catch shared stems across inflected forms and usually beat word features
+                on Kazakh. Lemmatization would do the same job if a good analyser is
+                available. Both are exercises at the end of this page.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The script</span>
+              <h2 id="code">Running it yourself</h2>
+              <p class="narrow lead">
+                Everything on this page comes from
+                <a href="../../code_files/lesson3.py">code_files/lesson3.py</a>. It reads
+                the dataset with <code>datasets</code>, hands it to pandas, and runs the
+                five models through scikit-learn pipelines.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code># .env next to the project:  HF_TOKEN=hf_...   (accept the terms on the dataset page)
+
+pip install -r requirements.txt
+
+python3 lesson3.py                     # load → explore → balance → train → test → inspect
+python3 lesson3.py --model forest      # one model only
+python3 lesson3.py --train-size 1000   # smaller and faster
+python3 lesson3.py --figure cm.png     # save the confusion matrix</code></pre></div>
+              <p class="narrow" style="margin-top: 32px">
+                The optional comparison is fifteen lines. A <code>Pipeline</code> keeps
+                the vectorizer and the classifier together, so the same transformation is
+                applied at training and at prediction time:
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import LinearSVC
+
+for name, clf in (("Naive Bayes", MultinomialNB()),
+                  ("Logistic Regression", LogisticRegression(max_iter=1000)),
+                  ("Linear SVM", LinearSVC())):
+    model = make_pipeline(TfidfVectorizer(ngram_range=(1, 2), min_df=2), clf)
+    model.fit(x_train, y_train)
+    print(name, model.score(x_test, y_test))</code></pre></div>
+              <p class="note">
+                <code>--figure</code> saves the confusion matrix as a PNG through
+                <code>ConfusionMatrixDisplay</code>, which is the quickest way to put a
+                result into a report.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Five questions to answer together before we finish.</p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">KazSAnDRA is 82% positive. Why did we balance it, and what would accuracy mean if we had not?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      On the raw distribution a model that always answers “positive”
+                      scores 0.82, so accuracy no longer separates a working model from a
+                      useless one. After balancing, 0.500 is the coin flip and 0.784 is
+                      real. We measured the cost of not balancing: negative recall falls
+                      from 0.787 to 0.154.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">What exactly is "naive" about Naive Bayes, and why does it still work here?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      It assumes words are independent given the class, which is false for
+                      language. For classification only the ranking matters — the right
+                      class needs the highest score, and the probabilities themselves can
+                      be badly wrong.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">Negative precision is 0.825 but recall is 0.735. Explain the difference to a product manager.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      When the system flags a review as a complaint, it is right about
+                      83% of the time. But it only catches 74% of the real complaints —
+                      one in four is missed. Which number matters depends on whether a
+                      false alarm or a missed complaint costs more.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">Cross-validation gives 0.792 ± 0.006, the single test split gives 0.784. Which do you report?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Roughly 0.78, and say which set it came from. Cross-validation uses
+                      only training data, the test split is held out, and the small
+                      difference between them is well inside the fold-to-fold spread. Never
+                      report the higher of two numbers without saying how it was measured.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">«Жақсы бəрін көруге болады» is labelled negative; the model says positive. Who is wrong?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Probably the label. Real datasets contain annotation noise, and part
+                      of every accuracy gap belongs to the data rather than the model.
+                      Before tuning anything, read a sample of the errors and estimate how
+                      many are actually label problems.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in the folder with <code>lesson3.py</code> — every task is a few
+                lines on top of it.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Task 1 — Run all three</h3>
+                  <p class="challenge__task">Run lesson3.py with --train-size 250, 1000 and 4000. Plot accuracy against training size. Where does the curve flatten?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      0.727 → 0.752 → 0.778, still rising but slowly. Sixteen times the
+                      data buys about six points, so the next gain has to come from better
+                      features, not more rows.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 — Break smoothing</h3>
+                  <p class="challenge__task">Change MultinomialNB(alpha=…) to 0.01, 0.1, 1 and 5. Which wins, and why do both extremes lose?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Small alpha trusts rare words too much; large alpha flattens the
+                      evidence towards the class prior. Report the four numbers you
+                      measure, and tune on validation data — never on the test set you
+                      report.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 — Domain shift</h3>
+                  <p class="challenge__task">Train on one domain only (appstore) and test on another (market). How far does accuracy fall?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Expect a drop: app-store complaints and marketplace complaints use
+                      different vocabulary. This is domain shift, and it is why a model
+                      validated on one source can fail on another.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 — Character n-grams</h3>
+                  <p class="challenge__task">Change tokenize() to produce character 4-grams instead of words. Does accuracy improve?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Character n-grams usually help on Kazakh, because they share pieces
+                      between inflected forms that word features treat as unrelated. Report
+                      the number you actually measure, not the one you expect.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 — Imbalance</h3>
+                  <p class="challenge__task">Train on 4000 positive and only 400 negative reviews. Report accuracy and per-class recall.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Accuracy stays respectable while negative recall collapses — the
+                      same effect as the raw-distribution experiment, only sharper.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 — Leaky split</h3>
+                  <p class="challenge__task">Copy 200 test reviews into the training set and rerun. What happens to accuracy, and what is this mistake called?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Accuracy rises for free — the model is tested on what it memorised.
+                      This is <strong>data leakage</strong>. Duplicate reviews are common in
+                      scraped data, so it happens by accident more often than by mistake.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 — Error analysis</h3>
+                  <p class="challenge__task">Sort the test set by the gap between the two class scores. Read the ten smallest gaps.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Use <code>score()</code> from lesson3.py. The smallest gaps are the
+                      reviews that would flip on a slightly different training set — and
+                      usually the most interesting ones to read.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 — Real data</h3>
+                  <p class="challenge__task">Set min_df to 1, 2 and 5 in the TfidfVectorizer. How does the feature count change, and does accuracy follow?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      min_df=2 already removes most of the vocabulary, because 69% of the
+                      words appear once. Fewer features usually means a smaller gap between
+                      train and test. Compare any gain against the fold spread of about
+                      0.006 before claiming it.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 9 — Build a Kazakh dataset</h3>
+                  <p class="challenge__task">Read 50 negative reviews from the dataset. How many would you have labelled differently, and what rule would settle those cases?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Expect to disagree with a few. Written rules matter more than the
+                      data itself: without them two annotators disagree and the model
+                      learns the disagreement. Projects measure this as inter-annotator
+                      agreement.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 10 — Beat the baseline</h3>
+                  <p class="challenge__task">Beat 0.784 on the same balanced test set. Anything is allowed except touching the test set.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Character n-grams, bigrams, more training data and a linear SVM are
+                      the candidates. Verify any gain against the fold spread before
+                      claiming it.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Self-check quiz</h3>
+              <p class="narrow lead">Ten questions with instant feedback.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">What does "supervised" mean?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">a human watches the training</button>
+                    <button class="quiz__option" type="button" data-correct>the training examples carry the correct labels</button>
+                    <button class="quiz__option" type="button">the model corrects itself</button>
+                    <button class="quiz__option" type="button">the data is cleaned beforehand</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The label is the supervision — the model learns from (text, answer) pairs.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why does Naive Bayes add logarithms instead of multiplying probabilities?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">logarithms are more accurate</button>
+                    <button class="quiz__option" type="button" data-correct>multiplying many small numbers underflows to zero</button>
+                    <button class="quiz__option" type="button">it makes the model interpretable</button>
+                    <button class="quiz__option" type="button">to avoid negative numbers</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Adding logs is the same ranking, without the numerical collapse.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">What is Laplace smoothing for?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">to speed up training</button>
+                    <button class="quiz__option" type="button">to balance the classes</button>
+                    <button class="quiz__option" type="button" data-correct>so an unseen word does not give probability zero</button>
+                    <button class="quiz__option" type="button">to remove stopwords</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>One zero would wipe out the entire product — alpha keeps everything possible.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">A model scores 0.98 on training data and 0.78 on the test set. What is this?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">underfitting</button>
+                    <button class="quiz__option" type="button" data-correct>overfitting</button>
+                    <button class="quiz__option" type="button">data leakage</button>
+                    <button class="quiz__option" type="button">class imbalance</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The model fits the training set better than reality — the gap is the symptom.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">The model finds 735 of the 1000 real negative reviews. Which metric is 0.735?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">precision</button>
+                    <button class="quiz__option" type="button" data-correct>recall</button>
+                    <button class="quiz__option" type="button">accuracy</button>
+                    <button class="quiz__option" type="button">F1</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Recall counts how many real cases were found: 735 of 1000.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why balance the test set as well as the training set?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">it makes training faster</button>
+                    <button class="quiz__option" type="button">it is required by scikit-learn</button>
+                    <button class="quiz__option" type="button" data-correct>so that accuracy has a known baseline of 0.500</button>
+                    <button class="quiz__option" type="button">to remove label noise</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>On the raw 82% positive test set the same model reports about 0.85 and looks better than it is.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Which model gives you a probability you can threshold?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">LinearSVC</button>
+                    <button class="quiz__option" type="button" data-correct>Logistic Regression</button>
+                    <button class="quiz__option" type="button">kNN with k=1</button>
+                    <button class="quiz__option" type="button">a decision tree of depth 1</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The sigmoid outputs a calibrated probability; LinearSVC returns only a decision.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">69% of the vocabulary appears exactly once. What does that cause?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">training becomes slower</button>
+                    <button class="quiz__option" type="button" data-correct>most words carry almost no learnable evidence</button>
+                    <button class="quiz__option" type="button">the confusion matrix becomes unreadable</button>
+                    <button class="quiz__option" type="button">precision and recall become equal</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Kazakh morphology spreads one meaning across many forms, and a form seen once teaches nothing.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">On this dataset, which model generalised best?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">Linear SVM, as usual</button>
+                    <button class="quiz__option" type="button">Logistic Regression</button>
+                    <button class="quiz__option" type="button" data-correct>Naive Bayes</button>
+                    <button class="quiz__option" type="button">all three were identical</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>0.784 against 0.780 and 0.762 — on short reviews the simplest model won, and cross-validation confirmed the order.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Trained on the raw 82% positive data, negative recall drops to 0.154. Why?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">the negative reviews are longer</button>
+                    <button class="quiz__option" type="button">Naive Bayes cannot handle two classes</button>
+                    <button class="quiz__option" type="button" data-correct>guessing “positive” is usually right, so the model stops looking for complaints</button>
+                    <button class="quiz__option" type="button">the smoothing constant is too small</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The class prior does the work: with 82% positive, answering “positive” is cheap and mostly right.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>The supervised pipeline, from EDA to error analysis</li>
+                <li>Naive Bayes: counting, logs and smoothing</li>
+                <li>Logistic Regression: weights and a decision boundary</li>
+                <li>SVM: the widest margin, and when it is worth the capacity</li>
+                <li>kNN and trees, measured rather than assumed</li>
+                <li>Precision, recall, F1 and the confusion matrix</li>
+                <li>Cross-validation, and how much a single score can be trusted</li>
+                <li>Class imbalance, and why accuracy hides it</li>
+                <li>Reading the words a model relies on</li>
+                <li>That label noise sets a ceiling no algorithm can pass</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Lecture 3 · 31 August 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>
