@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Векторные представления слов | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 4: векторные представления слов — дистрибутивная гипотеза, word2vec, gensim, fastText, эмбеддинги для казахского и замена TF-IDF векторами в реальном классификаторе."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Язык">
+        <a href="../en/04-word-embeddings.html" data-lang-link="en">EN</a>
+        <a href="../kk/04-word-embeddings.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/04-word-embeddings.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">От обработки текста до Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Язык">
+          <a href="../en/04-word-embeddings.html" data-lang-link="en">EN</a>
+          <a href="../kk/04-word-embeddings.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/04-word-embeddings.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">План курса</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Закрыть содержание" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 4</span>
+              <h1>Векторные представления слов</h1>
+              <p class="hero__subtitle">
+                Каждое слово становится точкой в пространстве, и слова с близким
+                смыслом оказываются рядом. Затем мы заменяем этими точками TF-IDF в
+                классификаторе из лекции 3.
+              </p>
+              <p class="hero__date">02 сентября 2026</p>
+              <ul class="topic-chips">
+                <li>Дистрибутивная гипотеза</li>
+                <li>word2vec</li>
+                <li>gensim</li>
+                <li>fastText</li>
+                <li>Векторы для казахского</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели лекции</span>
+              <h2 id="goals">После этой лекции вы сможете…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Объяснить, что такое эмбеддинг</h3>
+                  <p>Сказать, что такое вектор слова, откуда он берётся и что значит «рядом».</p>
+                </div>
+                <div class="card">
+                  <h3>Обучить свои</h3>
+                  <p>Обучить word2vec и fastText на настоящем тексте с помощью gensim и сохранить их.</p>
+                </div>
+                <div class="card">
+                  <h3>Использовать их как признаки</h3>
+                  <p>Загрузить сохранённые модели обратно и заменить TF-IDF в классификаторе лекции 3.</p>
+                </div>
+                <div class="card">
+                  <h3>Знать границы</h3>
+                  <p>Объяснить, чего статический вектор не выражает и что идёт дальше.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Сначала обучаем, потом переиспользуем.</strong> Большая часть
+                этой лекции — про то, как получить эмбеддинги и рассмотреть их. И только в
+                конце мы загружаем их обратно в классификатор лекции 3: та же задача, то
+                же разбиение, тот же классификатор, а признаки — единственное, что
+                изменилось.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what-is-embedding">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Главная идея</span>
+              <h2 id="what-is-embedding">Что такое эмбеддинг</h2>
+              <p class="narrow lead">
+                Модель не умеет читать. Всё, что она делает, — арифметика, поэтому слово
+                сначала должно стать числами. В лекциях 2 и 3 слова превращались в числа
+                <em>подсчётом</em>. В этой лекции они превращаются в числа
+                <em>размещением</em>.
+              </p>
+
+              <h3 style="margin-top: 40px">Шаг 1 — слово становится списком чисел</h3>
+              <p class="narrow">
+                Два числа задают точку на листе бумаги. Три — точку в комнате. Сто — точку
+                в пространстве, которое невозможно представить, но арифметика «насколько
+                далеко друг от друга эти две точки» во всех трёх случаях одна и та же. В
+                этом весь приём: дать каждому слову список чисел фиксированной длины — и
+                вопросы о смысле превращаются в вопросы о положении.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Эмбеддинг</strong> — это список чисел, приписанный слову, его
+                  координаты. У каждого слова список одной и той же длины (в этой лекции —
+                  100 чисел), и списки подобраны так, чтобы слова, которые употребляются
+                  похоже, оказывались в похожих местах.
+                </p>
+              </div>
+              <p class="narrow">
+                Чтобы это увидеть, вот крошечная таблица, написанная вручную: два
+                измерения мы выбрали сами, так что их можно прочитать —
+                <strong>насколько слово положительное</strong> и
+                <strong>насколько оно про связь</strong>.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import numpy as np
+
+# A toy embedding table, written by hand so we can read it.
+# Two dimensions we chose ourselves: "how positive" and "how much about internet".
+words = {
+    "жақсы":    np.array([0.9, 0.1]),   # positive, not about internet
+    "керемет":  np.array([0.95, 0.05]),
+    "нашар":    np.array([-0.9, 0.1]),  # negative
+    "интернет": np.array([0.0, 0.95]),  # neutral, all about internet
+    "байланыс": np.array([0.1, 0.9]),
+}
+
+def cosine(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+print("every word is a point:")
+for word, vector in words.items():
+    print(f"  {word:9} {vector}")
+
+print("\ncloseness = cosine of the angle between two points:")
+for a, b in [("жақсы", "керемет"), ("жақсы", "нашар"),
+             ("интернет", "байланыс"), ("жақсы", "интернет")]:
+    print(f"  {a:9} ~ {b:9} {cosine(words[a], words[b]):+.2f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>every word is a point:
+  жақсы     [0.9 0.1]
+  керемет   [0.95 0.05]
+  нашар     [-0.9  0.1]
+  интернет  [0.   0.95]
+  байланыс  [0.1 0.9]
+
+closeness = cosine of the angle between two points:
+  жақсы     ~ керемет   +1.00
+  жақсы     ~ нашар     -0.98
+  интернет  ~ байланыс  +0.99
+  жақсы     ~ интернет  +0.11</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Как читать таблицу</span>
+                <dl class="breakdown__list">
+                  <dt>[0.9, 0.1]</dt>
+                  <dd><span class="token">жақсы</span> — далеко по оси «положительное», почти ноль по оси «интернет»</dd>
+                  <dt>[0.95, 0.05]</dt>
+                  <dd><span class="token">керемет</span> — почти то же самое место, потому что употребляется почти так же</dd>
+                  <dt>[-0.9, 0.1]</dt>
+                  <dd><span class="token">нашар</span> — противоположный конец первой оси</dd>
+                  <dt>[0.0, 0.95]</dt>
+                  <dd><span class="token">интернет</span> — ни положительное, ни отрицательное, целиком про связь</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение:</strong> здесь ничто не является счётчиком чего-либо.
+                  Числа — это положение, а положение и есть смысл.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Шаг 2 — близость это угол</h3>
+              <p class="narrow">
+                Как только слова стали точками, вопрос «похожи ли эти два слова по
+                смыслу?» превращается в «смотрят ли эти две точки в одну сторону?». Мера —
+                косинусная близость из лекции 2: та же формула, только применённая к
+                векторам слов, а не документов.
+              </p>
+              <div class="breakdown">
+                <span class="breakdown__label">Как читать косинус</span>
+                <dl class="breakdown__list">
+                  <dt>+1</dt><dd>одно направление — употребляются одинаково</dd>
+                  <dt>0</dt><dd>под прямым углом — ничего общего</dd>
+                  <dt>-1</dt><dd>противоположные направления</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Почему угол, а не расстояние:</strong> длина вектора мало
+                  говорит о смысле, поэтому мы сравниваем, куда слова смотрят, а не
+                  насколько далеко они отстоят.
+                </p>
+              </div>
+              <p class="narrow">
+                В таблице, написанной вручную, <span class="token">жақсы</span> ~
+                <span class="token">керемет</span> даёт +1.00, а
+                <span class="token">жақсы</span> ~ <span class="token">нашар</span> даёт
+                −0.98 — потому что мы сами их туда поставили. Интересен другой вопрос:
+                сделает ли то же самое программа, которой никто не говорил, что значат
+                слова.
+              </p>
+
+              <h3 style="margin-top: 44px">Шаг 3 — настоящие векторы и как они выглядят</h3>
+              <p class="narrow">
+                Это векторы, обученные дальше на этой странице на 134 368 казахских
+                отзывах. Ничего в них не написано вручную.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+vector = word2vec.wv["жақсы"]
+print("«жақсы» as a vector:")
+print("  length     :", len(vector), "numbers")
+print("  first five :", vector[:5].round(3))
+
+# Cosine similarity is only this much arithmetic:
+def cosine(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+print("\nжақсы ~ керемет")
+print("  by hand  :", round(cosine(word2vec.wv["жақсы"], word2vec.wv["керемет"]), 3))
+print("  by gensim:", round(float(word2vec.wv.similarity("жақсы", "керемет")), 3))
+
+# A single dimension on its own means nothing.
+column = word2vec.wv.vectors[:, 7]
+top = np.argsort(-column)[:5]
+print("\nwords with the largest value in dimension 7:")
+print(" ", ", ".join(word2vec.wv.index_to_key[i] for i in top))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>«жақсы» as a vector:
+  length     : 100 numbers
+  first five : [-0.628 -0.191 -0.136  0.647 -0.079]
+
+жақсы ~ керемет
+  by hand  : 0.726
+  by gensim: 0.726
+
+words with the largest value in dimension 7:
+  менің, ішінде, емес, соны, шығар</code></pre></div>
+              <p class="note">
+                <strong>Три вывода из этого вывода.</strong> Первое: слово теперь — это
+                100 чисел, и ни одно из них само по себе не читается. Второе: косинус
+                действительно всего одна строчка арифметики — посчитанный вручную и
+                спрошенный у gensim, он даёт одни и те же 0.726. Третье: посмотрите на
+                измерение 7 — слова с наибольшим значением в нём это
+                <span class="token">менің</span>, <span class="token">ішінде</span>,
+                <span class="token">емес</span>, <span class="token">соны</span>,
+                <span class="token">шығар</span>, никакой темы. Читаемые оси таблицы выше
+                были учебным приёмом. В настоящем эмбеддинге отдельное измерение не значит
+                ничего; значат только положения слов друг относительно друга.
+              </p>
+
+              <h3 style="margin-top: 44px">Шаг 4 — откуда берутся числа</h3>
+              <p class="narrow">
+                Их никто не вписывает, и никакого словаря здесь нет. Каждое слово
+                начинает со 100 случайных чисел — бессмысленное пространство, — и дальше
+                эти числа исправляются миллионы раз:
+              </p>
+              <ol style="margin-top: 18px">
+                <li>Дать каждому слову словаря 100 случайных чисел.</li>
+                <li>Двигать по тексту небольшое окно и брать пару: слово и одно из слов,
+                    реально стоящих рядом с ним.</li>
+                <li>Задать текущим числам вопрос: судя по этим координатам, похожа ли эта
+                    пара на настоящих соседей?</li>
+                <li>Ответ обычно неверен, поэтому сдвинуть два вектора немного навстречу
+                    друг другу. Взять несколько пар, которые вместе не встречаются, и
+                    развести их.</li>
+                <li>Повторить для каждой позиции корпуса, десять раз подряд.</li>
+              </ol>
+              <p class="narrow">
+                Никто ничего не размечал. Текст даёт и вопрос (слово), и ответ (его
+                настоящих соседей) — поэтому достаточно обычного, неразмеченного
+                казахского текста, и поэтому миллионы неразмеченных предложений в
+                интернете вдруг становятся полезными.
+              </p>
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  Слова, которые раз за разом оказываются рядом с одними и теми же
+                  соседями, раз за разом сдвигаются в одну и ту же область — и в итоге
+                  оказываются рядом. Это весь механизм целиком, а остальная лекция — его
+                  детали: какие пары берутся, как считается сдвиг, что ломается для языка
+                  вроде казахского и улучшает ли всё это классификатор из лекции 3.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="why-embeddings">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Проблема</span>
+              <h2 id="why-embeddings">Чего не умеет TF-IDF</h2>
+              <p class="narrow lead">
+                Из лекции 2 за нами тянулись ограничения, и лекция 3 измерила их цену.
+              </p>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Синонимы друг другу чужие</h3>
+                  <p>
+                    <span class="token">жақсы</span> и
+                    <span class="token">керемет</span> — две несвязанные колонки. Отзыв с
+                    одним словом не сообщает модели ничего о другом.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Незнакомые слова исчезают</h3>
+                  <p>
+                    Слово, которого нет в обучающем словаре, просто выбрасывается. В
+                    казахском, где 69% словаря встретилось ровно один раз, это происходит
+                    постоянно.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Векторы огромны и пусты</h3>
+                  <p>
+                    9 419 признаков на 8 000 коротких отзывов, почти сплошь нули. Большая
+                    часть матрицы не несёт никакой информации.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ничего не переносится</h3>
+                  <p>
+                    Всё, что знает модель, пришло из размеченных данных. Миллионы
+                    неразмеченных казахских предложений в интернете пропадают зря.
+                  </p>
+                </div>
+              </div>
+              <p class="narrow" style="margin-top: 28px">
+                Эмбеддинги бьют по всем четырём пунктам. Они учатся на сыром тексте без
+                меток, они плотные и небольшие, они дают связанным словам связанные векторы
+                и — в случае fastText — умеют построить вектор для слова, которого никогда
+                не видели.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="distributional">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Идея</span>
+              <h2 id="distributional">Дистрибутивная гипотеза</h2>
+              <div class="definition">
+                <p>
+                  <strong>Слово узнаётся по его окружению.</strong> Слова, встречающиеся
+                  в похожих контекстах, обычно и значат похожее — значит, описав слово
+                  через соседей, мы описали его смысл.
+                </p>
+              </div>
+              <div class="kz-example">
+                <span class="kz-example__label">Одна позиция, два слова</span>
+                <div class="code-block" data-lang="text"><pre><code>Қосымша өте ______ екен, рахмет!
+                жақсы
+                керемет</code></pre></div>
+                <p style="margin-bottom: 0">
+                  Подходят оба. На всём корпусе <span class="token">жақсы</span> и
+                  <span class="token">керемет</span> раз за разом оказываются в одних и тех
+                  же позициях — рядом с <span class="token">өте</span>, рядом с
+                  <span class="token">рахмет</span>, в отзывах на пять звёзд. Больше ничего
+                  знать о них не нужно, чтобы модель заметила их родство.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 190" role="img" aria-labelledby="fig-space-t">
+                <title id="fig-space-t">Слова с близким смыслом оказываются рядом</title>
+                <line x1="14" y1="176" x2="330" y2="176" stroke="#d1d6de" />
+                <line x1="14" y1="176" x2="14" y2="10" stroke="#d1d6de" />
+                <circle cx="76" cy="46" r="5" fill="#2563eb" />
+                <text x="86" y="50" font-size="11" fill="#111111">жақсы</text>
+                <circle cx="104" cy="66" r="5" fill="#2563eb" />
+                <text x="114" y="70" font-size="11" fill="#111111">керемет</text>
+                <circle cx="70" cy="78" r="5" fill="#2563eb" />
+                <text x="80" y="92" font-size="11" fill="#111111">күшті</text>
+                <circle cx="246" cy="130" r="5" fill="#b91c1c" />
+                <text x="182" y="134" font-size="11" fill="#111111">нашар</text>
+                <circle cx="272" cy="148" r="5" fill="#b91c1c" />
+                <text x="206" y="162" font-size="11" fill="#111111">жаман</text>
+                <circle cx="258" cy="108" r="5" fill="#b91c1c" />
+                <text x="196" y="106" font-size="11" fill="#111111">сапасыз</text>
+                <line x1="104" y1="66" x2="246" y2="130" stroke="#5b6270" stroke-width="1" stroke-dasharray="4 4" />
+                <text x="150" y="112" font-size="10" fill="#5b6270">cos = 0.346</text>
+                <line x1="76" y1="46" x2="104" y2="66" stroke="#2563eb" stroke-width="1.5" />
+                <text x="66" y="34" font-size="10" fill="#2563eb">cos = 0.726</text>
+              </svg>
+                <p class="figure__caption">
+                  Схематичный вид: 100 измерений сжаты до двух. Значения косинуса —
+                  настоящие, измеренные ниже на этой странице.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import os
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+balanced = pd.concat([g.sample(4000, random_state=42)      # the split of Lecture 3
+                      for _, g in reviews.groupby("label")])
+
+tfidf = TfidfVectorizer(ngram_range=(1, 2), min_df=2, sublinear_tf=True)
+matrix = tfidf.fit_transform(balanced["text_cleaned"].astype(str))
+cells = matrix.shape[0] * matrix.shape[1]
+
+print("TF-IDF, as in Lecture 3:")
+print("  matrix  :", matrix.shape[0], "documents ×", matrix.shape[1], "features")
+print("  cells   :", f"{cells:,}")
+print("  non-zero:", f"{matrix.nnz:,}", f"({100 * matrix.nnz / cells:.2f}%)")
+
+print("\nembedding table, this lecture:")
+print("  table   :", len(word2vec.wv), "words ×", word2vec.wv.vector_size, "dimensions")
+print("  numbers :", f"{len(word2vec.wv) * word2vec.wv.vector_size:,}")
+print("  non-zero: all of them")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>TF-IDF, as in Lecture 3:
+  matrix  : 8000 documents × 9419 features
+  cells   : 75,352,000
+  non-zero: 70,698 (0.09%)
+
+embedding table, this lecture:
+  table   : 27076 words × 100 dimensions
+  numbers : 2,707,600
+  non-zero: all of them</code></pre></div>
+              <p class="note">
+                <strong>Плотное против разреженного.</strong> В TF-IDF-матрице 75
+                миллионов ячеек, и число несут 0,09% из них — остальное это нули, которые
+                хранятся только потому, что столбец существует. Таблица эмбеддингов — это
+                2,7 миллиона чисел, каждое из которых используется, и она покрывает 27 076
+                слов вместо 9 419, переживших <code>min_df=2</code>.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="word2vec">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Модель</span>
+              <h2 id="word2vec">word2vec</h2>
+              <p class="narrow lead">
+                word2vec (Миколов с коллегами, 2013) превращает дистрибутивную гипотезу
+                в задачу предсказания. Векторы — не цель обучения, а то, что остаётся после
+                того, как задача решена.
+              </p>
+
+              <h3 style="margin-top: 40px">Два способа обойти одну идею</h3>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Skip-gram</h3>
+                  <p>
+                    По центральному слову предсказать слова вокруг. Медленнее и лучше на
+                    малых корпусах и редких словах — поэтому здесь используется он.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>CBOW</h3>
+                  <p>
+                    По окружающим словам предсказать центральное. Быстрее и мягче на
+                    частых словах. В gensim: <code>sg=0</code>.
+                  </p>
+                </div>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-sg-t">
+                <title id="fig-sg-t">Skip-gram предсказывает слова вокруг центрального</title>
+                <rect x="118" y="60" width="104" height="30" rx="6" fill="#2563eb" />
+                <text x="170" y="80" font-size="13" fill="#ffffff" text-anchor="middle">жақсы</text>
+                <rect x="8" y="10" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="28" font-size="12" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="8" y="112" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="130" font-size="12" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="246" y="10" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="289" y="28" font-size="12" fill="#111111" text-anchor="middle">екен</text>
+                <rect x="246" y="112" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="289" y="130" font-size="12" fill="#111111" text-anchor="middle">рахмет</text>
+                <line x1="118" y1="68" x2="94" y2="30" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="118" y1="82" x2="94" y2="120" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="222" y1="68" x2="246" y2="30" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="222" y1="82" x2="246" y2="120" stroke="#5b6270" stroke-width="1.5" />
+                <text x="170" y="105" font-size="10" fill="#5b6270" text-anchor="middle">window = 2</text>
+              </svg>
+                <p class="figure__caption">
+                  Skip-gram с окном 2: по слову <span class="token">жақсы</span>
+                  предсказать четыре слова вокруг. Каждая позиция в корпусе становится
+                  обучающим примером.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Как это обучается на самом деле</h3>
+              <p class="narrow">
+                Предсказать одно слово из словаря в 27 000 слов означало бы softmax на
+                27 000 вариантов на каждом шаге — это слишком медленно.
+                <strong>Negative sampling</strong> заменяет его куда более дешёвым
+                вопросом: эта пара слов — настоящие соседи или я её выдумал?
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">(жақсы, өте)</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">настоящая — сблизить векторы</span></li>
+              </ul>
+              <ul class="diagram">
+                <li><span class="diagram__node">(жақсы, банк)</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">выдуманная — раздвинуть</span></li>
+              </ul>
+              <p class="narrow">
+                Нескольких выдуманных пар на одну настоящую достаточно. Векторы
+                стартуют случайными и сдвигаются, пара за парой, пока слова с общим
+                окружением не окажутся рядом. Никто никогда не сообщает модели, что значит
+                <span class="token">жақсы</span>.
+              </p>
+              <div class="callout">
+                <strong>Что означают параметры.</strong>
+                <code>vector_size</code> — сколько чисел на слово; 100–300 это норма.
+                <code>window</code> — как далеко тянется «контекст»; малые окна ловят
+                синтаксис, большие — тему. <code>min_count</code> — игнорировать слова реже
+                этого порога. <code>epochs</code> — сколько проходов по корпусу; малым
+                корпусам нужно больше.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="corpus">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Корпус</span>
+              <h2 id="corpus">Готовим корпус</h2>
+              <p class="narrow lead">
+                Для обучения нужно ровно одно: список предложений, каждое уже разбитое на
+                слова. Никаких меток, никакой разметки, никакой очистки сверх приведения к
+                нижнему регистру.
+              </p>
+              <p class="narrow">
+                Берём отзывы KazSAnDRA из лекции 3, но на этот раз —
+                <strong>все</strong>, полностью игнорируя колонку <code>label</code>. В
+                лекции 3 можно было использовать только 8 000 отзывов сбалансированной
+                обучающей выборки, потому что классификатору нужны ответы. Эмбеддингу они
+                не нужны, поэтому здесь полезны все 134 368.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")                      # the file holds HF_TOKEN=hf_...
+
+from datasets import load_dataset
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+
+TOKEN = re.compile(r"\w+")
+
+def tokenize(text):
+    return TOKEN.findall(str(text).lower())
+
+corpus = [tokenize(text) for text in reviews["text_cleaned"].astype(str)]
+
+print("reviews  :", len(corpus))
+print("tokens   :", sum(len(sentence) for sentence in corpus))
+print("longest  :", max(len(sentence) for sentence in corpus), "tokens")
+print("distinct :", len(set(word for sentence in corpus for word in sentence)), "words")
+print("example  :", corpus[0])</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews  : 134368
+tokens   : 1167795
+longest  : 271 tokens
+distinct : 119771 words
+example  : ['өтте', 'күшті']</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Что говорит каждое число</span>
+                <dl class="breakdown__list">
+                  <dt>134 368</dt>
+                  <dd>отзывов — в шестнадцать раз больше текста, чем видел классификатор лекции 3</dd>
+                  <dt>1 167 795</dt>
+                  <dd>токенов всего, то есть около девяти слов на отзыв: тексты короткие</dd>
+                  <dt>119 771</dt>
+                  <dd>различных слов, большинство из них встречается один-два раза</dd>
+                  <dt>271</dt>
+                  <dd>токен в самом длинном отзыве — ничто здесь не является документом в привычном смысле</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение:</strong> по меркам эмбеддингов это маленький корпус.
+                  Публикуемые векторы обучают на миллиардах токенов, у нас чуть больше
+                  миллиона — и это проявится дальше, когда мы попробуем аналогии.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Почему токенизатор такой простой.</strong> <code>\w+</code>
+                оставляет цепочки букв и цифр и выбрасывает всё остальное. Это то же
+                правило, которое дальше применит классификатор, и это важнее
+                изощрённости: если эмбеддинги обучены на одних токенах, а искать в них
+                будут другие, большинство обращений промахнётся.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="training">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Обучение</span>
+              <h2 id="training">Обучаем word2vec с gensim</h2>
+              <p class="narrow lead">
+                gensim — стандартная библиотека Python для этого. Она принимает список
+                токенизированных предложений и возвращает таблицу векторов.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+from gensim.models import Word2Vec
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+corpus = [re.findall(r"\w+", str(text).lower())
+          for text in reviews["text_cleaned"].astype(str)]
+
+word2vec = Word2Vec(
+    corpus,
+    vector_size=100,   # numbers per word
+    window=5,          # words of context on each side
+    min_count=3,       # ignore words seen fewer than three times
+    sg=1,              # 1 = skip-gram, 0 = CBOW
+    epochs=10,         # passes over the corpus
+    workers=1,         # one thread, so two runs give the same vectors
+    seed=42,
+)
+
+os.makedirs("models", exist_ok=True)
+word2vec.save("models/word2vec.model")
+
+print("vocabulary :", len(word2vec.wv), "words")
+print("per word   :", word2vec.wv.vector_size, "numbers")
+print("dropped    :", len(set(w for s in corpus for w in s)) - len(word2vec.wv),
+      "words seen fewer than three times")
+print("saved to   : models/word2vec.model")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>vocabulary : 27076 words
+per word   : 100 numbers
+dropped    : 92695 words seen fewer than three times
+saved to   : models/word2vec.model</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Каждый параметр и что он меняет</span>
+                <dl class="breakdown__list">
+                  <dt>vector_size=100</dt>
+                  <dd>чисел на слово. Больше ёмкость, но и текста нужно больше, чтобы её заполнить</dd>
+                  <dt>window=5</dt>
+                  <dd>сколько слов контекста считается «рядом». Маленькие окна учат грамматической роли, большие — теме</dd>
+                  <dt>min_count=3</dt>
+                  <dd>пропустить слова, встреченные меньше трёх раз — здесь это 92 695 из 119 771 типа слов</dd>
+                  <dt>sg=1</dt>
+                  <dd>skip-gram. <code>sg=0</code> дал бы CBOW: быстрее, обычно слабее на редких словах</dd>
+                  <dt>epochs=10</dt>
+                  <dd>проходов по корпусу. На маленьком корпусе больше проходов помогает, на огромном стоит часов</dd>
+                  <dt>workers=1</dt>
+                  <dd>один поток, чтобы два запуска давали одни и те же векторы</dd>
+                  <dt>seed=42</dt>
+                  <dd>случайное начало. Вместе с <code>workers=1</code> делает запуск воспроизводимым</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Результат:</strong> 27 076 слов × 100 чисел, обучено примерно за
+                  полминуты, сохранено в файл, который можно загрузить снова.
+                </p>
+              </div>
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>Про <code>workers=1</code>.</strong> При нескольких потоках gensim
+                обновляет общие веса в непредсказуемом порядке, и два запуска одного и
+                того же кода дают разные векторы — соседи
+                <span class="token">жақсы</span> меняются от запуска к запуску. Один поток
+                плюс фиксированный <code>seed</code> делают результат повторяемым. Здесь
+                это стоит секунд двадцати; на большом корпусе потоки понадобятся обратно,
+                и придётся смириться с тем, что ваши числа немного плавают.
+              </div>
+              <p class="note">
+                <strong>Сохранение — и есть смысл этого шага.</strong> Обучение — самая
+                медленная часть, и делать её нужно один раз.
+                <code>word2vec.save(...)</code> записывает модель на диск, и дальше каждый
+                пример на этой странице начинается с
+                <code>Word2Vec.load("models/word2vec.model")</code> — секунда-другая
+                вместо получаса… точнее, вместо полминуты. Так же эмбеддинги используют и
+                в реальном проекте: обучить один раз, загружать везде.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what-vectors-learn">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Результаты</span>
+              <h2 id="what-vectors-learn">Что выучили векторы</h2>
+              <p class="narrow lead">
+                Модель теперь на диске, поэтому мы загружаем её обратно и задаём вопросы.
+                Ничто ниже не переобучается.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for word in ("жақсы", "нашар", "интернет", "рахмет"):
+    neighbours = word2vec.wv.most_similar(word, topn=5)
+    print(word)
+    print("  ", ", ".join(f"{w} {score:.2f}" for w, score in neighbours))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>жақсы
+   керемет 0.73, өте 0.72, күшті 0.72, қағазды 0.68, пластиктен 0.68
+нашар
+   төмен 0.73, сапасыз 0.62, жаман 0.61, нашарлап 0.61, баяу 0.59
+интернет
+   сеть 0.61, 4g 0.60, 3g 0.59, теле2 0.59, интернеті 0.58
+рахмет
+   рақмет 0.84, рахмеет 0.80, ракмет 0.78, рақмеет 0.73, рахметт 0.73</code></pre></div>
+              <p class="note">
+                <strong>Читайте эти списки внимательно.</strong>
+                <code>жақсы</code> → <code>керемет</code>, <code>күшті</code>: синонимы,
+                ровно то, чего мы хотели, и ровно то, чего TF-IDF никогда не видел.
+                <code>нашар</code> → <code>төмен</code>, <code>сапасыз</code>,
+                <code>жаман</code>: отрицательный кластер.
+                <code>интернет</code> → <code>сеть</code>, <code>4g</code>,
+                <code>3g</code>, <code>теле2</code>: вовсе не синонимы, а та же тема —
+                операторы и технологии связи. А
+                <code>рахмет</code> → <code>рақмет</code>, <code>ракмет</code>,
+                <code>рахмеет</code>: модель молча обнаружила, что это написания одного
+                слова. Никто ничего из этого не размечал.
+              </p>
+
+              <h3 style="margin-top: 44px">Измеряем «близко»</h3>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for a, b in (("жақсы", "керемет"), ("жақсы", "нашар"),
+             ("интернет", "байланыс"), ("интернет", "тамақ")):
+    print(f"{a:&gt;9} ~ {b:&lt;10} {word2vec.wv.similarity(a, b):.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>    жақсы ~ керемет    0.726
+    жақсы ~ нашар      0.346
+ интернет ~ байланыс   0.520
+ интернет ~ тамақ      0.224</code></pre></div>
+              <p class="note">
+                Синонимы дают 0.726, противоположности 0.346, несвязанные слова 0.224.
+                Разрыв между парами — это и есть то, чем сможет воспользоваться
+                классификатор. <strong>Но заметьте, что противоположности не на нуле:</strong>
+                <code>жақсы</code> и <code>нашар</code> встречаются в очень похожих
+                контекстах — оба идут после <code>өте</code>, оба описывают один и тот же
+                продукт. Дистрибутивная гипотеза не умеет отделять слово от его антонима,
+                и это известная слабость, а не ошибка нашего обучения.
+              </p>
+
+              <h3 style="margin-top: 44px">Где не работает: аналогии</h3>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for positive, negative in ((["әйел", "патша"], ["ер"]), (["жаман"], ["жақсы"])):
+    found = word2vec.wv.most_similar(positive=positive, negative=negative, topn=3)
+    print(f"{positive} - {negative} → {[w for w, _ in found]}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>['әйел', 'патша'] - ['ер'] → ['дж', 'базасы', 'бөлімшелер']
+['жаман'] - ['жақсы'] → ['фуу', 'мал', 'тартпандар']</code></pre></div>
+              <p class="note">
+                <strong>Бессмыслица, и это честный результат.</strong> Знаменитые
+                демонстрации «король − мужчина + женщина = королева» получены на моделях,
+                обученных на миллиардах токенов. У нас 1,17 миллиона — достаточно для
+                соседей и совершенно недостаточно для арифметики. Если показываете
+                аналогии в докладе, говорите, на корпусе какого размера они получены.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="fasttext">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Улучшение</span>
+              <h2 id="fasttext">fastText и подслова</h2>
+              <p class="narrow lead">
+                У word2vec есть жёсткое ограничение: у слова, которого он не видел,
+                вектора нет вовсе. Для агглютинативного языка это тяжело — каждый падежный
+                и притяжательный суффикс порождает новую форму.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>fastText</strong> представляет слово как сумму его символьных
+                  n-грамм. <span class="token">кітаптарымыздан</span> собирается из
+                  <span class="token">кіт</span>, <span class="token">ітап</span>,
+                  <span class="token">тары</span>, <span class="token">дан</span> и
+                  остальных — поэтому форма, ни разу не встретившаяся при обучении, всё
+                  равно получает осмысленный вектор, собранный из встречавшихся кусков.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 130" role="img" aria-labelledby="fig-sub-t">
+                <title id="fig-sub-t">fastText строит вектор слова из его символьных n-грамм</title>
+                <rect x="70" y="8" width="200" height="28" rx="6" fill="#2563eb" />
+                <text x="170" y="27" font-size="13" fill="#ffffff" text-anchor="middle">кітаптарымыздан</text>
+                <text x="170" y="52" font-size="11" fill="#5b6270" text-anchor="middle">не встречалось при обучении</text>
+                <rect x="18" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="81" font-size="11" fill="#111111" text-anchor="middle">кіт</text>
+                <rect x="94" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="127" y="81" font-size="11" fill="#111111" text-anchor="middle">ітап</text>
+                <rect x="170" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="203" y="81" font-size="11" fill="#111111" text-anchor="middle">тары</text>
+                <rect x="246" y="64" width="76" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="284" y="81" font-size="11" fill="#111111" text-anchor="middle">дан</text>
+                <text x="170" y="110" font-size="11" fill="#111111" text-anchor="middle">сумма кусков → рабочий вектор</text>
+              </svg>
+                <p class="figure__caption">
+                  При <code>min_n=3, max_n=5</code> каждая подстрока длиной от 3 до 5
+                  становится куском слова.
+                </p>
+              </div>
+              <h3 style="margin-top: 40px">Обучается тем же вызовом</h3>
+              <p class="narrow">
+                Тот же корпус, те же настройки, два лишних параметра — и второй файл на
+                диске рядом с первым.
+              </p>
+<div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+from gensim.models import FastText
+from gensim.models.fasttext import compute_ngrams
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+corpus = [re.findall(r"\w+", str(text).lower())
+          for text in reviews["text_cleaned"].astype(str)]
+
+fasttext = FastText(
+    corpus,
+    vector_size=100, window=5, min_count=3, sg=1,   # the same as word2vec
+    epochs=10, workers=1, seed=42,
+    min_n=3,           # shortest character n-gram
+    max_n=5,           # longest character n-gram
+)
+
+fasttext.save("models/fasttext.model")
+
+print("vocabulary  :", len(fasttext.wv), "words")
+print("n-gram slots:", fasttext.wv.bucket)
+print("pieces of «кітап»:", compute_ngrams("кітап", 3, 5)[:6], "…")
+print("saved to    : models/fasttext.model")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>vocabulary  : 27076 words
+n-gram slots: 2000000
+pieces of «кітап»: ['&lt;кі', 'кіт', 'іта', 'тап', 'ап&gt;', '&lt;кіт'] …
+saved to    : models/fasttext.model</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Два новых параметра</span>
+                <dl class="breakdown__list">
+                  <dt>min_n=3</dt>
+                  <dd>самая короткая символьная n-грамма, которую храним</dd>
+                  <dt>max_n=5</dt>
+                  <dd>самая длинная. <code>кітап</code> превращается в <code>&lt;кі</code>, <code>кіт</code>, <code>іта</code>, <code>тап</code>, <code>ап&gt;</code>, <code>&lt;кіт</code> и так далее</dd>
+                  <dt>2 000 000</dt>
+                  <dd>ячеек, в которые хешируются n-граммы — поэтому файл fastText гораздо больше файла word2vec</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Обратите внимание на угловые скобки:</strong> <code>&lt;</code> и
+                  <code>&gt;</code> отмечают начало и конец слова, чтобы кусок в начале
+                  слова не путался с теми же буквами в середине.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Слова, на которые word2vec не может ответить</h3>
+<div class="code-block" data-lang="python"><pre><code>from gensim.models import FastText, Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+fasttext = FastText.load("models/fasttext.model")
+
+for word in ("кітаптарымыздан", "ұнамағандықтан", "интернетсіздіктен"):
+    print(word)
+    print("  word2vec:", "knows it" if word in word2vec.wv else "KeyError — no vector at all")
+    print("  fastText:", ", ".join(w for w, _ in fasttext.wv.most_similar(word, topn=3)))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>кітаптарымыздан
+  word2vec: KeyError — no vector at all
+  fastText: кітаптардан, кітаптан, кітаптарымның
+ұнамағандықтан
+  word2vec: KeyError — no vector at all
+  fastText: ұнағандықтан, ұнамаған, болмағандықтан
+интернетсіздіктен
+  word2vec: KeyError — no vector at all
+  fastText: интернетсізде, интернетсіз, интрнетсіз</code></pre></div>
+              <p class="note">
+                <strong>Это главный казахский результат лекции.</strong> Все три слова
+                неизвестны word2vec. fastText ставит
+                <code>кітаптарымыздан</code> рядом с <code>кітаптардан</code> и
+                <code>кітаптан</code> — один корень, разные суффиксы, — а
+                <code>интернетсіздіктен</code> рядом с <code>интернетсіз</code>.
+                Морфология, которая в лекции 2 дробила наши признаки, теперь работает на
+                нас, потому что куски общие.
+              </p>
+              <div class="callout">
+                <strong>Цена.</strong> Посмотрите ещё раз на соседей fastText в
+                предыдущем разделе: <code>жақсы</code> → <code>жжақсы</code>,
+                <code>эақсы</code>, <code>дақсы</code>. Символьные n-граммы не отличают
+                суффикс от опечатки, поэтому на шумных отзывах fastText отчасти учит
+                написание вместо смысла. word2vec даёт более чистые синонимы, fastText —
+                покрытие. Что важнее, зависит от ваших данных.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="document-vectors">
+            <div class="container">
+              <span class="section__eyebrow">Теория · От слов к документам</span>
+              <h2 id="document-vectors">Один вектор на весь отзыв</h2>
+              <p class="narrow lead">
+                Классификатору нужен один вектор на отзыв, а не по одному на слово. Самый
+                простой ответ — и на удивление сильный — усреднить их.
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">өте</span><span class="diagram__arrow" aria-hidden="true">+</span></li>
+                <li><span class="diagram__node">керемет</span><span class="diagram__arrow" aria-hidden="true">+</span></li>
+                <li><span class="diagram__node">қосымша</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">среднее = один 100-мерный вектор</span></li>
+              </ul>
+<div class="code-block" data-lang="python"><pre><code>import re
+
+import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+review = "қосымша өте жақсы рахмет"
+words = re.findall(r"\w+", review.lower())
+
+vectors = [word2vec.wv[word] for word in words if word in word2vec.wv]
+document = np.mean(vectors, axis=0)
+
+print("review   :", review)
+print("words    :", words)
+print("each word:", vectors[0].shape, "→", len(vectors), "vectors")
+print("document :", document.shape)
+print("first few:", document[:5].round(3))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>review   : қосымша өте жақсы рахмет
+words    : ['қосымша', 'өте', 'жақсы', 'рахмет']
+each word: (100,) → 4 vectors
+document : (100,)
+first few: [-0.4   -0.223 -0.024  0.463 -0.162]</code></pre></div>
+              <p class="note">
+                Четыре слова, четыре вектора по 100 чисел, одно среднее из 100 чисел.
+                Отзыв стал одной точкой в том же пространстве, что и слова, а на точках
+                классификатор обучать можно.
+              </p>
+              <div class="callout">
+                <strong>Усреднение снова выбрасывает порядок.</strong> Мы вернулись к
+                мешку слов, только слова лучше. <code>жақсы емес</code> и
+                <code>емес жақсы</code> дают ровно один и тот же вектор документа. Для
+                счётчиков это чинили биграммы из лекции 2; для эмбеддингов лечение — модель,
+                читающая последовательности, и туда курс идёт дальше.
+              </div>
+              <p class="narrow">
+                Есть схемы получше — взвешивание по <code>idf</code>, SIF с удалением
+                общей компоненты, doc2vec, — но на этих данных простое усреднение оказалось
+                сильнейшим из опробованных. Взвешивание по <code>idf</code> даже
+                <em>понизило</em> точность — 0.787 у word2vec и 0.789 у fastText против
+                0.794 и 0.792 у обычного среднего, — потому что оно занижает ровно те частые
+                оценочные слова, которые несут метку.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="reusing">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Повторное использование</span>
+              <h2 id="reusing">Переиспользуем модели в классификаторе лекции 3</h2>
+              <p class="narrow lead">
+                Всё до этого момента обучало и сохраняло векторы. Теперь мы загружаем их
+                обратно и делаем то же, что делала лекция 3 — с одним изменением, в
+                признаках.
+              </p>
+              <p class="narrow">
+                scikit-learn ничего не знает про gensim, поэтому мост пишем сами:
+                трансформер с тем же интерфейсом, что у <code>TfidfVectorizer</code>.
+                После этого пайплайн из лекции 3 работает без изменений.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import numpy as np
+import pandas as pd
+from datasets import load_dataset
+from gensim.models import FastText, Word2Vec
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import Pipeline
+
+# 1. the models trained earlier — nothing is retrained here
+word2vec = Word2Vec.load("models/word2vec.model")
+fasttext = FastText.load("models/fasttext.model")
+
+
+# 2. the drop-in replacement for TfidfVectorizer
+class MeanEmbedding(BaseEstimator, TransformerMixin):
+    """Average the word vectors of a document."""
+
+    def __init__(self, model=None):
+        self.model = model
+
+    def fit(self, x, y=None):
+        return self                       # nothing to learn: the vectors exist
+
+    def transform(self, texts):
+        vectors = self.model.wv
+        out = np.zeros((len(texts), vectors.vector_size), dtype=np.float32)
+        self.skipped_ = 0
+        for i, text in enumerate(texts):
+            found = []
+            for word in re.findall(r"\w+", str(text).lower()):
+                try:
+                    found.append(vectors[word])
+                except KeyError:          # word2vec only: unknown word
+                    self.skipped_ += 1
+            if found:
+                out[i] = np.mean(found, axis=0)
+        return out
+
+
+# 3. the balanced split of Lecture 3
+def balance(df, per_class, seed=42):
+    parts = [g.sample(per_class, random_state=seed) for _, g in df.groupby("label")]
+    return pd.concat(parts).sample(frac=1, random_state=seed).reset_index(drop=True)
+
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification",
+                      split=name, token=os.getenv("HF_TOKEN")).to_pandas()
+    df = balance(df, per_class)
+    return df["text_cleaned"].astype(str), df["label"]
+
+x_train, y_train = split("train", 4000)
+x_test, y_test = split("test", 1000)
+
+# 4. the same classifier, three kinds of features
+classifier = lambda: LogisticRegression(max_iter=2000, C=5.0)
+models = {
+    "TF-IDF": Pipeline([("features", TfidfVectorizer(ngram_range=(1, 2), min_df=2,
+                                                     sublinear_tf=True)),
+                        ("clf", classifier())]),
+    "word2vec": Pipeline([("features", MeanEmbedding(word2vec)), ("clf", classifier())]),
+    "fastText": Pipeline([("features", MeanEmbedding(fasttext)), ("clf", classifier())]),
+}
+
+predictions = {}
+for name, model in models.items():
+    model.fit(x_train, y_train)
+    predictions[name] = model.predict(x_test)
+    scores = cross_val_score(model, x_train, y_train, cv=5)
+    skipped = getattr(model.named_steps["features"], "skipped_", 0)
+    print(f"{name:&lt;10} test={model.score(x_test, y_test):.3f}"
+          f"   CV={scores.mean():.3f} ± {scores.std():.3f}"
+          f"   skipped {skipped} unknown tokens")
+
+print()
+print(classification_report(y_test, predictions["fastText"],
+                            target_names=["negative", "positive"], digits=3))
+print("confusion matrix (rows = true, columns = predicted)")
+print(confusion_matrix(y_test, predictions["fastText"]))
+
+names = {0: "negative", 1: "positive"}
+rows = list(zip(x_test, y_test, predictions["TF-IDF"], predictions["fastText"]))
+fixed = [(t, y) for t, y, a, b in rows if a != y and b == y]
+broken = [(t, y) for t, y, a, b in rows if a == y and b != y]
+
+print(f"\nfastText fixed {len(fixed)} reviews that TF-IDF got wrong")
+print(f"fastText broke {len(broken)} reviews that TF-IDF got right")
+print(f"net change on {len(rows)} reviews: {len(fixed) - len(broken):+d}")
+for text, label in fixed[:2]:
+    print(f"  fixed  {names[label]:&gt;8}: «{text[:46]}»")
+for text, label in broken[:2]:
+    print(f"  broke  {names[label]:&gt;8}: «{text[:46]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>TF-IDF     test=0.780   CV=0.780 ± 0.006   skipped 0 unknown tokens
+word2vec   test=0.794   CV=0.795 ± 0.008   skipped 2156 unknown tokens
+fastText   test=0.792   CV=0.800 ± 0.006   skipped 0 unknown tokens
+
+              precision    recall  f1-score   support
+
+    negative      0.807     0.769     0.788      1000
+    positive      0.779     0.816     0.797      1000
+
+    accuracy                          0.792      2000
+   macro avg      0.793     0.792     0.792      2000
+weighted avg      0.793     0.792     0.792      2000
+
+confusion matrix (rows = true, columns = predicted)
+[[769 231]
+ [184 816]]
+
+fastText fixed 164 reviews that TF-IDF got wrong
+fastText broke 140 reviews that TF-IDF got right
+net change on 2000 reviews: +24
+  fixed  positive: «ма шааллагь»
+  fixed  positive: «жаңа әндер мен өлеңдер жинағы мен сені чаттан »
+  broke  negative: «кемшілігі көп»
+  broke  positive: «өте керемет екен дартын дар өкімписін дер»</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Скрипт из четырёх частей</span>
+                <dl class="breakdown__list">
+                  <dt>1 — загрузка</dt>
+                  <dd>две строки, и обученные ранее модели снова здесь. В этом скрипте не переобучается ничего</dd>
+                  <dt>2 — MeanEmbedding</dt>
+                  <dd><code>fit</code> не делает ничего: векторы уже есть, и учиться на метках нечему. <code>transform</code> усредняет векторы слов каждого текста</dd>
+                  <dt>3 — разбиение</dt>
+                  <dd>ровно то же сбалансированное разбиение 8 000 / 2 000 из лекции 3, поэтому числа сравнимы</dd>
+                  <dt>4 — сравнение</dt>
+                  <dd>одна <code>LogisticRegression</code>, три вида признаков. Отличается только первый шаг пайплайна</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong><code>try/except</code> — это и есть вся разница между двумя
+                  моделями:</strong> word2vec бросает <code>KeyError</code> на слове,
+                  которого не видел, а fastText собирает его из n-грамм и до ветки
+                  <code>except</code> не доходит.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="results">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Измерено</span>
+              <h2 id="results">Помогло ли это?</h2>
+              <p class="narrow lead">
+                Все числа ниже есть в выводе выше. Этот раздел — про то, как их читать.
+              </p>
+              <div class="table-wrap" style="margin-top: 28px">
+                <table class="compare">
+                  <caption class="visually-hidden">Точность по типу признаков</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Признаки</th>
+                      <th scope="col">Тест</th>
+                      <th scope="col">Кросс-валидация</th>
+                      <th scope="col">Неизвестные токены</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>TF-IDF</td><td>0.780</td><td>0.780 ± 0.006</td><td>—</td></tr>
+                    <tr><td>word2vec</td><td><strong>0.794</strong></td><td>0.795 ± 0.008</td><td>2 156</td></tr>
+                    <tr><td>fastText</td><td>0.792</td><td><strong>0.800 ± 0.006</strong></td><td>0</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Да, примерно на 0.014.</strong> Обе эмбеддинговые модели обходят
+                TF-IDF и на тестовом разбиении, и на кросс-валидации, а разрыв примерно
+                вдвое больше разброса по фолдам — значит, разница настоящая, а не шум.
+                <strong>А вот word2vec против fastText — другая история:</strong> 0.794 и
+                0.792 на тесте, 0.795 и 0.800 на кросс-валидации. Они меняются местами в
+                зависимости от способа измерения, то есть этот эксперимент их не
+                различает.
+              </p>
+              <div class="callout">
+                <strong>Не преувеличивайте размер выигрыша.</strong> Мы прошли с 0.780 до
+                примерно 0.795 — полезно, но это не переворот. Эмбеддинги не решили задачу
+                сентимента; они дали тому же линейному классификатору признаки получше.
+                Отзывы, в которых мнения нет, по-прежнему определяются неверно, потому что
+                никакой признак не восстановит сигнал, которого нет в тексте.
+              </div>
+
+              <h3 style="margin-top: 44px">Что изменилось, отзыв за отзывом</h3>
+              <p class="narrow">
+                <strong>164 исправлено, 140 сломано.</strong> Итоговый выигрыш в 24 отзыва
+                из 2 000 скрывает огромную перетасовку: смена признаков изменила ответ на
+                304 отзывах и вышла вперёд лишь на 24. Так изнутри обычно и выглядит
+                маленький прирост точности — и поэтому одно число accuracy плохо годится,
+                чтобы объявить модель «лучше».
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Два отзыва, которые fastText исправил, и два, которые сломал</span>
+                <ul>
+                  <li>
+                    исправлен, положительный — <span class="token">ма шааллагь</span>: это
+                    вообще не казахское слово, и у TF-IDF под него не было колонки.
+                    fastText собрал вектор из букв.
+                  </li>
+                  <li>
+                    исправлен, положительный — <span class="token">жаңа әндер мен өлеңдер жинағы</span>:
+                    ни одного оценочного слова, но эмбеддинг всё равно поместил отзыв
+                    рядом с положительными.
+                  </li>
+                  <li>
+                    сломан, отрицательный — <span class="token">кемшілігі көп</span>: три
+                    слова, и усреднение трёх векторов размывает то единственное, которое
+                    несло жалобу.
+                  </li>
+                  <li>
+                    сломан, положительный — <span class="token">өте керемет екен дартын дар</span>:
+                    <code>керемет</code> было однозначным признаком для TF-IDF; в среднем
+                    оно растворяется в окружающем шуме.
+                  </li>
+                </ul>
+              </div>
+              <p class="note">
+                <strong>Закономерность в этих четырёх.</strong> Эмбеддинги выигрывают там,
+                где у TF-IDF признака нет вовсе — опечатки, редкие формы, отзывы без явного
+                оценочного слова. Проигрывают на коротких отзывах, построенных вокруг
+                одного сильного слова, потому что усреднение его разбавляет. Это и есть
+                описание того, когда что использовать, и оно полезнее колонки с точностью.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Честный итог</span>
+              <h2 id="limits">Чего эмбеддинги по-прежнему не умеют</h2>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Всегда один вектор на слово</h3>
+                  <p>
+                    <span class="token">банк</span> получает один вектор — и как
+                    финансовое учреждение, и как берег реки. Контекст его не меняет:
+                    многозначность из лекции 0 осталась нетронутой.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Порядок по-прежнему потерян</h3>
+                  <p>
+                    Усреднение — это мешок слов, только слова лучше.
+                    <span class="token">жақсы емес</span> и обратный порядок дают один и
+                    тот же вектор документа.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Антонимы стоят рядом</h3>
+                  <p>
+                    Измерено выше: <span class="token">жақсы</span> и
+                    <span class="token">нашар</span> дают 0.346, потому что встречаются в
+                    одних контекстах. Для сентимента это худшая из возможных путаниц.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Они наследуют корпус</h3>
+                  <p>
+                    Обученные на отзывах из магазина приложений, они знают казахский
+                    отзывов. Перейдите к юридическим или медицинским текстам — и доверять
+                    этим векторам больше нельзя.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">Bag of Words</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">Статические эмбеддинги</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Контекстные эмбеддинги</span></li>
+              </ul>
+              <p class="narrow">
+                Следующий шаг даёт каждому вхождению слова собственный вектор,
+                вычисленный из предложения, в котором оно стоит. Это и делают Transformers —
+                тема лекций через одну.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Скрипт</span>
+              <h2 id="code">Как запустить самому</h2>
+              <p class="narrow lead">
+                Всё на этой странице получено из
+                <a href="../../code_files/lesson4.py">code_files/lesson4.py</a>. Он
+                самодостаточен: сам загружает данные, обучает обе модели, сохраняет их и
+                только в конце загружает обратно для классификатора.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # добавляет gensim
+
+python3 lesson4.py                     # обучить, изучить, переиспользовать
+python3 lesson4.py --retrain           # игнорировать models/ и обучить заново
+python3 lesson4.py --dim 200 --epochs 20   # большие векторы, дольше обучение
+python3 lesson4.py --skip-cv           # быстрее</code></pre></div>
+              <p class="note">
+                Первый запуск обучает обе модели примерно за минуту, записывает
+                <code>models/word2vec.model</code> и <code>models/fasttext.model</code>, и
+                все последующие запуски загружают их за секунды. Используйте
+                <code>--retrain</code>, когда меняете <code>--dim</code>,
+                <code>--epochs</code> или <code>--min-count</code> — иначе под тем же
+                именем загрузятся старые векторы и новые настройки ничего не изменят.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">На лекции</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">Пять вопросов, на которые мы отвечаем вместе перед завершением.</p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Эмбеддинги обучаются без меток. Откуда берётся обучающий сигнал?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Из самого текста: модель предсказывает, какие слова стоят рядом с
+                      какими. Корпус даёт и вопрос, и ответ — поэтому неразмеченный
+                      казахский текст вдруг становится полезным.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">word2vec пропустил 2 156 токенов тестовой выборки, fastText — ни одного. Почему?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      word2vec знает только целые слова, которые видел при обучении.
+                      fastText хранит символьные n-граммы и потому может собрать вектор для
+                      любой строки — включая словоформы, которых он никогда не встречал.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">жақсы ~ нашар дало 0.346 — выше, чем несвязанное слово. Это ошибка?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Нет. Антонимы встречаются в одних и тех же контекстах, поэтому
+                      дистрибутивная гипотеза сближает их по своему устройству. Это
+                      известная слабость, и важнее всего она как раз для нашей задачи —
+                      сентимента.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">Точность выросла с 0.780 до 0.794, но 140 отзывов, которые были верны, стали неверными. Как это сообщать?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Сообщать обе цифры: чистый выигрыш 24 отзыва из 2 000 при 304
+                      изменившихся ответах. Прежде чем называть это улучшением, сравните
+                      выигрыш с разбросом кросс-валидации и скажите, какие отзывы сдвинулись
+                      в каждую сторону.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Мы обучались на 134 368 отзывах, а классификатор использует только 8 000. Почему это не ошибка?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Это две разные задачи. Обучению векторов метки не нужны, поэтому
+                      годится каждый отзыв. Классификатору нужны метки и сбалансированное
+                      разбиение — вот что ограничивает его 8 000. А эмбеддинги приносят в
+                      классификатор то, что выучили на остальных 126 000.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">После лекции</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Работайте в папке с <code>lesson4.py</code>. Удаляйте
+                <code>models/</code>, когда хотите переобучить.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Задание 1 — Размер вектора</h3>
+                  <p class="challenge__task">Запустите с --dim 50, 100 и 300. Следует ли точность за размером векторов?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Сообщайте измеренное и сравнивайте каждую разницу с разбросом
+                      кросс-валидации около 0.006. На корпусе в 1,17 млн токенов большие
+                      векторы обычно быстро перестают помогать — текста не хватает, чтобы их
+                      оценить.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 2 — CBOW против skip-gram</h3>
+                  <p class="challenge__task">Поставьте sg=0 в train_embeddings. Что лучше здесь и что быстрее?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      CBOW быстрее и мягче на частых словах; skip-gram обычно лучше на
+                      редких, поэтому он здесь по умолчанию. Посмотрите соседей редкого
+                      слова в обоих вариантах.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 3 — Окно</h3>
+                  <p class="challenge__task">Попробуйте window=2 и window=10. Сравните ближайших соседей слова интернет.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Малые окна тянут к словам той же грамматической позиции, большие — к
+                      той же теме. Ожидайте, что <code>теле2</code> и <code>4g</code> станут
+                      заметнее с ростом окна.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 4 — Диапазон n-грамм</h3>
+                  <p class="challenge__task">Поставьте min_n=2, max_n=6 для fastText. Соседи станут более морфологическими или больше похожими на опечатки?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Короткие n-граммы совпадают с большим числом строк, поэтому опечатки
+                      подтягиваются ближе; длинные требуют большего перекрытия. Это ручка
+                      между покрытием и точностью.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 5 — Взвешенное среднее</h3>
+                  <p class="challenge__task">Взвесьте каждый вектор слова его idf внутри MeanEmbedding. Для word2vec мы измерили 0.787 — воспроизведите и объясните падение.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      idf занижает частые слова, а в сентименте частые слова
+                      (<code>жақсы</code>, <code>нашар</code>, <code>рахмет</code>) — как раз
+                      те, что несут метку.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 6 — Объединить</h3>
+                  <p class="challenge__task">Склейте признаки TF-IDF и fastText через scipy.sparse.hstack. Обходит ли комбинация каждую по отдельности?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Мы измерили 0.788 — между двумя: лучше, чем TF-IDF в одиночку, и не
+                      лучше, чем fastText в одиночку. Объединять семейства признаков стоит
+                      пробовать, и это редко бывает бесплатно.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 7 — Обучить на большем тексте</h3>
+                  <p class="challenge__task">Добавьте неразмеченный kz-transformers/multidomain-kazakh-dataset в корпус для эмбеддингов. Улучшается ли классификатор?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Берите срез потоком, а не все 15,5 млн строк. Ожидайте лучшие общие
+                      векторы и, возможно, худшее попадание в домен — измеряйте, а не
+                      предполагайте.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 8 — min_count</h3>
+                  <p class="challenge__task">Попробуйте min_count=1 и min_count=10. Как меняется словарь и следует ли за ним классификатор?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      <code>min_count=1</code> оставляет все 119 771 тип слов, большинство
+                      из них встречены один раз — векторы, обученные на одном вхождении,
+                      близки к случайным. <code>min_count=10</code> даёт словарь заметно
+                      меньше и чище, но больше неизвестных токенов при предсказании.
+                      Сообщите и размер словаря, и точность, и используйте
+                      <code>--retrain</code>.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 9 — Найдите проблему антонимов</h3>
+                  <p class="challenge__task">Найдите пять пар слов, где высокая косинусная близость сбила бы классификатор сентимента.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Начните с пар антонимов, делящих контексты:
+                      <code>жақсы</code>/<code>нашар</code>,
+                      <code>ұнады</code>/<code>ұнамады</code>. Затем проверьте, действительно
+                      ли классификатор путает содержащие их отзывы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 10 — Воспроизводимость</h3>
+                  <p class="challenge__task">Поставьте workers=4, обучите дважды и сравните соседей слова жақсы. Затем объясните, что вы напишете в отчёте.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Списки будут разными. В отчёте укажите seed, число потоков и версию
+                      библиотеки — или прогоните несколько seed и сообщите разброс. Та же
+                      дисциплина, что и с кросс-валидацией.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Тест для самопроверки</h3>
+              <p class="narrow lead">Десять вопросов с мгновенной обратной связью.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">Что такое эмбеддинг слова?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">счётчик того, как часто встречается слово</button>
+                    <button class="quiz__option" type="button" data-correct>плотный вектор чисел, обученный так, чтобы похожие слова получали похожие векторы</button>
+                    <button class="quiz__option" type="button">словарное определение слова</button>
+                    <button class="quiz__option" type="button">сжатая версия текста</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Здесь 100 чисел на слово, выученных из одного лишь контекста.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Дистрибутивная гипотеза утверждает…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">у каждого слова ровно одно значение</button>
+                    <button class="quiz__option" type="button" data-correct>слова в похожих контекстах обычно имеют похожие значения</button>
+                    <button class="quiz__option" type="button">частота слов подчиняется степенному закону</button>
+                    <button class="quiz__option" type="button">смысл хранится в словаре</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Слово узнаётся по окружению — на этом и стоит word2vec.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Что выбирает <code>sg=1</code> в gensim?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">CBOW</button>
+                    <button class="quiz__option" type="button" data-correct>skip-gram</button>
+                    <button class="quiz__option" type="button">подсловные n-граммы</button>
+                    <button class="quiz__option" type="button">один поток обучения</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>sg=1 — это skip-gram: предсказать контекст по центральному слову. sg=0 — CBOW.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Зачем нужен negative sampling?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">чтобы убрать негативные отзывы из корпуса</button>
+                    <button class="quiz__option" type="button">чтобы сбалансировать классы</button>
+                    <button class="quiz__option" type="button" data-correct>потому что softmax по всему словарю на каждом шаге слишком медленный</button>
+                    <button class="quiz__option" type="button">чтобы обрабатывать незнакомые слова</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Он заменяет выбор из 27 000 вариантов несколькими дешёвыми вопросами «да/нет».</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Что fastText добавляет к word2vec?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">метки</button>
+                    <button class="quiz__option" type="button">порядок слов</button>
+                    <button class="quiz__option" type="button" data-correct>символьные n-граммы, поэтому невиданные слова всё равно получают вектор</button>
+                    <button class="quiz__option" type="button">окно побольше</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Поэтому он пропустил ноль токенов там, где word2vec пропустил 2 156.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Наши аналогии дали бессмыслицу. Наиболее вероятная причина…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">ошибка в gensim</button>
+                    <button class="quiz__option" type="button" data-correct>1,17 млн токенов — слишком маленький корпус для арифметики аналогий</button>
+                    <button class="quiz__option" type="button">казахский не поддерживает аналогии</button>
+                    <button class="quiz__option" type="button">векторы были слишком большими</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Знаменитые демонстрации получены на миллиардах токенов.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Усреднение векторов слов в вектор документа теряет…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">словарь</button>
+                    <button class="quiz__option" type="button" data-correct>снова порядок слов</button>
+                    <button class="quiz__option" type="button">размерность</button>
+                    <button class="quiz__option" type="button">вообще ничего</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Мешок слов, только слова лучше: жақсы емес и емес жақсы дают один вектор.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Почему <code>жақсы</code> и <code>нашар</code> оказываются довольно близко?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">они похоже пишутся</button>
+                    <button class="quiz__option" type="button" data-correct>антонимы встречаются в одних контекстах, а модель смотрит только на это</button>
+                    <button class="quiz__option" type="button">корпус был слишком чистым</button>
+                    <button class="quiz__option" type="button">оба являются стоп-словами</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>0.346 против 0.224 у несвязанного слова — известная слабость дистрибутивных методов.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Эмбеддинги подняли точность с 0.780 примерно до 0.795. Самое честное описание…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">эмбеддинги решили задачу</button>
+                    <button class="quiz__option" type="button">разница это шум</button>
+                    <button class="quiz__option" type="button" data-correct>настоящий, но скромный выигрыш, примерно вдвое больше разброса кросс-валидации</button>
+                    <button class="quiz__option" type="button">TF-IDF больше никогда не нужен</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>164 отзыва исправлено, 140 сломано: чистых 24 из 2 000.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Чего статический эмбеддинг <em>не</em> умеет?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">давать похожим словам похожие векторы</button>
+                    <button class="quiz__option" type="button">обучаться без меток</button>
+                    <button class="quiz__option" type="button" data-correct>давать одному слову разные векторы в разных предложениях</button>
+                    <button class="quiz__option" type="button">работать с казахским</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Всегда один вектор на слово — контекстные модели это следующий шаг курса.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы изучили</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Что такое эмбеддинг: слово как точка в пространстве</li>
+                <li>Дистрибутивную гипотезу</li>
+                <li>word2vec: skip-gram, CBOW, negative sampling</li>
+                <li>Обучение word2vec с gensim, параметр за параметром</li>
+                <li>Что выучили векторы и где ломаются аналогии</li>
+                <li>fastText и символьные n-граммы</li>
+                <li>Сохранение модели и загрузку её обратно вместо переобучения</li>
+                <li>Усреднение векторов слов в вектор документа</li>
+                <li>Переиспользование сохранённых моделей как признаков для классификатора лекции 3</li>
+                <li>0.780 → примерно 0.795 и то, что за этим скрыто</li>
+                <li>Почему один вектор на слово — не конец истории</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Лекция 4 · 02 сентября 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

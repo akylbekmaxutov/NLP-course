@@ -47,3 +47,4 @@ scratch/
 .env
 # --- downloaded datasets (gated, large) --------------------------------------
 code_files/data/
+code_files/models/

@@ -63,3 +63,31 @@ Changed later the same day:
 - `code_files/lesson3.py` — the dataset is now read with `datasets.load_dataset(...).to_pandas()` instead of manual downloads, and two more models were added: `DecisionTreeClassifier` and `RandomForestClassifier`
 - `code_files/requirements.txt` — `datasets` added
 - `language/*/03-classical-ml.html` — the comparison now covers five models: Naive Bayes 0.784, Logistic Regression 0.780, Random Forest 0.775, Linear SVM 0.762, Decision Tree 0.750
+
+### 01.09.2026
+
+Added:
+
+- `code_files/lesson4.py` — the Lecture 4 script: trains word2vec and fastText on all 134 368 KazSAnDRA reviews with gensim, inspects what the vectors learned, then swaps `TfidfVectorizer` for a `MeanEmbedding` transformer inside the Lecture 3 pipeline; the trained models are cached in `code_files/models/`
+- `language/en/04-word-embeddings.html`, `language/kk/04-word-embeddings.html`, `language/ru/04-word-embeddings.html` — Lecture 4, Word Embeddings: the distributional hypothesis, word2vec (skip-gram, CBOW, negative sampling), gensim, fastText and character n-grams, embeddings for Kazakh, document vectors, and the measured comparison against TF-IDF
+
+Changed:
+
+- `code_files/requirements.txt` — `gensim` added
+- `page/js/course.js` — Lecture 4 marked as published, with its Kazakh and Russian titles
+- `index.html` — link to Lecture 4
+
+### 02.09.2026
+
+Changed:
+
+- `language/*/04-word-embeddings.html` — a new opening section, "What an embedding is", placed before everything else: a word as a list of numbers, a hand-written two-dimensional table you can read, cosine similarity as an angle, the real 100-number vectors (and the demonstration that no single dimension means anything), and a plain-language walkthrough of where the numbers come from — random start, sliding window, nudge, repeat. The old one-line definition and the vector-shape demo were folded into it, and the freed-up slot now compares the TF-IDF matrix (75 352 000 cells, 0.09% non-zero) with the embedding table (2 707 600 numbers, all used)
+
+### 02.09.2026 (later)
+
+Changed:
+
+- `code_files/lesson4.py` — rewritten as a standalone lesson on **training** embeddings. It no longer imports anything from `lesson3.py`: it loads KazSAnDRA itself, tokenizes it, trains word2vec and then fastText, saves both to `models/word2vec.model` and `models/fasttext.model`, and only in the last step loads them back to reuse as features for the Lecture 3 classifier. New `--retrain` and `--min-count` flags
+- `language/*/04-word-embeddings.html` — restructured around that flow. The "Embeddings for Kazakh" section (pretrained `cc.kk.300` and friends) was removed; the lecture now works only with word2vec and fastText that we train ourselves. Two new sections, "Preparing the corpus" and "Training word2vec with gensim", each parameter explained; fastText is now trained and saved on the page too; a new "Reusing the models in the Lecture 3 classifier" section holds one complete, self-contained script, and "Did it help?" became pure analysis of its output
+- `language/*/04-word-embeddings.html` — every code example is now self-contained: no `from lesson4 import …` or `from lesson3 import …` anywhere. Each snippet either loads the data itself or loads a saved model with `Word2Vec.load("models/word2vec.model")`, which is also the point being taught
+- `language/*/04-word-embeddings.html` — corrected the idf-weighting figure: measured again, it is 0.787 for word2vec and 0.789 for fastText, not the 0.765 previously stated. Knowledge-check question 5 and practice task 8 were replaced, since both were about pretrained Kazakh vectors

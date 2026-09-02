@@ -27,9 +27,16 @@ Steps, in order:
 import argparse
 import os
 
+from dotenv import load_dotenv
+
+# Read the .env before importing `datasets`: huggingface_hub reads HF_TOKEN from
+# the environment when it is imported, so setting it later is too late.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+for _folder in (_HERE, os.path.dirname(_HERE)):       # code_files/.env or ../.env
+    load_dotenv(os.path.join(_folder, ".env"))
+
 import pandas as pd
 from datasets import load_dataset
-from dotenv import load_dotenv
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -55,7 +62,6 @@ def load(split):
     The dataset is gated, so `datasets` needs a token. Put it in a .env file
     next to the project and python-dotenv will pick it up.
     """
-    load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
     token = os.getenv("HF_TOKEN")
     if not token:
         raise SystemExit(

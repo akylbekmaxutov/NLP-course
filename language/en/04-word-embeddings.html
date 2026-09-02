@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Word Embeddings | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 4: word embeddings — the distributional hypothesis, word2vec, gensim, fastText, embeddings for Kazakh, and replacing TF-IDF with vectors in a real classifier."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/04-word-embeddings.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/04-word-embeddings.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/04-word-embeddings.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/04-word-embeddings.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/04-word-embeddings.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/04-word-embeddings.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 4</span>
+              <h1>Word Embeddings</h1>
+              <p class="hero__subtitle">
+                Every word becomes a point in space, and words with similar meaning end
+                up close together. Then we swap TF-IDF for those points in the
+                classifier from Lecture 3.
+              </p>
+              <p class="hero__date">02 September 2026</p>
+              <ul class="topic-chips">
+                <li>Distributional hypothesis</li>
+                <li>word2vec</li>
+                <li>gensim</li>
+                <li>fastText</li>
+                <li>Kazakh vectors</li>
+              </ul>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Explain an embedding</h3>
+                  <p>Say what a word vector is, where it comes from, and what “close together” means.</p>
+                </div>
+                <div class="card">
+                  <h3>Train your own</h3>
+                  <p>Use gensim to train word2vec and fastText on real text, and save them.</p>
+                </div>
+                <div class="card">
+                  <h3>Use them as features</h3>
+                  <p>Load the saved models back and replace TF-IDF in the Lecture 3 classifier.</p>
+                </div>
+                <div class="card">
+                  <h3>Know the limits</h3>
+                  <p>Explain what a static vector cannot represent, and what comes after.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Train first, reuse second.</strong> Most of this lecture is
+                about producing embeddings and looking at them. Only at the end do we load
+                them back into the classifier of Lecture 3 — same task, same split, same
+                classifier, with the features being the one thing that changed.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what-is-embedding">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The core idea</span>
+              <h2 id="what-is-embedding">What an embedding is</h2>
+              <p class="narrow lead">
+                A model cannot read. Everything it does is arithmetic, so a word has to
+                become numbers before anything else can happen. Lectures 2 and 3 turned
+                words into numbers by <em>counting</em> them. This lecture turns them into
+                numbers by <em>placing</em> them.
+              </p>
+
+              <h3 style="margin-top: 40px">Step 1 — a word becomes a list of numbers</h3>
+              <p class="narrow">
+                Two numbers place a point on a sheet of paper. Three place it in a room.
+                One hundred place it in a space nobody can picture — but the arithmetic
+                for “how far apart are these two points” works exactly the same in all
+                three cases. That is the whole trick: give every word a fixed-length list
+                of numbers, and questions about meaning turn into questions about
+                position.
+              </p>
+              <div class="definition">
+                <p>
+                  An <strong>embedding</strong> is a list of numbers attached to a word —
+                  its coordinates. Every word gets a list of the same length (100 numbers
+                  in this lecture), and the lists are chosen so that words used in similar
+                  ways end up in similar places.
+                </p>
+              </div>
+              <p class="narrow">
+                To see what that means, here is a tiny table written by hand, where we
+                picked the two dimensions ourselves so they can be read:
+                <strong>how positive the word is</strong> and
+                <strong>how much it is about connectivity</strong>.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import numpy as np
+
+# A toy embedding table, written by hand so we can read it.
+# Two dimensions we chose ourselves: "how positive" and "how much about internet".
+words = {
+    "жақсы":    np.array([0.9, 0.1]),   # positive, not about internet
+    "керемет":  np.array([0.95, 0.05]),
+    "нашар":    np.array([-0.9, 0.1]),  # negative
+    "интернет": np.array([0.0, 0.95]),  # neutral, all about internet
+    "байланыс": np.array([0.1, 0.9]),
+}
+
+def cosine(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+print("every word is a point:")
+for word, vector in words.items():
+    print(f"  {word:9} {vector}")
+
+print("\ncloseness = cosine of the angle between two points:")
+for a, b in [("жақсы", "керемет"), ("жақсы", "нашар"),
+             ("интернет", "байланыс"), ("жақсы", "интернет")]:
+    print(f"  {a:9} ~ {b:9} {cosine(words[a], words[b]):+.2f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>every word is a point:
+  жақсы     [0.9 0.1]
+  керемет   [0.95 0.05]
+  нашар     [-0.9  0.1]
+  интернет  [0.   0.95]
+  байланыс  [0.1 0.9]
+
+closeness = cosine of the angle between two points:
+  жақсы     ~ керемет   +1.00
+  жақсы     ~ нашар     -0.98
+  интернет  ~ байланыс  +0.99
+  жақсы     ~ интернет  +0.11</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading the table</span>
+                <dl class="breakdown__list">
+                  <dt>[0.9, 0.1]</dt>
+                  <dd><span class="token">жақсы</span> — far along “positive”, barely along “internet”</dd>
+                  <dt>[0.95, 0.05]</dt>
+                  <dd><span class="token">керемет</span> — almost the same place, because it is used almost the same way</dd>
+                  <dt>[-0.9, 0.1]</dt>
+                  <dd><span class="token">нашар</span> — the opposite end of the first axis</dd>
+                  <dt>[0.0, 0.95]</dt>
+                  <dd><span class="token">интернет</span> — neither positive nor negative, entirely about connectivity</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> nothing here is a count of anything. The
+                  numbers are a position, and the position is the meaning.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Step 2 — closeness is an angle</h3>
+              <p class="narrow">
+                Once words are points, “do these two words mean similar things?” becomes
+                “do these two points lie in the same direction?” The measure is the cosine
+                similarity from Lecture 2 — the same formula, applied to word vectors
+                instead of document vectors.
+              </p>
+              <div class="breakdown">
+                <span class="breakdown__label">How to read a cosine</span>
+                <dl class="breakdown__list">
+                  <dt>+1</dt><dd>the same direction — used in the same way</dd>
+                  <dt>0</dt><dd>at right angles — nothing in common</dd>
+                  <dt>-1</dt><dd>opposite directions</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Why the angle and not the distance:</strong> the length of a
+                  vector says little about meaning, so we compare which way the words
+                  point rather than how far out they sit.
+                </p>
+              </div>
+              <p class="narrow">
+                In the hand-made table, <span class="token">жақсы</span> ~
+                <span class="token">керемет</span> gives +1.00 and
+                <span class="token">жақсы</span> ~ <span class="token">нашар</span> gives
+                −0.98, because we placed them there on purpose. The interesting question
+                is whether numbers found automatically, by a program that was never told
+                what any word means, do the same thing.
+              </p>
+
+              <h3 style="margin-top: 44px">Step 3 — the real vectors, and what they look like</h3>
+              <p class="narrow">
+                These are the vectors trained later on this page, on 134 368 Kazakh app
+                reviews. Nothing about them was written by hand.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+vector = word2vec.wv["жақсы"]
+print("«жақсы» as a vector:")
+print("  length     :", len(vector), "numbers")
+print("  first five :", vector[:5].round(3))
+
+# Cosine similarity is only this much arithmetic:
+def cosine(a, b):
+    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+print("\nжақсы ~ керемет")
+print("  by hand  :", round(cosine(word2vec.wv["жақсы"], word2vec.wv["керемет"]), 3))
+print("  by gensim:", round(float(word2vec.wv.similarity("жақсы", "керемет")), 3))
+
+# A single dimension on its own means nothing.
+column = word2vec.wv.vectors[:, 7]
+top = np.argsort(-column)[:5]
+print("\nwords with the largest value in dimension 7:")
+print(" ", ", ".join(word2vec.wv.index_to_key[i] for i in top))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>«жақсы» as a vector:
+  length     : 100 numbers
+  first five : [-0.628 -0.191 -0.136  0.647 -0.079]
+
+жақсы ~ керемет
+  by hand  : 0.726
+  by gensim: 0.726
+
+words with the largest value in dimension 7:
+  менің, ішінде, емес, соны, шығар</code></pre></div>
+              <p class="note">
+                <strong>Three things to take from this output.</strong> First, a word is
+                now 100 numbers, and none of them is readable on its own. Second, the
+                cosine really is just that one line of arithmetic — computing it by hand
+                and asking gensim give the same 0.726. Third, look at dimension 7: its
+                top-scoring words are <span class="token">менің</span>,
+                <span class="token">ішінде</span>, <span class="token">емес</span>,
+                <span class="token">соны</span>, <span class="token">шығар</span> — no
+                theme at all. The readable axes of the hand-made table were a teaching
+                device. In a real embedding no single dimension means anything; only the
+                positions of words relative to each other do.
+              </p>
+
+              <h3 style="margin-top: 44px">Step 4 — where the numbers come from</h3>
+              <p class="narrow">
+                Nobody types them in, and there is no dictionary involved. Every word
+                starts with 100 random numbers — a meaningless space — and those numbers
+                are then corrected millions of times:
+              </p>
+              <ol style="margin-top: 18px">
+                <li>Give every word in the vocabulary 100 random numbers.</li>
+                <li>Slide a small window along the text and take a pair: a word and one of
+                    the words actually standing next to it.</li>
+                <li>Ask the current numbers a question — judging by these coordinates,
+                    does this pair look like a real neighbour pair?</li>
+                <li>The answer is usually wrong, so nudge the two vectors a little towards
+                    each other. Take a few pairs that never occur together and nudge those
+                    apart.</li>
+                <li>Repeat for every position in the corpus, ten times over.</li>
+              </ol>
+              <p class="narrow">
+                No one labelled anything. The text supplies both the question (a word) and
+                the answer (its real neighbours), which is why plain, unlabelled Kazakh
+                text is enough — and why the millions of unlabelled sentences on the
+                internet suddenly become useful.
+              </p>
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  Words that keep appearing next to the same neighbours get nudged towards
+                  the same region over and over, so they end up close together. That is the
+                  entire mechanism, and the rest of this lecture is its detail: which pairs
+                  are chosen, how the nudge is computed, what breaks for a language like
+                  Kazakh, and whether any of it improves the classifier from Lecture 3.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="why-embeddings">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The problem</span>
+              <h2 id="why-embeddings">What TF-IDF cannot do</h2>
+              <p class="narrow lead">
+                Three limitations followed us out of Lecture 2, and Lecture 3 measured
+                the cost of all of them.
+              </p>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Synonyms are strangers</h3>
+                  <p>
+                    <span class="token">жақсы</span> and
+                    <span class="token">керемет</span> are two unrelated columns. A
+                    review that says one gives the model nothing about the other.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Unseen words vanish</h3>
+                  <p>
+                    A word missing from the training vocabulary is simply dropped. In
+                    Kazakh, where 69% of the vocabulary appeared exactly once, that
+                    happens constantly.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Vectors are huge and empty</h3>
+                  <p>
+                    9 419 features for 8 000 short reviews, almost all zeros. Most of the
+                    matrix carries no information at all.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Nothing transfers</h3>
+                  <p>
+                    Everything the model knows comes from labelled data. The millions of
+                    unlabelled Kazakh sentences on the internet are wasted.
+                  </p>
+                </div>
+              </div>
+              <p class="narrow" style="margin-top: 28px">
+                Embeddings attack all four. They are learned from raw text with no labels,
+                they are dense and small, they give related words related vectors, and —
+                with fastText — they can build a vector for a word they have never seen.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="distributional">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The idea</span>
+              <h2 id="distributional">The distributional hypothesis</h2>
+              <div class="definition">
+                <p>
+                  <strong>You shall know a word by the company it keeps.</strong> Words
+                  that appear in similar contexts tend to mean similar things — so if we
+                  can describe a word by its neighbours, we have described its meaning.
+                </p>
+              </div>
+              <div class="kz-example">
+                <span class="kz-example__label">The same slot, two words</span>
+                <div class="code-block" data-lang="text"><pre><code>Қосымша өте ______ екен, рахмет!
+                жақсы
+                керемет</code></pre></div>
+                <p style="margin-bottom: 0">
+                  Both words fit. Across a whole corpus, <span class="token">жақсы</span>
+                  and <span class="token">керемет</span> keep turning up in the same
+                  slots — next to <span class="token">өте</span>, next to
+                  <span class="token">рахмет</span>, in reviews with five stars. Nothing
+                  else needs to be known about them for a model to notice they belong
+                  together.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 190" role="img" aria-labelledby="fig-space-t">
+                <title id="fig-space-t">Words with similar meaning end up close together</title>
+                <line x1="14" y1="176" x2="330" y2="176" stroke="#d1d6de" />
+                <line x1="14" y1="176" x2="14" y2="10" stroke="#d1d6de" />
+                <circle cx="76" cy="46" r="5" fill="#2563eb" />
+                <text x="86" y="50" font-size="11" fill="#111111">жақсы</text>
+                <circle cx="104" cy="66" r="5" fill="#2563eb" />
+                <text x="114" y="70" font-size="11" fill="#111111">керемет</text>
+                <circle cx="70" cy="78" r="5" fill="#2563eb" />
+                <text x="80" y="92" font-size="11" fill="#111111">күшті</text>
+                <circle cx="246" cy="130" r="5" fill="#b91c1c" />
+                <text x="182" y="134" font-size="11" fill="#111111">нашар</text>
+                <circle cx="272" cy="148" r="5" fill="#b91c1c" />
+                <text x="206" y="162" font-size="11" fill="#111111">жаман</text>
+                <circle cx="258" cy="108" r="5" fill="#b91c1c" />
+                <text x="196" y="106" font-size="11" fill="#111111">сапасыз</text>
+                <line x1="104" y1="66" x2="246" y2="130" stroke="#5b6270" stroke-width="1" stroke-dasharray="4 4" />
+                <text x="150" y="112" font-size="10" fill="#5b6270">cos = 0.346</text>
+                <line x1="76" y1="46" x2="104" y2="66" stroke="#2563eb" stroke-width="1.5" />
+                <text x="66" y="34" font-size="10" fill="#2563eb">cos = 0.726</text>
+              </svg>
+                <p class="figure__caption">
+                  A schematic view of 100 dimensions squeezed into two. The cosine values
+                  are the real ones, measured later on this page.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import os
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+balanced = pd.concat([g.sample(4000, random_state=42)      # the split of Lecture 3
+                      for _, g in reviews.groupby("label")])
+
+tfidf = TfidfVectorizer(ngram_range=(1, 2), min_df=2, sublinear_tf=True)
+matrix = tfidf.fit_transform(balanced["text_cleaned"].astype(str))
+cells = matrix.shape[0] * matrix.shape[1]
+
+print("TF-IDF, as in Lecture 3:")
+print("  matrix  :", matrix.shape[0], "documents ×", matrix.shape[1], "features")
+print("  cells   :", f"{cells:,}")
+print("  non-zero:", f"{matrix.nnz:,}", f"({100 * matrix.nnz / cells:.2f}%)")
+
+print("\nembedding table, this lecture:")
+print("  table   :", len(word2vec.wv), "words ×", word2vec.wv.vector_size, "dimensions")
+print("  numbers :", f"{len(word2vec.wv) * word2vec.wv.vector_size:,}")
+print("  non-zero: all of them")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>TF-IDF, as in Lecture 3:
+  matrix  : 8000 documents × 9419 features
+  cells   : 75,352,000
+  non-zero: 70,698 (0.09%)
+
+embedding table, this lecture:
+  table   : 27076 words × 100 dimensions
+  numbers : 2,707,600
+  non-zero: all of them</code></pre></div>
+              <p class="note">
+                <strong>Dense against sparse.</strong> The TF-IDF matrix has 75 million
+                cells and 0.09% of them carry a number — everything else is a zero stored
+                only because the column exists. The embedding table is 2.7 million numbers,
+                every one of them used, and it covers 27 076 words rather than the 9 419
+                that survived <code>min_df=2</code>.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="word2vec">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The model</span>
+              <h2 id="word2vec">word2vec</h2>
+              <p class="narrow lead">
+                word2vec (Mikolov and colleagues, 2013) turns the distributional
+                hypothesis into a prediction task. The vectors are not the goal of the
+                training — they are what is left behind once the task is learned.
+              </p>
+
+              <h3 style="margin-top: 40px">Two ways round the same idea</h3>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Skip-gram</h3>
+                  <p>
+                    Given the centre word, predict the words around it. Slower, and
+                    better on small corpora and rare words — which is why we use it here.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>CBOW</h3>
+                  <p>
+                    Given the surrounding words, predict the centre one. Faster, and
+                    smoother on frequent words. In gensim: <code>sg=0</code>.
+                  </p>
+                </div>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-sg-t">
+                <title id="fig-sg-t">Skip-gram predicts the words around a centre word</title>
+                <rect x="118" y="60" width="104" height="30" rx="6" fill="#2563eb" />
+                <text x="170" y="80" font-size="13" fill="#ffffff" text-anchor="middle">жақсы</text>
+                <rect x="8" y="10" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="28" font-size="12" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="8" y="112" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="130" font-size="12" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="246" y="10" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="289" y="28" font-size="12" fill="#111111" text-anchor="middle">екен</text>
+                <rect x="246" y="112" width="86" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="289" y="130" font-size="12" fill="#111111" text-anchor="middle">рахмет</text>
+                <line x1="118" y1="68" x2="94" y2="30" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="118" y1="82" x2="94" y2="120" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="222" y1="68" x2="246" y2="30" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="222" y1="82" x2="246" y2="120" stroke="#5b6270" stroke-width="1.5" />
+                <text x="170" y="105" font-size="10" fill="#5b6270" text-anchor="middle">window = 2</text>
+              </svg>
+                <p class="figure__caption">
+                  Skip-gram with a window of two: from <span class="token">жақсы</span>,
+                  predict the four words around it. Every position in the corpus becomes
+                  a training example.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">How it actually trains</h3>
+              <p class="narrow">
+                Predicting one word out of a 27 000-word vocabulary would need a
+                27 000-way softmax at every step, which is far too slow.
+                <strong>Negative sampling</strong> replaces it with a much cheaper
+                question: is this pair of words a real neighbour pair, or one I invented?
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">(жақсы, өте)</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">real — push the vectors together</span></li>
+              </ul>
+              <ul class="diagram">
+                <li><span class="diagram__node">(жақсы, банк)</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">invented — push them apart</span></li>
+              </ul>
+              <p class="narrow">
+                A handful of invented pairs per real pair is enough. The vectors start
+                random and are nudged, pair by pair, until words that share company sit
+                near each other. Nobody ever tells the model what
+                <span class="token">жақсы</span> means.
+              </p>
+              <div class="callout">
+                <strong>What the parameters mean.</strong>
+                <code>vector_size</code> — how many numbers per word; 100–300 is normal.
+                <code>window</code> — how far “context” reaches; small windows capture
+                syntax, large ones capture topic. <code>min_count</code> — ignore words
+                rarer than this. <code>epochs</code> — how many passes over the corpus;
+                small corpora need more.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="corpus">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The corpus</span>
+              <h2 id="corpus">Preparing the corpus</h2>
+              <p class="narrow lead">
+                Training needs one thing: a list of sentences, each already split into
+                words. No labels, no annotation, no cleaning beyond lowercasing.
+              </p>
+              <p class="narrow">
+                We use the KazSAnDRA reviews from Lecture 3, but this time we take
+                <strong>all of them</strong> and ignore the <code>label</code> column
+                entirely. Lecture 3 could only use the 8 000 reviews of its balanced
+                training split, because a classifier needs answers to learn from. An
+                embedding does not, so all 134 368 are useful here.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")                      # the file holds HF_TOKEN=hf_...
+
+from datasets import load_dataset
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+
+TOKEN = re.compile(r"\w+")
+
+def tokenize(text):
+    return TOKEN.findall(str(text).lower())
+
+corpus = [tokenize(text) for text in reviews["text_cleaned"].astype(str)]
+
+print("reviews  :", len(corpus))
+print("tokens   :", sum(len(sentence) for sentence in corpus))
+print("longest  :", max(len(sentence) for sentence in corpus), "tokens")
+print("distinct :", len(set(word for sentence in corpus for word in sentence)), "words")
+print("example  :", corpus[0])</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>reviews  : 134368
+tokens   : 1167795
+longest  : 271 tokens
+distinct : 119771 words
+example  : ['өтте', 'күшті']</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What each number tells us</span>
+                <dl class="breakdown__list">
+                  <dt>134 368</dt>
+                  <dd>reviews — sixteen times more text than the classifier of Lecture 3 ever saw</dd>
+                  <dt>1 167 795</dt>
+                  <dd>tokens in total, so about nine words per review: these are short texts</dd>
+                  <dt>119 771</dt>
+                  <dd>distinct words, most of them appearing once or twice</dd>
+                  <dt>271</dt>
+                  <dd>tokens in the longest review, so nothing here is a document in the usual sense</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> a small corpus by embedding standards. Published
+                  vectors are trained on billions of tokens; we have a bit over a million,
+                  and it will show later when we try analogies.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Why the tokenizer is this simple.</strong>
+                <code>\w+</code> keeps runs of letters and digits and throws away
+                everything else. It is the same rule the classifier will use later, and
+                that matters more than sophistication: if the embeddings are trained on
+                one kind of token and looked up with another, most lookups miss.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="training">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Training</span>
+              <h2 id="training">Training word2vec with gensim</h2>
+              <p class="narrow lead">
+                gensim is the standard Python library for this. It takes the list of
+                tokenized sentences and gives back a lookup table of vectors.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+from gensim.models import Word2Vec
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+corpus = [re.findall(r"\w+", str(text).lower())
+          for text in reviews["text_cleaned"].astype(str)]
+
+word2vec = Word2Vec(
+    corpus,
+    vector_size=100,   # numbers per word
+    window=5,          # words of context on each side
+    min_count=3,       # ignore words seen fewer than three times
+    sg=1,              # 1 = skip-gram, 0 = CBOW
+    epochs=10,         # passes over the corpus
+    workers=1,         # one thread, so two runs give the same vectors
+    seed=42,
+)
+
+os.makedirs("models", exist_ok=True)
+word2vec.save("models/word2vec.model")
+
+print("vocabulary :", len(word2vec.wv), "words")
+print("per word   :", word2vec.wv.vector_size, "numbers")
+print("dropped    :", len(set(w for s in corpus for w in s)) - len(word2vec.wv),
+      "words seen fewer than three times")
+print("saved to   : models/word2vec.model")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>vocabulary : 27076 words
+per word   : 100 numbers
+dropped    : 92695 words seen fewer than three times
+saved to   : models/word2vec.model</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Every parameter, and what it changes</span>
+                <dl class="breakdown__list">
+                  <dt>vector_size=100</dt>
+                  <dd>numbers per word. More capacity, but also more text needed to fill it</dd>
+                  <dt>window=5</dt>
+                  <dd>how many words of context count as “nearby”. Small windows learn grammatical roles, large ones learn topics</dd>
+                  <dt>min_count=3</dt>
+                  <dd>skip words seen fewer than three times — here that is 92 695 of the 119 771 word types</dd>
+                  <dt>sg=1</dt>
+                  <dd>skip-gram. <code>sg=0</code> would be CBOW: faster, usually weaker on rare words</dd>
+                  <dt>epochs=10</dt>
+                  <dd>passes over the corpus. On a small corpus more passes help; on a huge one they cost hours</dd>
+                  <dt>workers=1</dt>
+                  <dd>one thread, so two runs give the same vectors</dd>
+                  <dt>seed=42</dt>
+                  <dd>the random start. Combined with <code>workers=1</code> it makes the run repeatable</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Result:</strong> 27 076 words × 100 numbers, trained in about
+                  half a minute, saved as a file you can load again.
+                </p>
+              </div>
+              <div class="callout" style="border-left: 4px solid var(--accent)">
+                <strong>About <code>workers=1</code>.</strong> With several threads gensim
+                updates shared weights in a racy order, so two runs of identical code give
+                different vectors — the neighbours of <span class="token">жақсы</span>
+                change between runs. A single worker plus a fixed <code>seed</code> makes
+                the result repeatable. Here it costs about twenty seconds; on a large
+                corpus you will want the threads back and will have to accept that your
+                numbers move a little.
+              </div>
+              <p class="note">
+                <strong>Saving is the point of this step.</strong> Training is the slow
+                part and it only has to happen once.
+                <code>word2vec.save(...)</code> writes the model to disk, and from now on
+                every example on this page starts with
+                <code>Word2Vec.load("models/word2vec.model")</code> — a second or two
+                instead of half a minute. That is also how you would use embeddings in a
+                real project: train once, load everywhere.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what-vectors-learn">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Results</span>
+              <h2 id="what-vectors-learn">What the vectors learned</h2>
+              <p class="narrow lead">
+                The model is on disk now, so we load it back and ask it questions. Nothing
+                below retrains anything.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for word in ("жақсы", "нашар", "интернет", "рахмет"):
+    neighbours = word2vec.wv.most_similar(word, topn=5)
+    print(word)
+    print("  ", ", ".join(f"{w} {score:.2f}" for w, score in neighbours))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>жақсы
+   керемет 0.73, өте 0.72, күшті 0.72, қағазды 0.68, пластиктен 0.68
+нашар
+   төмен 0.73, сапасыз 0.62, жаман 0.61, нашарлап 0.61, баяу 0.59
+интернет
+   сеть 0.61, 4g 0.60, 3g 0.59, теле2 0.59, интернеті 0.58
+рахмет
+   рақмет 0.84, рахмеет 0.80, ракмет 0.78, рақмеет 0.73, рахметт 0.73</code></pre></div>
+              <p class="note">
+                <strong>Read these lists carefully.</strong>
+                <code>жақсы</code> → <code>керемет</code>, <code>күшті</code>: synonyms,
+                exactly what we wanted and exactly what TF-IDF could never see.
+                <code>нашар</code> → <code>төмен</code>, <code>сапасыз</code>,
+                <code>жаман</code>: the negative cluster.
+                <code>интернет</code> → <code>сеть</code>, <code>4g</code>,
+                <code>3g</code>, <code>теле2</code>: not synonyms at all but the same
+                topic — operators and connection technology. And
+                <code>рахмет</code> → <code>рақмет</code>, <code>ракмет</code>,
+                <code>рахмеет</code>: the model has quietly discovered that these are
+                spellings of one word. Nobody labelled any of it.
+              </p>
+
+              <h3 style="margin-top: 44px">Measuring “close”</h3>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for a, b in (("жақсы", "керемет"), ("жақсы", "нашар"),
+             ("интернет", "байланыс"), ("интернет", "тамақ")):
+    print(f"{a:&gt;9} ~ {b:&lt;10} {word2vec.wv.similarity(a, b):.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>    жақсы ~ керемет    0.726
+    жақсы ~ нашар      0.346
+ интернет ~ байланыс   0.520
+ интернет ~ тамақ      0.224</code></pre></div>
+              <p class="note">
+                Synonyms score 0.726, opposites 0.346, unrelated words 0.224. The gap
+                between the pairs is what a classifier will be able to use.
+                <strong>But note that opposites are not at zero:</strong>
+                <code>жақсы</code> and <code>нашар</code> appear in very similar contexts —
+                both follow <code>өте</code>, both describe the same product. The
+                distributional hypothesis cannot separate a word from its antonym, and
+                that is a known weakness, not a bug in our training.
+              </p>
+
+              <h3 style="margin-top: 44px">Where it fails: analogies</h3>
+              <div class="code-block" data-lang="python"><pre><code>from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+for positive, negative in ((["әйел", "патша"], ["ер"]), (["жаман"], ["жақсы"])):
+    found = word2vec.wv.most_similar(positive=positive, negative=negative, topn=3)
+    print(f"{positive} - {negative} → {[w for w, _ in found]}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>['әйел', 'патша'] - ['ер'] → ['дж', 'базасы', 'бөлімшелер']
+['жаман'] - ['жақсы'] → ['фуу', 'мал', 'тартпандар']</code></pre></div>
+              <p class="note">
+                <strong>Nonsense, and that is the honest result.</strong> The famous
+                “king − man + woman = queen” demonstrations come from models trained on
+                billions of tokens. We have 1.17 million — enough for neighbours, nowhere
+                near enough for arithmetic. If you show analogies in a talk, say what size
+                of corpus produced them.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="fasttext">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The upgrade</span>
+              <h2 id="fasttext">fastText and subwords</h2>
+              <p class="narrow lead">
+                word2vec has one hard limit: a word it never saw has no vector at all.
+                For an agglutinative language that is severe — every case and possessive
+                suffix creates a new form.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>fastText</strong> represents a word as the sum of its character
+                  n-grams. <span class="token">кітаптарымыздан</span> is built from
+                  <span class="token">кіт</span>, <span class="token">ітап</span>,
+                  <span class="token">тары</span>, <span class="token">дан</span> and the
+                  rest — so a form that never appeared in training still gets a sensible
+                  vector, assembled from pieces that did.
+                </p>
+              </div>
+              <div class="figure">
+                              <svg viewBox="0 0 340 130" role="img" aria-labelledby="fig-sub-t">
+                <title id="fig-sub-t">fastText builds a word vector from its character n-grams</title>
+                <rect x="70" y="8" width="200" height="28" rx="6" fill="#2563eb" />
+                <text x="170" y="27" font-size="13" fill="#ffffff" text-anchor="middle">кітаптарымыздан</text>
+                <text x="170" y="52" font-size="11" fill="#5b6270" text-anchor="middle">never seen in training</text>
+                <rect x="18" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="51" y="81" font-size="11" fill="#111111" text-anchor="middle">кіт</text>
+                <rect x="94" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="127" y="81" font-size="11" fill="#111111" text-anchor="middle">ітап</text>
+                <rect x="170" y="64" width="66" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="203" y="81" font-size="11" fill="#111111" text-anchor="middle">тары</text>
+                <rect x="246" y="64" width="76" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="284" y="81" font-size="11" fill="#111111" text-anchor="middle">дан</text>
+                <text x="170" y="110" font-size="11" fill="#111111" text-anchor="middle">sum of the pieces → a usable vector</text>
+              </svg>
+                <p class="figure__caption">
+                  With <code>min_n=3, max_n=5</code>, every substring of length 3 to 5
+                  becomes a piece of the word.
+                </p>
+              </div>
+              <h3 style="margin-top: 40px">Training it is the same call</h3>
+              <p class="narrow">
+                Same corpus, same settings, two extra parameters — and a second file on
+                disk next to the first.
+              </p>
+<div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+from gensim.models import FastText
+from gensim.models.fasttext import compute_ngrams
+
+reviews = load_dataset("issai/kazsandra", "polarity_classification",
+                       split="train", token=os.getenv("HF_TOKEN")).to_pandas()
+corpus = [re.findall(r"\w+", str(text).lower())
+          for text in reviews["text_cleaned"].astype(str)]
+
+fasttext = FastText(
+    corpus,
+    vector_size=100, window=5, min_count=3, sg=1,   # the same as word2vec
+    epochs=10, workers=1, seed=42,
+    min_n=3,           # shortest character n-gram
+    max_n=5,           # longest character n-gram
+)
+
+fasttext.save("models/fasttext.model")
+
+print("vocabulary  :", len(fasttext.wv), "words")
+print("n-gram slots:", fasttext.wv.bucket)
+print("pieces of «кітап»:", compute_ngrams("кітап", 3, 5)[:6], "…")
+print("saved to    : models/fasttext.model")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>vocabulary  : 27076 words
+n-gram slots: 2000000
+pieces of «кітап»: ['&lt;кі', 'кіт', 'іта', 'тап', 'ап&gt;', '&lt;кіт'] …
+saved to    : models/fasttext.model</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">The two new parameters</span>
+                <dl class="breakdown__list">
+                  <dt>min_n=3</dt>
+                  <dd>shortest character n-gram kept</dd>
+                  <dt>max_n=5</dt>
+                  <dd>longest one. <code>кітап</code> becomes <code>&lt;кі</code>, <code>кіт</code>, <code>іта</code>, <code>тап</code>, <code>ап&gt;</code>, <code>&lt;кіт</code> and so on</dd>
+                  <dt>2 000 000</dt>
+                  <dd>slots the n-grams are hashed into — this is why a fastText file is much larger than a word2vec one</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Note the angle brackets:</strong> <code>&lt;</code> and
+                  <code>&gt;</code> mark the start and end of the word, so a piece at the
+                  beginning of a word is not confused with the same letters in the middle.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">The words word2vec cannot answer</h3>
+<div class="code-block" data-lang="python"><pre><code>from gensim.models import FastText, Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+fasttext = FastText.load("models/fasttext.model")
+
+for word in ("кітаптарымыздан", "ұнамағандықтан", "интернетсіздіктен"):
+    print(word)
+    print("  word2vec:", "knows it" if word in word2vec.wv else "KeyError — no vector at all")
+    print("  fastText:", ", ".join(w for w, _ in fasttext.wv.most_similar(word, topn=3)))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>кітаптарымыздан
+  word2vec: KeyError — no vector at all
+  fastText: кітаптардан, кітаптан, кітаптарымның
+ұнамағандықтан
+  word2vec: KeyError — no vector at all
+  fastText: ұнағандықтан, ұнамаған, болмағандықтан
+интернетсіздіктен
+  word2vec: KeyError — no vector at all
+  fastText: интернетсізде, интернетсіз, интрнетсіз</code></pre></div>
+              <p class="note">
+                <strong>This is the Kazakh result of the lecture.</strong> All three words
+                are unknown to word2vec. fastText places
+                <code>кітаптарымыздан</code> next to <code>кітаптардан</code> and
+                <code>кітаптан</code> — same root, different suffixes — and
+                <code>интернетсіздіктен</code> next to <code>интернетсіз</code>. The
+                morphology that split our features in Lecture 2 is now doing useful work,
+                because the pieces are shared.
+              </p>
+              <div class="callout">
+                <strong>The price.</strong> Look again at the fastText neighbours in the
+                previous section: <code>жақсы</code> → <code>жжақсы</code>,
+                <code>эақсы</code>, <code>дақсы</code>. Character n-grams cannot tell a
+                suffix from a typo, so on noisy review text fastText partly learns
+                spelling instead of meaning. word2vec gives cleaner synonyms; fastText
+                gives coverage. Which matters more depends on your data.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="document-vectors">
+            <div class="container">
+              <span class="section__eyebrow">Theory · From words to documents</span>
+              <h2 id="document-vectors">One vector for a whole review</h2>
+              <p class="narrow lead">
+                The classifier needs one vector per review, not one per word. The simplest
+                answer, and a surprisingly strong one, is to average them.
+              </p>
+              <ul class="diagram">
+                <li><span class="diagram__node">өте</span><span class="diagram__arrow" aria-hidden="true">+</span></li>
+                <li><span class="diagram__node">керемет</span><span class="diagram__arrow" aria-hidden="true">+</span></li>
+                <li><span class="diagram__node">қосымша</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">mean = one 100-dim vector</span></li>
+              </ul>
+<div class="code-block" data-lang="python"><pre><code>import re
+
+import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+review = "қосымша өте жақсы рахмет"
+words = re.findall(r"\w+", review.lower())
+
+vectors = [word2vec.wv[word] for word in words if word in word2vec.wv]
+document = np.mean(vectors, axis=0)
+
+print("review   :", review)
+print("words    :", words)
+print("each word:", vectors[0].shape, "→", len(vectors), "vectors")
+print("document :", document.shape)
+print("first few:", document[:5].round(3))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>review   : қосымша өте жақсы рахмет
+words    : ['қосымша', 'өте', 'жақсы', 'рахмет']
+each word: (100,) → 4 vectors
+document : (100,)
+first few: [-0.4   -0.223 -0.024  0.463 -0.162]</code></pre></div>
+              <p class="note">
+                Four words, four vectors of 100 numbers, one average of 100 numbers. The
+                review is now a single point in the same space as the words, and a
+                classifier can be trained on points.
+              </p>
+              <div class="callout">
+                <strong>Averaging throws the order away again.</strong> We are back to a
+                bag of words, only with better words. <code>жақсы емес</code> and
+                <code>емес жақсы</code> produce exactly the same document vector. The
+                bigrams of Lecture 2 fixed that for counts; for embeddings the fix is a
+                model that reads sequences, which is where the course goes next.
+              </div>
+              <p class="narrow">
+                Better schemes exist — weighting by <code>idf</code>, SIF with common
+                component removal, doc2vec — but on this data plain averaging was the
+                strongest of the ones we tried. Weighting by <code>idf</code> actually
+                <em>lowered</em> accuracy — 0.787 for word2vec and 0.789 for fastText,
+                against 0.794 and 0.792 for the plain mean — because it plays down exactly
+                the frequent sentiment words that carry the label.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="reusing">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Reuse</span>
+              <h2 id="reusing">Reusing the models in the Lecture 3 classifier</h2>
+              <p class="narrow lead">
+                Everything up to here trained and saved vectors. Now we load them back and
+                do what Lecture 3 did — with one thing changed, the features.
+              </p>
+              <p class="narrow">
+                scikit-learn knows nothing about gensim, so we write the bridge ourselves:
+                a transformer with the same interface as <code>TfidfVectorizer</code>.
+                Then the pipeline of Lecture 3 works unchanged.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import numpy as np
+import pandas as pd
+from datasets import load_dataset
+from gensim.models import FastText, Word2Vec
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import cross_val_score
+from sklearn.pipeline import Pipeline
+
+# 1. the models trained earlier — nothing is retrained here
+word2vec = Word2Vec.load("models/word2vec.model")
+fasttext = FastText.load("models/fasttext.model")
+
+
+# 2. the drop-in replacement for TfidfVectorizer
+class MeanEmbedding(BaseEstimator, TransformerMixin):
+    """Average the word vectors of a document."""
+
+    def __init__(self, model=None):
+        self.model = model
+
+    def fit(self, x, y=None):
+        return self                       # nothing to learn: the vectors exist
+
+    def transform(self, texts):
+        vectors = self.model.wv
+        out = np.zeros((len(texts), vectors.vector_size), dtype=np.float32)
+        self.skipped_ = 0
+        for i, text in enumerate(texts):
+            found = []
+            for word in re.findall(r"\w+", str(text).lower()):
+                try:
+                    found.append(vectors[word])
+                except KeyError:          # word2vec only: unknown word
+                    self.skipped_ += 1
+            if found:
+                out[i] = np.mean(found, axis=0)
+        return out
+
+
+# 3. the balanced split of Lecture 3
+def balance(df, per_class, seed=42):
+    parts = [g.sample(per_class, random_state=seed) for _, g in df.groupby("label")]
+    return pd.concat(parts).sample(frac=1, random_state=seed).reset_index(drop=True)
+
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification",
+                      split=name, token=os.getenv("HF_TOKEN")).to_pandas()
+    df = balance(df, per_class)
+    return df["text_cleaned"].astype(str), df["label"]
+
+x_train, y_train = split("train", 4000)
+x_test, y_test = split("test", 1000)
+
+# 4. the same classifier, three kinds of features
+classifier = lambda: LogisticRegression(max_iter=2000, C=5.0)
+models = {
+    "TF-IDF": Pipeline([("features", TfidfVectorizer(ngram_range=(1, 2), min_df=2,
+                                                     sublinear_tf=True)),
+                        ("clf", classifier())]),
+    "word2vec": Pipeline([("features", MeanEmbedding(word2vec)), ("clf", classifier())]),
+    "fastText": Pipeline([("features", MeanEmbedding(fasttext)), ("clf", classifier())]),
+}
+
+predictions = {}
+for name, model in models.items():
+    model.fit(x_train, y_train)
+    predictions[name] = model.predict(x_test)
+    scores = cross_val_score(model, x_train, y_train, cv=5)
+    skipped = getattr(model.named_steps["features"], "skipped_", 0)
+    print(f"{name:&lt;10} test={model.score(x_test, y_test):.3f}"
+          f"   CV={scores.mean():.3f} ± {scores.std():.3f}"
+          f"   skipped {skipped} unknown tokens")
+
+print()
+print(classification_report(y_test, predictions["fastText"],
+                            target_names=["negative", "positive"], digits=3))
+print("confusion matrix (rows = true, columns = predicted)")
+print(confusion_matrix(y_test, predictions["fastText"]))
+
+names = {0: "negative", 1: "positive"}
+rows = list(zip(x_test, y_test, predictions["TF-IDF"], predictions["fastText"]))
+fixed = [(t, y) for t, y, a, b in rows if a != y and b == y]
+broken = [(t, y) for t, y, a, b in rows if a == y and b != y]
+
+print(f"\nfastText fixed {len(fixed)} reviews that TF-IDF got wrong")
+print(f"fastText broke {len(broken)} reviews that TF-IDF got right")
+print(f"net change on {len(rows)} reviews: {len(fixed) - len(broken):+d}")
+for text, label in fixed[:2]:
+    print(f"  fixed  {names[label]:&gt;8}: «{text[:46]}»")
+for text, label in broken[:2]:
+    print(f"  broke  {names[label]:&gt;8}: «{text[:46]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>TF-IDF     test=0.780   CV=0.780 ± 0.006   skipped 0 unknown tokens
+word2vec   test=0.794   CV=0.795 ± 0.008   skipped 2156 unknown tokens
+fastText   test=0.792   CV=0.800 ± 0.006   skipped 0 unknown tokens
+
+              precision    recall  f1-score   support
+
+    negative      0.807     0.769     0.788      1000
+    positive      0.779     0.816     0.797      1000
+
+    accuracy                          0.792      2000
+   macro avg      0.793     0.792     0.792      2000
+weighted avg      0.793     0.792     0.792      2000
+
+confusion matrix (rows = true, columns = predicted)
+[[769 231]
+ [184 816]]
+
+fastText fixed 164 reviews that TF-IDF got wrong
+fastText broke 140 reviews that TF-IDF got right
+net change on 2000 reviews: +24
+  fixed  positive: «ма шааллагь»
+  fixed  positive: «жаңа әндер мен өлеңдер жинағы мен сені чаттан »
+  broke  negative: «кемшілігі көп»
+  broke  positive: «өте керемет екен дартын дар өкімписін дер»</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">The script in four parts</span>
+                <dl class="breakdown__list">
+                  <dt>1 — load</dt>
+                  <dd>two lines, and the models trained earlier are back. No retraining happens in this script at all</dd>
+                  <dt>2 — MeanEmbedding</dt>
+                  <dd><code>fit</code> does nothing: the vectors already exist and there is nothing to learn from the labels. <code>transform</code> averages the word vectors of each text</dd>
+                  <dt>3 — split</dt>
+                  <dd>exactly the balanced 8 000 / 2 000 split of Lecture 3, so the numbers are comparable</dd>
+                  <dt>4 — compare</dt>
+                  <dd>one <code>LogisticRegression</code>, three kinds of features. Only the first step of the pipeline differs</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The <code>try/except</code> is the whole difference between the
+                  two models:</strong> word2vec raises <code>KeyError</code> on a word it
+                  never saw, fastText builds one from n-grams and never reaches the
+                  <code>except</code> branch.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="results">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Measured</span>
+              <h2 id="results">Did it help?</h2>
+              <p class="narrow lead">
+                Every number below is in the output above. This section is about reading
+                it.
+              </p>
+              <div class="table-wrap" style="margin-top: 28px">
+                <table class="compare">
+                  <caption class="visually-hidden">Accuracy by feature type</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Features</th>
+                      <th scope="col">Test</th>
+                      <th scope="col">Cross-validation</th>
+                      <th scope="col">Unknown tokens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>TF-IDF</td><td>0.780</td><td>0.780 ± 0.006</td><td>—</td></tr>
+                    <tr><td>word2vec</td><td><strong>0.794</strong></td><td>0.795 ± 0.008</td><td>2 156</td></tr>
+                    <tr><td>fastText</td><td>0.792</td><td><strong>0.800 ± 0.006</strong></td><td>0</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Yes, by about 0.014.</strong> Both embedding models beat TF-IDF on
+                the test split and under cross-validation, and the gap is roughly twice
+                the fold-to-fold spread, so it is a real difference rather than noise.
+                <strong>word2vec against fastText is a different story:</strong> 0.794 and
+                0.792 on the test split, 0.795 and 0.800 under cross-validation. They swap
+                places depending on how you measure, which means this experiment cannot
+                separate them.
+              </p>
+              <div class="callout">
+                <strong>Keep the size of the win in perspective.</strong> We went from
+                0.780 to about 0.795 — worth having, but not a transformation. Embeddings
+                did not solve sentiment; they gave the same linear classifier better
+                features. The reviews with no opinion in them are still wrong, because no
+                feature can recover a signal that is not in the text.
+              </div>
+
+              <h3 style="margin-top: 44px">What changed, review by review</h3>
+              <p class="narrow">
+                <strong>164 fixed, 140 broken.</strong> The headline gain of 24 reviews
+                out of 2 000 hides an enormous amount of churn: switching features changed
+                the answer on 304 reviews and only came out 24 ahead. This is what a small
+                accuracy improvement usually looks like from the inside, and it is why a
+                single accuracy number is a poor way to decide that one model is “better”.
+              </p>
+              <div class="kz-example">
+                <span class="kz-example__label">Two that fastText fixed, two that it broke</span>
+                <ul>
+                  <li>
+                    fixed, positive — <span class="token">ма шааллагь</span>: not a Kazakh
+                    word at all, and TF-IDF had no column for it. fastText built a vector
+                    out of its letters.
+                  </li>
+                  <li>
+                    fixed, positive — <span class="token">жаңа әндер мен өлеңдер жинағы</span>:
+                    no sentiment word in sight; the embedding still placed it near the
+                    positive reviews.
+                  </li>
+                  <li>
+                    broke, negative — <span class="token">кемшілігі көп</span>: three words,
+                    and averaging three vectors blurs the one that carried the complaint.
+                  </li>
+                  <li>
+                    broke, positive — <span class="token">өте керемет екен дартын дар</span>:
+                    <code>керемет</code> was an unambiguous TF-IDF feature; in the average
+                    it is diluted by the noise around it.
+                  </li>
+                </ul>
+              </div>
+              <p class="note">
+                <strong>The pattern in these four.</strong> Embeddings win where TF-IDF has
+                no feature at all — misspellings, rare forms, reviews with no explicit
+                sentiment word. They lose on short reviews built around one strong word,
+                because averaging dilutes it. That is a description of when to use which,
+                and it is more useful than the accuracy column.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The honest summary</span>
+              <h2 id="limits">What embeddings still cannot do</h2>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>One vector per word, always</h3>
+                  <p>
+                    <span class="token">банк</span> gets a single vector whether it is a
+                    financial institution or a river bank. Context cannot change it — the
+                    ambiguity from Lecture 0 is untouched.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Order is still lost</h3>
+                  <p>
+                    Averaging is a bag of words with better words.
+                    <span class="token">жақсы емес</span> and its reverse give the same
+                    document vector.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Antonyms sit close together</h3>
+                  <p>
+                    Measured above: <span class="token">жақсы</span> and
+                    <span class="token">нашар</span> score 0.346, because they appear in
+                    the same contexts. For sentiment that is the worst possible confusion.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>They inherit the corpus</h3>
+                  <p>
+                    Trained on app-store reviews, they know app-store Kazakh. Move to
+                    legal or medical text and the vectors are no longer yours to trust.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">Bag of Words</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">Static embeddings</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Contextual embeddings</span></li>
+              </ul>
+              <p class="narrow">
+                The next step gives each occurrence of a word its own vector, computed
+                from the sentence it sits in. That is what Transformers do, and it is the
+                subject of the lectures after the next one.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The script</span>
+              <h2 id="code">Running it yourself</h2>
+              <p class="narrow lead">
+                Everything on this page comes from
+                <a href="../../code_files/lesson4.py">code_files/lesson4.py</a>. It stands
+                on its own — it loads the data, trains both models, saves them, and only
+                at the end loads them back for the classifier.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds gensim
+
+python3 lesson4.py                     # train, explore, reuse
+python3 lesson4.py --retrain           # ignore models/ and train again
+python3 lesson4.py --dim 200 --epochs 20   # bigger vectors, longer training
+python3 lesson4.py --skip-cv           # faster</code></pre></div>
+              <p class="note">
+                The first run trains both models and takes about a minute; it writes
+                <code>models/word2vec.model</code> and <code>models/fasttext.model</code>,
+                and every later run loads them in a few seconds. Use
+                <code>--retrain</code> whenever you change <code>--dim</code>,
+                <code>--epochs</code> or <code>--min-count</code> — otherwise the old
+                vectors are loaded under the same name and the new settings do nothing.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Five questions to answer together before we finish.</p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">Embeddings are trained without any labels. Where does the training signal come from?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      From the text itself: the model predicts which words appear near
+                      which. The corpus supplies both the question and the answer, which
+                      is why unlabelled Kazakh text is suddenly useful.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">word2vec skipped 2 156 tokens of the test set and fastText skipped none. Why?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      word2vec only knows whole words it saw in training. fastText stores
+                      character n-grams, so it can assemble a vector for any string —
+                      including inflected forms it has never met.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">жақсы ~ нашар scored 0.346 — higher than an unrelated word. Is that a bug?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      No. Antonyms appear in the same contexts, so the distributional
+                      hypothesis places them near each other by design. It is a known
+                      weakness, and it matters most for exactly our task — sentiment.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">Accuracy went from 0.780 to 0.794, but 140 reviews that were right became wrong. How do you report this?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Report both: a net gain of 24 reviews out of 2 000, with 304 answers
+                      changed. Compare the gain against the cross-validation spread before
+                      calling it an improvement, and say which reviews moved in each
+                      direction.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">We trained on 134 368 reviews but the classifier only uses 8 000. Why is that not a mistake?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      They are two different jobs. Training vectors needs no labels, so
+                      every review is usable. Training a classifier needs labels and a
+                      balanced split, which is what limits it to 8 000. The embeddings
+                      carry what they learned from the other 126 000 into the classifier.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in the folder with <code>lesson4.py</code>. Delete
+                <code>models/</code> whenever you want to retrain.
+              </p>
+              <div class="grid grid--2" style="margin-top: 32px">
+                <article class="challenge">
+                  <h3>Task 1 — Vector size</h3>
+                  <p class="challenge__task">Run with --dim 50, 100 and 300. Does accuracy follow the size of the vectors?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Report what you measure, and compare each difference against the
+                      cross-validation spread of about 0.006. On a 1.17M-token corpus,
+                      larger vectors usually stop helping quickly — there is not enough
+                      text to estimate them.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 — CBOW against skip-gram</h3>
+                  <p class="challenge__task">Set sg=0 in train_embeddings. Which is better here, and which is faster?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      CBOW is faster and tends to be smoother on frequent words; skip-gram
+                      is usually better on rare ones, which is why it is the default here.
+                      Check the neighbours of a rare word in both.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 — The window</h3>
+                  <p class="challenge__task">Try window=2 and window=10. Compare the nearest neighbours of интернет in both.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Small windows pull towards words that fill the same grammatical slot;
+                      large windows pull towards the same topic. Expect
+                      <code>теле2</code> and <code>4g</code> to become more prominent as
+                      the window grows.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 — n-gram range</h3>
+                  <p class="challenge__task">Set min_n=2, max_n=6 for fastText. Do the neighbours become more morphological or more typo-like?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Shorter n-grams match more strings, so typos get closer; longer ones
+                      demand more overlap. This is the dial between coverage and precision.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 — Weighted average</h3>
+                  <p class="challenge__task">Weight each word vector by its idf inside MeanEmbedding. We measured 0.787 for word2vec — reproduce it and explain the drop.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      idf plays down frequent words, and in sentiment the frequent words
+                      (<code>жақсы</code>, <code>нашар</code>, <code>рахмет</code>) are
+                      precisely the ones carrying the label.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 — Combine</h3>
+                  <p class="challenge__task">Concatenate TF-IDF and fastText features with scipy.sparse.hstack. Does the combination beat either one?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      We measured 0.788 — between the two, better than TF-IDF alone and no
+                      better than fastText alone. Combining feature families is worth
+                      trying and rarely free.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 — Train on more text</h3>
+                  <p class="challenge__task">Add the unlabelled kz-transformers/multidomain-kazakh-dataset to the embedding corpus. Does the classifier improve?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Stream a slice rather than all 15.5M rows. Expect better general
+                      vectors and, possibly, worse domain fit — measure, do not assume.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 — min_count</h3>
+                  <p class="challenge__task">Try min_count=1 and min_count=10. How does the vocabulary change, and does the classifier follow?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      <code>min_count=1</code> keeps all 119 771 word types, most of them
+                      seen once — vectors trained on a single occurrence are close to
+                      random. <code>min_count=10</code> gives a much smaller, cleaner
+                      vocabulary and more unknown tokens at prediction time. Report both
+                      the vocabulary size and the accuracy, and use <code>--retrain</code>.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 9 — Find the antonym problem</h3>
+                  <p class="challenge__task">Find five word pairs where high cosine similarity would mislead a sentiment classifier.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Start from antonym pairs that share contexts:
+                      <code>жақсы</code>/<code>нашар</code>,
+                      <code>ұнады</code>/<code>ұнамады</code>. Then check whether the
+                      classifier actually confuses the reviews containing them.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 10 — Reproducibility</h3>
+                  <p class="challenge__task">Set workers=4, train twice and compare the neighbours of жақсы. Then explain what you would put in a report.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The lists will differ. In a report, state the seed, the worker count
+                      and the library version, or run several seeds and report the spread —
+                      the same discipline as cross-validation.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Self-check quiz</h3>
+              <p class="narrow lead">Ten questions with instant feedback.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">What is a word embedding?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">a count of how often a word appears</button>
+                    <button class="quiz__option" type="button" data-correct>a dense vector of numbers, learned so that similar words get similar vectors</button>
+                    <button class="quiz__option" type="button">a dictionary definition of a word</button>
+                    <button class="quiz__option" type="button">a compressed version of the text</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>100 numbers per word here, learned from context alone.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">The distributional hypothesis says…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">every word has exactly one meaning</button>
+                    <button class="quiz__option" type="button" data-correct>words appearing in similar contexts tend to have similar meanings</button>
+                    <button class="quiz__option" type="button">word frequency follows a power law</button>
+                    <button class="quiz__option" type="button">meaning is stored in a dictionary</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>You shall know a word by the company it keeps — the whole basis of word2vec.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">In gensim, what does <code>sg=1</code> select?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">CBOW</button>
+                    <button class="quiz__option" type="button" data-correct>skip-gram</button>
+                    <button class="quiz__option" type="button">subword n-grams</button>
+                    <button class="quiz__option" type="button">a single training thread</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>sg=1 is skip-gram: predict the context from the centre word. sg=0 is CBOW.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why does negative sampling exist?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">to remove negative reviews from the corpus</button>
+                    <button class="quiz__option" type="button">to balance the classes</button>
+                    <button class="quiz__option" type="button" data-correct>because a softmax over the whole vocabulary at every step is too slow</button>
+                    <button class="quiz__option" type="button">to handle unknown words</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>It replaces one 27 000-way decision with a few cheap yes/no questions.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">What does fastText add to word2vec?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">labels</button>
+                    <button class="quiz__option" type="button">word order</button>
+                    <button class="quiz__option" type="button" data-correct>character n-grams, so unseen words still get a vector</button>
+                    <button class="quiz__option" type="button">a bigger window</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>That is why it skipped zero tokens where word2vec skipped 2 156.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Our analogies produced nonsense. The most likely reason is…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">a bug in gensim</button>
+                    <button class="quiz__option" type="button" data-correct>1.17 million tokens is far too small a corpus for analogy arithmetic</button>
+                    <button class="quiz__option" type="button">Kazakh does not support analogies</button>
+                    <button class="quiz__option" type="button">the vectors were too large</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The famous demonstrations come from billions of tokens.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Averaging word vectors into a document vector loses…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">the vocabulary</button>
+                    <button class="quiz__option" type="button" data-correct>word order, again</button>
+                    <button class="quiz__option" type="button">the dimensionality</button>
+                    <button class="quiz__option" type="button">nothing at all</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>A bag of words with better words: жақсы емес and емес жақсы give the same vector.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why do <code>жақсы</code> and <code>нашар</code> end up fairly close?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">they are spelled similarly</button>
+                    <button class="quiz__option" type="button" data-correct>antonyms appear in the same contexts, which is all the model looks at</button>
+                    <button class="quiz__option" type="button">the corpus was too clean</button>
+                    <button class="quiz__option" type="button">both are stopwords</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>0.346 against 0.224 for an unrelated word — a known weakness of distributional methods.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Embeddings raised accuracy from 0.780 to about 0.795. The fairest description is…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">embeddings solved the task</button>
+                    <button class="quiz__option" type="button">the difference is noise</button>
+                    <button class="quiz__option" type="button" data-correct>a real but modest gain, about twice the cross-validation spread</button>
+                    <button class="quiz__option" type="button">TF-IDF should never be used again</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>164 reviews fixed, 140 broken: a net 24 out of 2 000.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">What can a static embedding <em>not</em> do?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">give similar words similar vectors</button>
+                    <button class="quiz__option" type="button">be trained without labels</button>
+                    <button class="quiz__option" type="button" data-correct>give one word different vectors in different sentences</button>
+                    <button class="quiz__option" type="button">work on Kazakh</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>One vector per word, always — contextual models are the next step in the course.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>What an embedding is: a word as a point in space</li>
+                <li>The distributional hypothesis</li>
+                <li>word2vec: skip-gram, CBOW, negative sampling</li>
+                <li>Training word2vec with gensim, parameter by parameter</li>
+                <li>What the vectors learned, and where analogies fail</li>
+                <li>fastText and character n-grams</li>
+                <li>Saving a model and loading it back instead of retraining</li>
+                <li>Averaging word vectors into a document vector</li>
+                <li>Reusing the saved models as features for the Lecture 3 classifier</li>
+                <li>0.780 → about 0.795, and what that hides</li>
+                <li>Why one vector per word is not the end of the story</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Lecture 4 · 02 September 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

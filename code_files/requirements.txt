@@ -3,3 +3,4 @@ scikit-learn>=1.3
 pandas>=2.0
 python-dotenv>=1.0
 matplotlib>=3.7   # only for --figure
+gensim>=4.3            # lesson4: word2vec and fastText

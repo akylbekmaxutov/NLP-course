@@ -117,7 +117,7 @@ window.NLP_COURSE = {
     {
       id: "word-embeddings",
       num: 4,
-      file: null,
+      file: "04-word-embeddings.html",
       date: {
         en: "02 Sep 2026",
         kk: "02 қыркүйек 2026",
@@ -125,10 +125,14 @@ window.NLP_COURSE = {
       },
       title: {
         en: "Word Embeddings",
-        kk: "Word Embeddings",
-        ru: "Word Embeddings"
+        kk: "Сөздердің векторлық көріністері",
+        ru: "Векторные представления слов"
       },
-      topics: { en: "word2vec", kk: "word2vec", ru: "word2vec" }
+      topics: {
+        en: "word2vec · gensim · fastText · Kazakh embeddings",
+        kk: "word2vec · gensim · fastText · Kazakh embeddings",
+        ru: "word2vec · gensim · fastText · Kazakh embeddings"
+      }
     },
     {
       id: "text-classification",
