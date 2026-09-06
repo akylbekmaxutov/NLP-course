@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Text Classification | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 5: text classification with recurrent networks — hidden state, RNN, LSTM gates, and a PyTorch model trained on two KazSAnDRA tasks: polarity with two classes and score with five."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/05-rnn-lstm.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/05-rnn-lstm.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/05-rnn-lstm.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/05-rnn-lstm.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/05-rnn-lstm.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/05-rnn-lstm.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 5</span>
+              <h1>Text Classification</h1>
+              <p class="hero__subtitle">
+                A network that reads a review one word at a time and keeps what it has
+                read so far. Written in PyTorch, trained on two tasks from the same
+                dataset: two classes, then five.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Explain recurrence</h3>
+                  <p>Say what a hidden state is, and why reading in order lets a model represent something an average cannot.</p>
+                </div>
+                <div class="card">
+                  <h3>Explain an LSTM</h3>
+                  <p>Say what a plain RNN forgets, and what the cell state and three gates do about it.</p>
+                </div>
+                <div class="card">
+                  <h3>Build one in PyTorch</h3>
+                  <p>Vocabulary, padding, packing, a model class and a training loop you wrote yourself.</p>
+                </div>
+                <div class="card">
+                  <h3>Read a harder result</h3>
+                  <p>Compare two classes against five, and say what the confusion matrix is telling you.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Two tasks, one dataset.</strong> KazSAnDRA ships a
+                <code>polarity_classification</code> split with two classes and a
+                <code>score_classification</code> split with five. The first is the task
+                of Lectures 3 and 4, so every number here is directly comparable with
+                what we already measured. The second keeps the star rating, and it is much
+                harder.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="why-order">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The problem</span>
+              <h2 id="why-order">What every model so far has thrown away</h2>
+              <p class="narrow lead">
+                Bag of Words counted. TF-IDF weighted the counts. Lecture 4 averaged word
+                vectors. All three are functions of <em>which</em> words appeared, never
+                of <em>where</em>.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import re
+from collections import Counter
+
+import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+a = "қосымша өте жақсы емес"      # "the app is not very good"
+b = "емес жақсы өте қосымша"      # the same four words, shuffled
+
+def bag_of_words(text):
+    return Counter(re.findall(r"\w+", text.lower()))
+
+def document_vector(text):
+    words = re.findall(r"\w+", text.lower())
+    return np.mean([word2vec.wv[w] for w in words if w in word2vec.wv], axis=0)
+
+print("«" + a + "»")
+print("«" + b + "»")
+print()
+print("same bag of words     :", bag_of_words(a) == bag_of_words(b))
+print("same TF-IDF row       :", bag_of_words(a) == bag_of_words(b), "(it is built from the counts)")
+print("same document vector  :", bool(np.allclose(document_vector(a), document_vector(b))))
+print("largest difference    :", float(np.abs(document_vector(a) - document_vector(b)).max()),
+      "— floating-point noise, not meaning")
+print()
+print("Every model in Lectures 2, 3 and 4 sees these two sentences as one input.")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>«қосымша өте жақсы емес»
+«емес жақсы өте қосымша»
+
+same bag of words     : True
+same TF-IDF row       : True (it is built from the counts)
+same document vector  : True
+largest difference    : 2.9802322387695312e-08 — floating-point noise, not meaning
+
+Every model in Lectures 2, 3 and 4 sees these two sentences as one input.</code></pre></div>
+              <p class="note">
+                <strong>Four words, two meanings, one input.</strong>
+                <span class="token">қосымша өте жақсы емес</span> is a complaint;
+                shuffling the same four words is not. Every representation we have built
+                collapses them into the same row of numbers, so no classifier trained on
+                top could ever separate them — the information was destroyed before the
+                classifier ran. The difference of 3&nbsp;×&nbsp;10⁻⁸ is the order in which
+                the floats were summed, nothing more.
+              </p>
+              <div class="callout">
+                <strong>This lecture is about the fix.</strong> Instead of collapsing the
+                review into one point, we feed the words in one at a time and let the model
+                keep a running summary. Order is then part of the computation rather than
+                something discarded before it starts.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="two-tasks">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The data</span>
+              <h2 id="two-tasks">Two tasks from the same reviews</h2>
+              <div class="code-block" data-lang="python"><pre><code>import os
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+
+CONFIGS = {"polarity": "polarity_classification", "score": "score_classification"}
+NAMES = {"polarity": ["negative", "positive"],
+         "score": ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]}
+
+for task, config in CONFIGS.items():
+    df = load_dataset("issai/kazsandra", config, split="train",
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    counts = df["label"].value_counts().sort_index()
+    print(f"{task}: {len(df)} reviews, {len(counts)} classes")
+    for label, n in counts.items():
+        print(f"  {NAMES[task][label]:&lt;9} {n:&gt;7}  ({100 * n / len(df):.1f}%)")
+    print()
+
+df = load_dataset("issai/kazsandra", CONFIGS["score"], split="train",
+                  token=os.getenv("HF_TOKEN")).to_pandas()
+print("one review per score:")
+for label in sorted(df["label"].unique()):
+    text = df[df["label"] == label]["text_cleaned"].iloc[0]
+    print(f"  {NAMES['score'][label]:&lt;9} «{str(text)[:52]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>polarity: 134368 reviews, 2 classes
+  negative    23951  (17.8%)
+  positive   110417  (82.2%)
+
+score: 140126 reviews, 5 classes
+  1 star      20031  (14.3%)
+  2 stars      3920  (2.8%)
+  3 stars      5758  (4.1%)
+  4 stars      9115  (6.5%)
+  5 stars    101302  (72.3%)
+
+one review per score:
+  1 star    «дұрыс жұмыс жасамайды аймақты басасың басқа жақ шыға»
+  2 stars   «карта ашылмайды сондықтан әзірге 2 жұлдыз кейін қолд»
+  3 stars   «мен ном жазсам ашпайт не істим»
+  4 stars   «құрметті разроботчиктар мына програмада басында тым »
+  5 stars   «керемет мотивация мен жаңа көзқарас қалыптастыратын »</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What the distributions tell us</span>
+                <dl class="breakdown__list">
+                  <dt>polarity</dt>
+                  <dd>82% positive. Predicting "positive" for everything already scores 0.822 — which is why Lectures 3 and 4 balanced the split, and why we do it again</dd>
+                  <dt>score</dt>
+                  <dd>72% five-star and only 2.8% two-star. The rarest class caps a balanced sample at 3 920 training and 490 test reviews per class</dd>
+                  <dt>the classes are ordered</dt>
+                  <dd>1 &lt; 2 &lt; 3 &lt; 4 &lt; 5. Confusing four stars with five is a small mistake; confusing one with five is a large one, and plain accuracy scores both the same</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading the examples:</strong> the three-star review
+                  <span class="token">мен ном жазсам ашпайт не істим</span> carries no
+                  sentiment word at all — it is a question. Most of the middle of this
+                  scale looks like that, and it is where the model will struggle.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="rnn">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The model</span>
+              <h2 id="rnn">What a recurrent network is</h2>
+              <p class="narrow lead">
+                One small network, applied once per word, carrying a summary of everything
+                it has read so far.
+              </p>
+              <div class="definition">
+                <p>
+                  A <strong>recurrent neural network</strong> keeps a
+                  <strong>hidden state</strong>: a vector that starts at zero and is
+                  rewritten at every word, <code>h = f(h, word)</code>. The same
+                  <code>f</code> and the same weights run at every position. After the
+                  last word, that one vector is the model's summary of the review.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-unroll-t">
+                <title id="fig-unroll-t">A recurrent network unrolled over four words</title>
+                <rect x="8" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="37" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="94" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="123" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="180" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="209" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="266" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="295" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <line x1="66" y1="67" x2="94" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="152" y1="67" x2="180" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="238" y1="67" x2="266" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <text x="80" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₁</text>
+                <text x="166" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₂</text>
+                <text x="252" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₃</text>
+                <text x="37" y="30" font-size="11" fill="#111111" text-anchor="middle">қосымша</text>
+                <text x="123" y="30" font-size="11" fill="#111111" text-anchor="middle">өте</text>
+                <text x="209" y="30" font-size="11" fill="#111111" text-anchor="middle">жақсы</text>
+                <text x="295" y="30" font-size="11" fill="#111111" text-anchor="middle">емес</text>
+                <line x1="37" y1="36" x2="37" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="123" y1="36" x2="123" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="209" y1="36" x2="209" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="295" y1="36" x2="295" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="295" y1="82" x2="295" y2="104" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="238" y="104" width="98" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="287" y="121" font-size="11" fill="#111111" text-anchor="middle">h₄ → negative</text>
+                <text x="110" y="121" font-size="10" fill="#5b6270" text-anchor="middle">one hidden state per step</text>
+                </svg>
+                <p class="figure__caption">
+                  The same network drawn four times, not four networks. Its weights are
+                  shared across positions, so a review of three words and one of forty go
+                  through exactly the same parameters.
+                </p>
+              </div>
+              <p class="narrow">
+                Because the words arrive in order, <span class="token">жақсы емес</span>
+                and <span class="token">емес жақсы</span> now produce different hidden
+                states. That is the entire reason for the extra machinery: nothing else in
+                the course could tell those two apart.
+              </p>
+              <div class="breakdown">
+                <span class="breakdown__label">What changed since Lecture 4</span>
+                <dl class="breakdown__list">
+                  <dt>input</dt>
+                  <dd>a sequence of word vectors instead of their average</dd>
+                  <dt>embeddings</dt>
+                  <dd>no longer a separate step — they became the first layer of the network, trained together with everything else</dd>
+                  <dt>what is learned</dt>
+                  <dd>the weights come from gradient descent on the labels, not from the distributional hypothesis</dd>
+                  <dt>output</dt>
+                  <dd>one hidden state that saw the words in order, then a linear layer to the classes</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> the embedding step did not disappear. It became
+                  layer one — and at the end of this lecture we will start it from the
+                  vectors trained in Lecture 4.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lstm">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The fix</span>
+              <h2 id="lstm">Why a plain RNN forgets, and what an LSTM does</h2>
+              <p class="narrow lead">
+                The hidden state is rewritten at every single word. Rewrite it forty times
+                and whatever was in it at the start is gone.
+              </p>
+              <h3 style="margin-top: 36px">The vanishing gradient</h3>
+              <p class="narrow">
+                To learn that the first word mattered, the training signal has to travel
+                back through every step in between, and at each step it is multiplied by
+                the same weight matrix. Multiply a number smaller than one by itself forty
+                times and it is effectively zero; multiply one larger than one and it
+                explodes. In practice a plain RNN learns the last few words well and the
+                start of a long review hardly at all. The
+                <code>clip_grad_norm_</code> in our training loop is the standard patch for
+                the exploding half; nothing patches the vanishing half.
+              </p>
+              <div class="definition">
+                <p>
+                  An <strong>LSTM</strong> adds a second vector, the
+                  <strong>cell state</strong>, which travels from step to step almost
+                  untouched — added to and erased from, not rewritten. Three
+                  <strong>gates</strong>, each a small network producing numbers between 0
+                  and 1, decide what to erase, what to add, and what to reveal.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 160" role="img" aria-labelledby="fig-lstm-t">
+                <title id="fig-lstm-t">An LSTM cell: the cell state runs straight through, three gates edit it</title>
+                <line x1="10" y1="34" x2="330" y2="34" stroke="#2563eb" stroke-width="2.5" />
+                <text x="20" y="24" font-size="10" fill="#2563eb">cell state c</text>
+                <text x="316" y="24" font-size="10" fill="#2563eb" text-anchor="end">c</text>
+                <rect x="46" y="74" width="66" height="28" rx="6" fill="#fef2f2" stroke="#fecaca" />
+                <text x="79" y="92" font-size="11" fill="#111111" text-anchor="middle">forget</text>
+                <rect x="136" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="169" y="92" font-size="11" fill="#111111" text-anchor="middle">input</text>
+                <rect x="226" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="259" y="92" font-size="11" fill="#111111" text-anchor="middle">output</text>
+                <line x1="79" y1="74" x2="79" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="169" y1="74" x2="169" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="259" y1="74" x2="259" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <text x="79" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to drop</text>
+                <text x="169" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to add</text>
+                <text x="259" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to reveal</text>
+                <line x1="169" y1="126" x2="169" y2="140" stroke="#c7d9ff" stroke-width="1.5" />
+                <text x="169" y="152" font-size="11" fill="#111111" text-anchor="middle">word at this step + previous h</text>
+                </svg>
+                <p class="figure__caption">
+                  The cell state runs straight along the top. The gates edit it; they do
+                  not replace it.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The three gates</span>
+                <dl class="breakdown__list">
+                  <dt>forget</dt>
+                  <dd>multiplies the cell state, choosing what to drop. Near 1 keeps a memory alive across many words</dd>
+                  <dt>input</dt>
+                  <dd>decides how much of the new candidate value to add at this step</dd>
+                  <dt>output</dt>
+                  <dd>decides how much of the cell state becomes the visible hidden state</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Why this helps:</strong> the cell state's path from one step to
+                  the next is an addition, not a matrix multiplication, so the gradient can
+                  travel a long way back without shrinking to nothing.
+                </p>
+              </div>
+              <p class="note">
+                <strong>The cost is size.</strong> An LSTM computes four things where an
+                RNN computes one — the three gates and the candidate value — so its
+                recurrent weight matrices are four times as tall. You will see that
+                literally in the parameter list further down: <code>(512, 100)</code> where
+                a plain RNN would have <code>(128, 100)</code>.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="vocab">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Preparing the input</span>
+              <h2 id="vocab">From words to numbers</h2>
+              <p class="narrow lead">
+                A network takes tensors, not strings. Every word needs an integer, and
+                every review in a batch needs the same length.
+              </p>
+              <h3 style="margin-top: 36px">The vocabulary</h3>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+from datasets import load_dataset
+
+df = load_dataset("issai/kazsandra", "polarity_classification", split="train",
+                  token=os.getenv("HF_TOKEN")).to_pandas()
+train = pd.concat([g.sample(4000, random_state=42) for _, g in df.groupby("label")])
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+counts = {}
+for text in train["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+
+MIN_COUNT = 2
+kept = sorted((w for w, c in counts.items() if c &gt;= MIN_COUNT),
+              key=lambda w: (-counts[w], w))
+
+vocab = {"&lt;pad&gt;": 0, "&lt;unk&gt;": 1}          # two reserved slots
+for word in kept:
+    vocab[word] = len(vocab)
+
+print("distinct words in the training text:", len(counts))
+print("kept (seen at least twice)         :", len(kept))
+print("vocabulary with &lt;pad&gt; and &lt;unk&gt;    :", len(vocab))
+print()
+print("the ten most frequent words:")
+for word in kept[:10]:
+    print(f"  {vocab[word]:&gt;3}  {word:&lt;10} {counts[word]}")
+print()
+print("«жақсы» is index", vocab["жақсы"], "— a word not in the table becomes", vocab["&lt;unk&gt;"])</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>distinct words in the training text: 19201
+kept (seen at least twice)         : 5914
+vocabulary with &lt;pad&gt; and &lt;unk&gt;    : 5916
+
+the ten most frequent words:
+    2  өте        1680
+    3  керемет    1156
+    4  жақсы      986
+    5  маған      839
+    6  екен       776
+    7  ұнады      755
+    8  мен        726
+    9  ойын       715
+   10  бұл        505
+   11  деп        472
+
+«жақсы» is index 4 — a word not in the table becomes 1</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Two rows that are not words</span>
+                <dl class="breakdown__list">
+                  <dt>0 — &lt;pad&gt;</dt>
+                  <dd>filler, so a batch can be rectangular. Its embedding row is pinned at zero and never trained</dd>
+                  <dt>1 — &lt;unk&gt;</dt>
+                  <dd>anything not in the table. 13 287 of the 19 201 distinct words were seen exactly once and collapse into this single row</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>This is the Lecture 4 coverage problem again</strong>, now visible
+                  as one row of a matrix. word2vec skipped 2 156 unknown tokens; here they
+                  all become index 1 and share one vector.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Padding a batch</h3>
+              <p class="narrow">
+                Reviews have different lengths, but a tensor is a rectangle. We pad to the
+                longest review in the batch and pass the true lengths alongside, so the
+                network can stop where each review actually ends.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 130" role="img" aria-labelledby="fig-pad-t">
+                <title id="fig-pad-t">Padding three reviews of different length into one rectangular batch</title>
+                <rect x="14" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="142" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="206" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="270" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="14" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="142" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="206" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="270" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="14" y="80" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="142" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="206" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="270" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <text x="44" y="36" font-size="10" fill="#ffffff" text-anchor="middle">142</text>
+                <text x="108" y="36" font-size="10" fill="#ffffff" text-anchor="middle">7</text>
+                <text x="172" y="36" font-size="10" fill="#ffffff" text-anchor="middle">39</text>
+                <text x="236" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="300" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="172" y="66" font-size="10" fill="#ffffff" text-anchor="middle">…</text>
+                <text x="44" y="96" font-size="10" fill="#ffffff" text-anchor="middle">88</text>
+                <text x="108" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="172" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="236" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="300" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="14" y="118" font-size="10" fill="#5b6270">lengths = [3, 5, 1] — so nothing reads the grey cells</text>
+                </svg>
+                <p class="figure__caption">
+                  Three reviews of length 3, 5 and 1, padded into one 3 × 5 batch. The grey
+                  cells exist only to make the rectangle.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+
+# three reviews, already turned into indices by the vocabulary
+batch = [[142, 7, 39], [12, 88, 4, 501, 63], [88]]
+
+lengths = torch.tensor([len(ids) for ids in batch])
+width = int(lengths.max())
+
+padded = torch.full((len(batch), width), 0, dtype=torch.long)   # 0 is &lt;pad&gt;
+for i, ids in enumerate(batch):
+    padded[i, :len(ids)] = torch.tensor(ids)
+
+print("lengths:", lengths.tolist())
+print("padded batch:")
+print(padded)
+print("shape:", tuple(padded.shape))
+
+packed = torch.nn.utils.rnn.pack_padded_sequence(
+    padded.unsqueeze(-1).float(), lengths, batch_first=True, enforce_sorted=False)
+print("\nreal steps the network will run:", int(packed.data.shape[0]),
+      "of", padded.numel(), "cells in the rectangle")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>lengths: [3, 5, 1]
+padded batch:
+tensor([[142,   7,  39,   0,   0],
+        [ 12,  88,   4, 501,  63],
+        [ 88,   0,   0,   0,   0]])
+shape: (3, 5)
+
+real steps the network will run: 9 of 15 cells in the rectangle</code></pre></div>
+              <p class="note">
+                <strong><code>pack_padded_sequence</code> is what makes the padding
+                harmless.</strong> Without it the network would read six cells of
+                <code>&lt;pad&gt;</code> and update its hidden state on them, so a short
+                review would end with a state built mostly from filler. Packing tells
+                PyTorch to run 9 real steps instead of all 15 cells — correct
+                <em>and</em> faster.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="model">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The model</span>
+              <h2 id="model">The network in PyTorch</h2>
+              <p class="narrow lead">
+                Three layers and eleven lines. Switching between an RNN and an LSTM is one
+                word.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+PAD = 0
+
+class Recurrent(nn.Module):
+    """Embedding -&gt; RNN or LSTM -&gt; Linear."""
+
+    def __init__(self, vocab_size, classes, kind="lstm", dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        cell = nn.LSTM if kind == "lstm" else nn.RNN
+        self.rnn = cell(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        embedded = self.dropout(self.embedding(ids))          # (batch, words, dim)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            embedded, lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state   # LSTM returns (h, c)
+        return self.out(self.dropout(hidden[-1]))             # (batch, classes)
+
+
+torch.manual_seed(42)
+model = Recurrent(vocab_size=5916, classes=2, kind="lstm")   # the vocabulary above
+print(model)
+print()
+for name, p in model.named_parameters():
+    print(f"  {name:&lt;22} {tuple(p.shape)!s:&lt;14} {p.numel():&gt;9,}")
+print(f"\ntotal: {sum(p.numel() for p in model.parameters()):,} parameters")
+
+ids = torch.randint(2, 5916, (4, 7))
+lengths = torch.tensor([7, 5, 3, 1])
+print("\nforward pass:", tuple(ids.shape), "-&gt;", tuple(model(ids, lengths).shape))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>Recurrent(
+  (embedding): Embedding(5916, 100, padding_idx=0)
+  (rnn): LSTM(100, 128, batch_first=True)
+  (dropout): Dropout(p=0.3, inplace=False)
+  (out): Linear(in_features=128, out_features=2, bias=True)
+)
+
+  embedding.weight       (5916, 100)      591,600
+  rnn.weight_ih_l0       (512, 100)        51,200
+  rnn.weight_hh_l0       (512, 128)        65,536
+  rnn.bias_ih_l0         (512,)               512
+  rnn.bias_hh_l0         (512,)               512
+  out.weight             (2, 128)             256
+  out.bias               (2,)                   2
+
+total: 709,618 parameters
+
+forward pass: (4, 7) -&gt; (4, 2)</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading the parameter list</span>
+                <dl class="breakdown__list">
+                  <dt>embedding.weight</dt>
+                  <dd>(5916, 100) — one row per vocabulary entry. 83% of all parameters are here</dd>
+                  <dt>rnn.weight_ih_l0</dt>
+                  <dd>(512, 100) — input to hidden. 512 is 4 × 128: the LSTM's three gates and its candidate value, stacked</dd>
+                  <dt>rnn.weight_hh_l0</dt>
+                  <dd>(512, 128) — hidden to hidden, the recurrent part, applied once per word</dd>
+                  <dt>out.weight</dt>
+                  <dd>(2, 128) — 256 numbers turn the final hidden state into two class scores</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> almost the entire model is the embedding table.
+                  The recurrent machinery everyone talks about is 117 760 numbers out of
+                  709 618.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Three details in <code>forward</code>.</strong>
+                <code>state[0] if isinstance(state, tuple)</code> is there because an LSTM
+                returns <code>(hidden, cell)</code> and an RNN returns just the hidden
+                state. <code>hidden[-1]</code> takes the last layer's state. And
+                <code>dropout</code> appears twice — on the embeddings and before the
+                classifier — because with 700 000 parameters and 8 000 examples, this model
+                can memorise the training set.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="training">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Training</span>
+              <h2 id="training">The training loop, and the first result</h2>
+              <p class="narrow lead">
+                Five lines repeated for every batch: zero the gradients, run forward,
+                measure the loss, run backward, take a step.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+for kind in ("rnn", "lstm"):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), 2, kind)
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    print(f"{kind.upper()}  {sum(p.numel() for p in model.parameters()):,} parameters")
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 8000  test 2000  vocabulary 5916
+
+RNN  621,298 parameters
+  epoch 1  loss=0.6460  test=0.711  (1s)
+  epoch 2  loss=0.5634  test=0.728  (1s)
+  epoch 3  loss=0.5335  test=0.696  (1s)
+  epoch 4  loss=0.5112  test=0.751  (1s)
+  epoch 5  loss=0.4823  test=0.755  (1s)
+
+LSTM  709,618 parameters
+  epoch 1  loss=0.6083  test=0.727  (2s)
+  epoch 2  loss=0.5121  test=0.756  (2s)
+  epoch 3  loss=0.4741  test=0.756  (2s)
+  epoch 4  loss=0.4369  test=0.770  (2s)
+  epoch 5  loss=0.4099  test=0.772  (2s)</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">The five lines that do the learning</span>
+                <dl class="breakdown__list">
+                  <dt>optimiser.zero_grad()</dt>
+                  <dd>PyTorch accumulates gradients, so they must be cleared before each batch. Forgetting this is the most common beginner bug</dd>
+                  <dt>model(ids, lengths)</dt>
+                  <dd>the forward pass — class scores for every review in the batch</dd>
+                  <dt>loss_fn(scores, labels)</dt>
+                  <dd><code>CrossEntropyLoss</code> takes raw scores, applies softmax itself, and gives one number to minimise</dd>
+                  <dt>loss.backward()</dt>
+                  <dd>the gradient of that number with respect to every parameter, computed automatically</dd>
+                  <dt>optimiser.step()</dt>
+                  <dd>Adam nudges each parameter in the direction that lowers the loss</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>And one guard:</strong> <code>clip_grad_norm_</code> caps the
+                  gradient before the step. Recurrent networks are where gradients actually
+                  explode, and without it the RNN run can diverge into <code>nan</code>.
+                </p>
+              </div>
+              <p class="note">
+                <strong>The LSTM is better, and both are worse than Lecture 3.</strong>
+                The RNN reaches 0.755 and the LSTM 0.772, on the same balanced 8 000 / 2 000
+                split where TF-IDF with logistic regression scored <strong>0.780</strong>
+                and averaged fastText vectors scored <strong>0.792</strong>. Seven hundred
+                thousand parameters, five epochs of training, and we are behind a linear
+                model on bag-of-words features.
+              </p>
+              <div class="callout">
+                <strong>Read the loss column against the test column.</strong> The LSTM's
+                training loss falls steadily from 0.61 to 0.41 while test accuracy stops
+                moving after epoch 4. The model is still learning — it is just learning the
+                training set. That is overfitting, and with 700 000 parameters and 8 000
+                nine-word reviews it is exactly what you should expect.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="better">
+            <div class="container">
+              <span class="section__eyebrow">Practice · Two fixes</span>
+              <h2 id="better">Making it competitive</h2>
+              <p class="narrow lead">
+                Two changes, neither of them to the architecture. Both attack the same
+                problem: not enough data for this many parameters.
+              </p>
+              <h3 style="margin-top: 36px">Fix 1 — start from the Lecture 4 vectors</h3>
+              <p class="narrow">
+                The embedding table is 83% of the model, and it starts as noise. But we
+                already trained an embedding table in Lecture 4, on 134 368 reviews without
+                using a single label. Copying it in is four lines.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+vectors = Word2Vec.load("models/word2vec.model").wv     # trained in Lecture 4
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+for pretrained in (False, True):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), 2, "lstm")
+    if pretrained:
+        found = 0
+        for word, index in vocab.items():
+            if word in vectors:
+                model.embedding.weight.data[index] = torch.tensor(vectors[word])
+                found += 1
+        print(f"word2vec start   {found} of {len(vocab)} rows filled from Lecture 4")
+    else:
+        print("random start     every row is noise at epoch 0")
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 8000  test 2000  vocabulary 5916
+
+random start     every row is noise at epoch 0
+  epoch 1  loss=0.6083  test=0.727  (2s)
+  epoch 2  loss=0.5121  test=0.756  (2s)
+  epoch 3  loss=0.4741  test=0.756  (2s)
+  epoch 4  loss=0.4369  test=0.770  (2s)
+  epoch 5  loss=0.4099  test=0.772  (2s)
+
+word2vec start   5743 of 5916 rows filled from Lecture 4
+  epoch 1  loss=0.5083  test=0.785  (2s)
+  epoch 2  loss=0.4373  test=0.799  (2s)
+  epoch 3  loss=0.4045  test=0.787  (2s)
+  epoch 4  loss=0.3808  test=0.794  (2s)
+  epoch 5  loss=0.3542  test=0.787  (2s)</code></pre></div>
+              <p class="note">
+                <strong>0.772 → 0.787, and 0.799 at epoch 2.</strong> Look at the first
+                epoch: 0.727 from noise against 0.785 from word2vec. The pretrained model
+                starts where the random one finishes after four epochs, because 5 743 of
+                its 5 916 embedding rows already knew that
+                <span class="token">жақсы</span> and <span class="token">керемет</span>
+                belong together. That knowledge came from unlabelled text — it cost nothing
+                in annotation.
+              </p>
+
+              <h3 style="margin-top: 44px">Fix 2 — give it more data</h3>
+              <p class="narrow">
+                We had been using 8 000 reviews because that is what Lectures 3 and 4 used,
+                and a linear model on TF-IDF has little use for more. A network with
+                700 000 parameters is a different situation. The negative class has 23 951
+                training reviews, so a balanced split can go to 40 000.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 20000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+vectors = Word2Vec.load("models/word2vec.model").wv     # trained in Lecture 4
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+torch.manual_seed(SEED)
+model = Recurrent(len(vocab), 2, "lstm")
+found = 0
+for word, index in vocab.items():
+    if word in vectors:
+        model.embedding.weight.data[index] = torch.tensor(vectors[word])
+        found += 1
+print(f"LSTM, word2vec start, {len(train_df)} training reviews")
+print(f"{found} of {len(vocab)} embedding rows filled from Lecture 4")
+if True:
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 40000  test 2000  vocabulary 19441
+
+LSTM, word2vec start, 40000 training reviews
+17157 of 19441 embedding rows filled from Lecture 4
+  epoch 1  loss=0.4516  test=0.803  (9s)
+  epoch 2  loss=0.4018  test=0.800  (9s)
+  epoch 3  loss=0.3671  test=0.798  (9s)
+  epoch 4  loss=0.3374  test=0.799  (9s)
+  epoch 5  loss=0.3086  test=0.793  (9s)</code></pre></div>
+              <p class="note">
+                <strong>0.803 after a single epoch.</strong> That is the best number in
+                this lecture and the first time a neural model has beaten everything in
+                Lectures 3 and 4 — TF-IDF 0.780, averaged word2vec 0.794, averaged fastText
+                0.792. Note also that it peaks at epoch 1 and then drifts down: with five
+                times the data the model needs far fewer passes over it, and the later
+                epochs are just overfitting.
+              </p>
+              <div class="table-wrap" style="margin-top: 28px">
+                <table class="compare">
+                  <caption class="visually-hidden">Every polarity result in the course so far</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Model</th>
+                      <th scope="col">Training reviews</th>
+                      <th scope="col">Test accuracy</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>TF-IDF + logistic regression (Lecture 3)</td><td>8 000</td><td>0.780</td></tr>
+                    <tr><td>averaged word2vec + logistic regression (Lecture 4)</td><td>8 000</td><td>0.794</td></tr>
+                    <tr><td>averaged fastText + logistic regression (Lecture 4)</td><td>8 000</td><td>0.792</td></tr>
+                    <tr><td>RNN, random start</td><td>8 000</td><td>0.755</td></tr>
+                    <tr><td>LSTM, random start</td><td>8 000</td><td>0.772</td></tr>
+                    <tr><td>LSTM, word2vec start</td><td>8 000</td><td>0.787</td></tr>
+                    <tr><td>LSTM, word2vec start</td><td>40 000</td><td><strong>0.803</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>The honest summary of this table.</strong> The recurrent model wins
+                by 0.009 over the best Lecture 4 result, and only after being given five
+                times the training data and an embedding table trained on 134 368 reviews.
+                On nine-word app reviews, word order is worth very little — there is barely
+                a sequence to model. Recurrence pays off on long text, where an average
+                genuinely loses information; that is worth remembering before reaching for
+                one.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="score">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The harder task</span>
+              <h2 id="score">Five classes instead of two</h2>
+              <p class="narrow lead">
+                The same reviews, the same model, the same code — with the star rating
+                kept instead of collapsed into positive and negative.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from sklearn.metrics import classification_report, confusion_matrix
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "score_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    per_class = min(per_class, df["label"].value_counts().min())   # 2 stars is the rarest
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+NAMES = ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+def predict(model, batches):
+    model.eval()
+    out, gold = [], []
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            out.append(model(ids, lengths).argmax(1))
+            gold.append(labels)
+    return torch.cat(out).numpy(), torch.cat(gold).numpy()
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}")
+print(f"{len(NAMES)} classes, so random guessing is {1 / len(NAMES):.3f}\n")
+
+for kind in ("rnn", "lstm"):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), len(NAMES), kind)
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    print(f"{kind.upper()}  {sum(p.numel() for p in model.parameters()):,} parameters")
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()
+    if kind == "lstm":
+        predicted, gold = predict(model, test_batches)
+        print(classification_report(gold, predicted, target_names=NAMES,
+                                    digits=3, zero_division=0))
+        print("confusion matrix (rows = true, columns = predicted)")
+        print(confusion_matrix(gold, predicted))
+        off = abs(predicted - gold)
+        print(f"\nexactly right      : {(off == 0).mean():.3f}")
+        print(f"within one star    : {(off &lt;= 1).mean():.3f}")
+        print(f"three or more off  : {(off &gt;= 3).mean():.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 19600  test 2450  vocabulary 11738
+5 classes, so random guessing is 0.200
+
+RNN  1,203,885 parameters
+  epoch 1  loss=1.5958  test=0.287  (3s)
+  epoch 2  loss=1.5253  test=0.322  (3s)
+  epoch 3  loss=1.4841  test=0.342  (3s)
+  epoch 4  loss=1.4508  test=0.321  (3s)
+  epoch 5  loss=1.4220  test=0.349  (3s)
+
+LSTM  1,292,205 parameters
+  epoch 1  loss=1.5431  test=0.340  (4s)
+  epoch 2  loss=1.4559  test=0.347  (4s)
+  epoch 3  loss=1.4117  test=0.360  (4s)
+  epoch 4  loss=1.3699  test=0.365  (4s)
+  epoch 5  loss=1.3278  test=0.374  (4s)
+
+              precision    recall  f1-score   support
+
+      1 star      0.376     0.494     0.427       490
+     2 stars      0.310     0.227     0.262       490
+     3 stars      0.295     0.210     0.246       490
+     4 stars      0.345     0.284     0.311       490
+     5 stars      0.463     0.657     0.543       490
+
+    accuracy                          0.374      2450
+   macro avg      0.358     0.374     0.358      2450
+weighted avg      0.358     0.374     0.358      2450
+
+confusion matrix (rows = true, columns = predicted)
+[[242  94  60  34  60]
+ [173 111  67  63  76]
+ [126  70 103  96  95]
+ [ 59  56  93 139 143]
+ [ 44  27  26  71 322]]
+
+exactly right      : 0.374
+within one star    : 0.704
+three or more off  : 0.122</code></pre></div>
+              <p class="note">
+                <strong>0.374 against 0.200 for guessing.</strong> The model is clearly
+                learning something — nearly twice the random baseline — but this is a far
+                cry from the 0.803 of the two-class task. Nothing about the model changed;
+                the task got harder.
+              </p>
+              <h3 style="margin-top: 44px">Read the confusion matrix, not the accuracy</h3>
+              <div class="breakdown">
+                <span class="breakdown__label">Where the 2 450 test reviews went</span>
+                <dl class="breakdown__list">
+                  <dt>the ends</dt>
+                  <dd>1 star: 242 of 490 right. 5 stars: 322 of 490. The extremes have clear words</dd>
+                  <dt>the middle</dt>
+                  <dd>3 stars: 103 of 490, the worst row. A three-star review often states a fact and no opinion</dd>
+                  <dt>the mistakes are neighbours</dt>
+                  <dd>the largest off-diagonal cells sit next to the diagonal: 173 two-star reviews called one-star, 143 four-star called five-star</dd>
+                  <dt>within one star</dt>
+                  <dd>0.374 exactly right, but 0.704 within one star and only 0.122 off by three or more</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> "37% accurate" and "seven reviews in ten
+                  within one star, one in eight badly wrong" describe the same model. The
+                  second is the more useful sentence, and plain accuracy cannot produce it.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Accuracy is the wrong metric for an ordered scale.</strong> It
+                charges the same penalty for calling a five-star review four stars as for
+                calling it one star. When classes have an order — ratings, severity levels,
+                grades — report the distance as well: mean absolute error, or the
+                within-one accuracy above. A model that is never more than one star off is
+                useful; its accuracy of 0.374 makes it sound useless.
+              </div>
+              <p class="note">
+                <strong>And notice what is not the explanation.</strong> The test set is
+                balanced at 490 per class, so this is not the imbalance of the raw data
+                showing through. Five ordered classes on nine-word reviews is simply a
+                harder problem than two.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Theory · The honest summary</span>
+              <h2 id="limits">What recurrence still cannot do</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>It reads strictly left to right</h3>
+                  <p>
+                    When the model reaches <span class="token">емес</span> it cannot go
+                    back and revise what it thought about
+                    <span class="token">жақсы</span>. A bidirectional LSTM reads both ways
+                    and helps, but it is two passes glued together, not a solution.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Everything squeezes through one vector</h3>
+                  <p>
+                    A forty-word review has to fit into 128 numbers before the classifier
+                    sees anything. The longer the text, the more that bottleneck costs.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It cannot be parallelised</h3>
+                  <p>
+                    Step 20 needs the result of step 19. Words cannot be processed
+                    simultaneously, which is exactly why training on very large corpora
+                    became impractical.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Distance still costs</h3>
+                  <p>
+                    Gates slow the forgetting, they do not stop it. Linking word 2 to word
+                    45 means carrying information through 43 updates.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">Averaged embeddings</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">RNN</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">LSTM</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Attention</span></li>
+              </ul>
+              <p class="narrow">
+                The next lecture removes the loop entirely. Instead of passing information
+                along a chain, every word looks directly at every other word in one step —
+                which fixes the bottleneck, the distance penalty and the parallelism
+                problem at once. That is attention, and it is what Transformers are built
+                from.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Practice · The script</span>
+              <h2 id="code">Running it yourself</h2>
+              <p class="narrow lead">
+                Everything on this page comes from
+                <a href="../../code_files/lesson5.py">code_files/lesson5.py</a>. It stands
+                on its own; the only thing it borrows is
+                <code>models/word2vec.model</code> from Lecture 4, and only with
+                <code>--pretrained</code>.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds torch
+
+python3 lesson5.py                     # both tasks, RNN and LSTM
+python3 lesson5.py --task polarity --model lstm
+python3 lesson5.py --task score --epochs 10
+python3 lesson5.py --pretrained        # start from the Lecture 4 word2vec
+python3 lesson5.py --train-size 20000  # the 0.803 run</code></pre></div>
+              <p class="note">
+                Both tasks with both models take about a minute on a laptop CPU, which is
+                why this lecture uses no GPU and pins the device to <code>cpu</code>: the
+                run stays reproducible. Every number on this page came out of that script,
+                and running it again gives the same digits — <code>torch.manual_seed</code>
+                plus a fresh <code>DataLoader</code> generator per model, so each variant
+                sees the same batches in the same order.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Five questions we answer together before finishing.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">What can an RNN represent that an average of word vectors cannot?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Order. The hidden state after
+                      <span class="token">жақсы емес</span> differs from the one after
+                      <span class="token">емес жақсы</span>; the average is identical for
+                      both, as measured at the top of this page.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">Why is <code>rnn.weight_ih_l0</code> shaped (512, 100) when the hidden size is 128?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      512 = 4 × 128. An LSTM computes four things at each step — the
+                      forget, input and output gates plus the candidate value — and PyTorch
+                      stacks their weight matrices into one.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">The LSTM's training loss keeps falling while test accuracy stops moving. What is happening, and what would you change?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Overfitting — 700 000 parameters against 8 000 short reviews. Options:
+                      stop earlier, raise dropout, shrink the model, or give it more data.
+                      We measured the last one: 40 000 reviews took it from 0.772 to 0.803.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">Why does starting from the Lecture 4 word2vec help so much in the first epoch?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      83% of the parameters are the embedding table, and 5 743 of its 5 916
+                      rows arrive already knowing which words behave alike. The network
+                      starts from structure instead of noise: 0.785 after one epoch against
+                      0.727.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">The score model is 0.374 accurate. Why is that not the most informative number to report?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The classes are ordered, and accuracy treats every mistake as equal.
+                      The same model is within one star 70.4% of the time and off by three
+                      or more only 12.2% of the time — which is what someone deciding
+                      whether to use it actually needs to know.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in the folder with <code>lesson5.py</code>. Report a measurement, not
+                an impression.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Task 1 — Hidden size</h3>
+                  <p class="challenge__task">Run --hidden 32, 128 and 512 on polarity. Does a bigger hidden state help?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Expect it to stop helping quickly and then hurt: more capacity with
+                      the same 8 000 reviews means faster overfitting. Watch the gap
+                      between training loss and test accuracy, not just the final number.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 — Bidirectional</h3>
+                  <p class="challenge__task">Add bidirectional=True to the LSTM. Remember that the hidden state is now two vectors — how do you feed the linear layer?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Concatenate the last forward and backward states with
+                      <code>torch.cat([hidden[-2], hidden[-1]], dim=1)</code> and make the
+                      linear layer <code>2 * hidden</code> wide. On nine-word reviews the
+                      gain is usually small; say by how much.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 — Freeze the embeddings</h3>
+                  <p class="challenge__task">With --pretrained, set embedding.weight.requires_grad = False. Better or worse, and why?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Freezing removes 83% of the parameters from training, so it overfits
+                      far less but cannot adapt the vectors to sentiment. On a small
+                      training set frozen often wins; on 40 000 reviews it usually loses.
+                      Measure both.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 — max_len</h3>
+                  <p class="challenge__task">Reviews are cut to 60 words. How many are actually affected, and what happens at --max-len 20?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The average review is about nine tokens and the longest is 271, so 60
+                      cuts very few. That is itself the finding: this dataset gives a
+                      recurrent model almost no length to work with.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 — Remove the packing</h3>
+                  <p class="challenge__task">Feed the padded batch straight to the LSTM without pack_padded_sequence. What happens to accuracy?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The final hidden state of a short review is then built from
+                      <code>&lt;pad&gt;</code> steps. Expect a drop, and expect it to be
+                      worst for the shortest reviews — check that by splitting the test set
+                      by length.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 — Class weights</h3>
+                  <p class="challenge__task">Train the score model on the unbalanced data with CrossEntropyLoss(weight=…). How do the middle classes move?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Weights let you use all 140 126 reviews instead of 19 600. Watch the
+                      three-star row of the confusion matrix and the within-one-star number,
+                      not just accuracy.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 — Treat score as a number</h3>
+                  <p class="challenge__task">Replace the 5-way output with one number and MSELoss, then round. Does the ordered structure help?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Regression knows that 4 is between 3 and 5, which classification does
+                      not. Compare on both metrics: exact accuracy often falls while mean
+                      absolute error improves.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 — Early stopping</h3>
+                  <p class="challenge__task">Use the validation split KazSAnDRA provides and keep the best epoch instead of the last. How much does it change?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Our runs peak mid-training — 0.799 at epoch 2 and 0.803 at epoch 1 —
+                      and then drift down. Choosing an epoch on the test set would be
+                      cheating; that is what the validation split is for.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 9 — fastText instead</h3>
+                  <p class="challenge__task">Initialise the embedding layer from models/fasttext.model, filling every row including the rare words. Does the extra coverage pay?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      fastText can produce a vector for all 5 916 rows, not 5 743. The rows
+                      it adds are rare words, so the gain may be small — report the number
+                      of rows filled next to the accuracy.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 10 — Seeds</h3>
+                  <p class="challenge__task">Run the LSTM with five different seeds. How large is the spread, and does it change any conclusion on this page?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      This is the most important task here. Compare the spread with the
+                      differences we called meaningful — RNN to LSTM is 0.017, word2vec
+                      start is 0.015. If the seed spread is of that size, those claims need
+                      more than one run behind them.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Self-check quiz</h3>
+              <p class="narrow lead">Ten questions with instant feedback.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">What is the hidden state of an RNN?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">the embedding of the current word</button>
+                    <button class="quiz__option" type="button" data-correct>a vector carrying a summary of everything read so far, rewritten at each word</button>
+                    <button class="quiz__option" type="button">the model's parameters</button>
+                    <button class="quiz__option" type="button">the output probabilities</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>It starts at zero and is updated once per word by the same weights.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why can an RNN separate «жақсы емес» from «емес жақсы» when TF-IDF cannot?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">it has more parameters</button>
+                    <button class="quiz__option" type="button">it uses embeddings</button>
+                    <button class="quiz__option" type="button" data-correct>it reads the words in order, so the final state depends on the sequence</button>
+                    <button class="quiz__option" type="button">it is trained for longer</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Counting and averaging are both order-blind by construction.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">What problem does the LSTM cell state solve?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">unknown words</button>
+                    <button class="quiz__option" type="button">class imbalance</button>
+                    <button class="quiz__option" type="button" data-correct>the gradient vanishing as it travels back through many steps</button>
+                    <button class="quiz__option" type="button">slow training</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>It moves along an addition path rather than a repeated matrix multiplication.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">What does the forget gate do?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">drops words from the input</button>
+                    <button class="quiz__option" type="button" data-correct>multiplies the cell state, deciding what to keep and what to erase</button>
+                    <button class="quiz__option" type="button">removes rare words from the vocabulary</button>
+                    <button class="quiz__option" type="button">disables dropout at test time</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Values near 1 keep a memory alive across many words; near 0 erase it.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why does a batch need padding and lengths?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">to balance the classes</button>
+                    <button class="quiz__option" type="button">to speed up the optimiser</button>
+                    <button class="quiz__option" type="button" data-correct>a tensor is rectangular, but the network must not read the filler</button>
+                    <button class="quiz__option" type="button">to fix unknown words</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>pack_padded_sequence ran 9 real steps instead of all 15 cells.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Which layer holds most of the parameters?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">the LSTM</button>
+                    <button class="quiz__option" type="button" data-correct>the embedding table — 591 600 of 709 618</button>
+                    <button class="quiz__option" type="button">the linear output layer</button>
+                    <button class="quiz__option" type="button">dropout</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Which is why initialising it well mattered more than anything else we tried.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Training loss falls, test accuracy does not. This is…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">a bug in the loss function</button>
+                    <button class="quiz__option" type="button">a learning rate that is too low</button>
+                    <button class="quiz__option" type="button" data-correct>overfitting</button>
+                    <button class="quiz__option" type="button">vanishing gradients</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>The model is still learning — the training set specifically.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Starting the embedding layer from Lecture 4's word2vec helped most…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">in the last epoch</button>
+                    <button class="quiz__option" type="button" data-correct>in the first epoch: 0.785 against 0.727</button>
+                    <button class="quiz__option" type="button">not at all</button>
+                    <button class="quiz__option" type="button">only on the score task</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>It begins with structure instead of noise, so it needs far fewer passes.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">The score model scored 0.374 while guessing scores 0.200. The best way to report it is…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">"the model does not work"</button>
+                    <button class="quiz__option" type="button">"37% accurate" and nothing else</button>
+                    <button class="quiz__option" type="button" data-correct>accuracy plus the distance: 70.4% within one star, 12.2% off by three or more</button>
+                    <button class="quiz__option" type="button">only the confusion matrix</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>On an ordered scale, how far wrong matters as much as how often.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Why can a recurrent network not be parallelised across words?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">PyTorch does not support it</button>
+                    <button class="quiz__option" type="button">the batches are too small</button>
+                    <button class="quiz__option" type="button" data-correct>each step needs the hidden state produced by the previous one</button>
+                    <button class="quiz__option" type="button">the embeddings are shared</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Exactly the constraint attention removes in the next lecture.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>What order costs a bag of words, measured</li>
+                <li>The hidden state, and weights shared across positions</li>
+                <li>Why a plain RNN forgets: the vanishing gradient</li>
+                <li>The LSTM cell state and its three gates</li>
+                <li>Vocabulary, <code>&lt;pad&gt;</code>, <code>&lt;unk&gt;</code> and packing</li>
+                <li>A model class and a training loop in PyTorch</li>
+                <li>RNN 0.755, LSTM 0.772 — both below Lecture 3</li>
+                <li>Lecture 4's embeddings as a starting point: 0.787</li>
+                <li>More data: 0.803, finally ahead</li>
+                <li>Five ordered classes: 0.374, and why to report the distance</li>
+                <li>Why the loop has to go, and what replaces it</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Lecture 5 · 07 Sep 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

@@ -91,3 +91,16 @@ Changed:
 - `language/*/04-word-embeddings.html` — restructured around that flow. The "Embeddings for Kazakh" section (pretrained `cc.kk.300` and friends) was removed; the lecture now works only with word2vec and fastText that we train ourselves. Two new sections, "Preparing the corpus" and "Training word2vec with gensim", each parameter explained; fastText is now trained and saved on the page too; a new "Reusing the models in the Lecture 3 classifier" section holds one complete, self-contained script, and "Did it help?" became pure analysis of its output
 - `language/*/04-word-embeddings.html` — every code example is now self-contained: no `from lesson4 import …` or `from lesson3 import …` anywhere. Each snippet either loads the data itself or loads a saved model with `Word2Vec.load("models/word2vec.model")`, which is also the point being taught
 - `language/*/04-word-embeddings.html` — corrected the idf-weighting figure: measured again, it is 0.787 for word2vec and 0.789 for fastText, not the 0.765 previously stated. Knowledge-check question 5 and practice task 8 were replaced, since both were about pretrained Kazakh vectors
+
+### 07.09.2026
+
+Added:
+
+- `code_files/lesson5.py` — the Lecture 5 script: recurrent networks in PyTorch, run on both KazSAnDRA tasks (`polarity_classification` with two classes and `score_classification` with five). Vocabulary, padding and `pack_padded_sequence`, an `Embedding → RNN/LSTM → Linear` model, a hand-written training loop, and `--pretrained` to start the embedding layer from the Lecture 4 word2vec. Pinned to CPU with a fixed seed and a fresh DataLoader generator per model, so every run reproduces
+- `language/en/05-rnn-lstm.html`, `language/kk/05-rnn-lstm.html`, `language/ru/05-rnn-lstm.html` — Lecture 5, Text Classification (with recurrent networks). What word order costs a bag of words (measured), the hidden state, the vanishing gradient, the LSTM cell state and its three gates, then the full PyTorch build and the results: RNN 0.755, LSTM 0.772, LSTM from the Lecture 4 vectors 0.787, and 0.803 on 40 000 reviews — the first neural result to beat Lectures 3 and 4. The five-class task lands at 0.374, with the confusion matrix and the within-one-star reading that accuracy alone cannot give
+
+Changed:
+
+- `code_files/requirements.txt` — `torch` added
+- `page/js/course.js` — Lecture 5 published as "Text Classification" / "Мәтінді жіктеу" / "Классификация текста"
+- `index.html` — link to Lecture 5

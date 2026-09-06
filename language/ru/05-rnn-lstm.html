@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Классификация текста | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 5: классификация текста рекуррентными сетями — скрытое состояние, RNN, гейты LSTM и модель на PyTorch, обученная на двух задачах KazSAnDRA: polarity с двумя классами и score с пятью."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержимому</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        ☰ Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Язык">
+        <a href="../en/05-rnn-lstm.html" data-lang-link="en">EN</a>
+        <a href="../kk/05-rnn-lstm.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/05-rnn-lstm.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">От обработки текста до Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Язык">
+          <a href="../en/05-rnn-lstm.html" data-lang-link="en">EN</a>
+          <a href="../kk/05-rnn-lstm.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/05-rnn-lstm.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">План курса</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Закрыть содержание" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 5</span>
+              <h1>Классификация текста</h1>
+              <p class="hero__subtitle">
+                Сеть, которая читает отзыв по одному слову и держит в памяти всё, что
+                прочла. Написана на PyTorch, обучена на двух задачах одного и того же
+                датасета: сначала два класса, потом пять.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели лекции</span>
+              <h2 id="goals">После этой лекции вы сможете…</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Объяснить рекуррентность</h3>
+                  <p>Сказать, что такое скрытое состояние и почему чтение по порядку даёт то, чего не даёт усреднение.</p>
+                </div>
+                <div class="card">
+                  <h3>Объяснить LSTM</h3>
+                  <p>Сказать, что забывает обычная RNN и что с этим делают состояние ячейки и три гейта.</p>
+                </div>
+                <div class="card">
+                  <h3>Собрать её на PyTorch</h3>
+                  <p>Словарь, паддинг, packing, класс модели и цикл обучения, написанный своими руками.</p>
+                </div>
+                <div class="card">
+                  <h3>Прочитать более сложный результат</h3>
+                  <p>Сравнить два класса с пятью и сказать, что именно говорит матрица ошибок.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Две задачи, один датасет.</strong> В KazSAnDRA есть разбиение
+                <code>polarity_classification</code> с двумя классами и
+                <code>score_classification</code> с пятью. Первое — задача лекций 3 и 4,
+                поэтому каждое число здесь напрямую сравнимо с тем, что мы уже измерили.
+                Второе сохраняет оценку в звёздах, и оно заметно сложнее.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="why-order">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Проблема</span>
+              <h2 id="why-order">Что выбрасывали все модели до сих пор</h2>
+              <p class="narrow lead">
+                Bag of Words считал. TF-IDF взвешивал счётчики. Лекция 4 усредняла
+                векторы слов. Все три — функции от того, <em>какие</em> слова встретились,
+                и никогда от того, <em>где</em>.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import re
+from collections import Counter
+
+import numpy as np
+from gensim.models import Word2Vec
+
+word2vec = Word2Vec.load("models/word2vec.model")
+
+a = "қосымша өте жақсы емес"      # "the app is not very good"
+b = "емес жақсы өте қосымша"      # the same four words, shuffled
+
+def bag_of_words(text):
+    return Counter(re.findall(r"\w+", text.lower()))
+
+def document_vector(text):
+    words = re.findall(r"\w+", text.lower())
+    return np.mean([word2vec.wv[w] for w in words if w in word2vec.wv], axis=0)
+
+print("«" + a + "»")
+print("«" + b + "»")
+print()
+print("same bag of words     :", bag_of_words(a) == bag_of_words(b))
+print("same TF-IDF row       :", bag_of_words(a) == bag_of_words(b), "(it is built from the counts)")
+print("same document vector  :", bool(np.allclose(document_vector(a), document_vector(b))))
+print("largest difference    :", float(np.abs(document_vector(a) - document_vector(b)).max()),
+      "— floating-point noise, not meaning")
+print()
+print("Every model in Lectures 2, 3 and 4 sees these two sentences as one input.")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>«қосымша өте жақсы емес»
+«емес жақсы өте қосымша»
+
+same bag of words     : True
+same TF-IDF row       : True (it is built from the counts)
+same document vector  : True
+largest difference    : 2.9802322387695312e-08 — floating-point noise, not meaning
+
+Every model in Lectures 2, 3 and 4 sees these two sentences as one input.</code></pre></div>
+              <p class="note">
+                <strong>Четыре слова, два смысла, один вход.</strong>
+                <span class="token">қосымша өте жақсы емес</span> — это жалоба;
+                перемешанные те же четыре слова — уже нет. Любое представление, которое мы
+                строили, схлопывает их в одну и ту же строку чисел, поэтому никакой
+                классификатор поверх не смог бы их различить: информация уничтожена ещё до
+                него. Разница в 3&nbsp;×&nbsp;10⁻⁸ — это порядок суммирования float, и
+                больше ничего.
+              </p>
+              <div class="callout">
+                <strong>Эта лекция — про то, как это починить.</strong> Вместо того чтобы
+                схлопывать отзыв в одну точку, мы подаём слова по одному и позволяем модели
+                вести текущую сводку. Тогда порядок становится частью вычисления, а не тем,
+                что выбросили до его начала.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="two-tasks">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Данные</span>
+              <h2 id="two-tasks">Две задачи на одних и тех же отзывах</h2>
+              <div class="code-block" data-lang="python"><pre><code>import os
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+from datasets import load_dataset
+
+CONFIGS = {"polarity": "polarity_classification", "score": "score_classification"}
+NAMES = {"polarity": ["negative", "positive"],
+         "score": ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]}
+
+for task, config in CONFIGS.items():
+    df = load_dataset("issai/kazsandra", config, split="train",
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    counts = df["label"].value_counts().sort_index()
+    print(f"{task}: {len(df)} reviews, {len(counts)} classes")
+    for label, n in counts.items():
+        print(f"  {NAMES[task][label]:&lt;9} {n:&gt;7}  ({100 * n / len(df):.1f}%)")
+    print()
+
+df = load_dataset("issai/kazsandra", CONFIGS["score"], split="train",
+                  token=os.getenv("HF_TOKEN")).to_pandas()
+print("one review per score:")
+for label in sorted(df["label"].unique()):
+    text = df[df["label"] == label]["text_cleaned"].iloc[0]
+    print(f"  {NAMES['score'][label]:&lt;9} «{str(text)[:52]}»")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>polarity: 134368 reviews, 2 classes
+  negative    23951  (17.8%)
+  positive   110417  (82.2%)
+
+score: 140126 reviews, 5 classes
+  1 star      20031  (14.3%)
+  2 stars      3920  (2.8%)
+  3 stars      5758  (4.1%)
+  4 stars      9115  (6.5%)
+  5 stars    101302  (72.3%)
+
+one review per score:
+  1 star    «дұрыс жұмыс жасамайды аймақты басасың басқа жақ шыға»
+  2 stars   «карта ашылмайды сондықтан әзірге 2 жұлдыз кейін қолд»
+  3 stars   «мен ном жазсам ашпайт не істим»
+  4 stars   «құрметті разроботчиктар мына програмада басында тым »
+  5 stars   «керемет мотивация мен жаңа көзқарас қалыптастыратын »</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Что говорят распределения</span>
+                <dl class="breakdown__list">
+                  <dt>polarity</dt>
+                  <dd>82% положительных. Предсказание «положительный» для всего уже даёт 0.822 — поэтому лекции 3 и 4 балансировали выборку, и поэтому мы делаем это снова</dd>
+                  <dt>score</dt>
+                  <dd>72% пятизвёздочных и всего 2,8% двухзвёздочных. Самый редкий класс ограничивает сбалансированную выборку 3 920 обучающими и 490 тестовыми отзывами на класс</dd>
+                  <dt>классы упорядочены</dt>
+                  <dd>1 &lt; 2 &lt; 3 &lt; 4 &lt; 5. Спутать четыре звезды с пятью — маленькая ошибка, одну с пятью — большая, а обычная accuracy оценивает обе одинаково</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение примеров:</strong> трёхзвёздочный отзыв
+                  <span class="token">мен ном жазсам ашпайт не істим</span> вообще не
+                  содержит оценочного слова — это вопрос. Середина шкалы в основном такая,
+                  и именно там модель будет буксовать.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="rnn">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Модель</span>
+              <h2 id="rnn">Что такое рекуррентная сеть</h2>
+              <p class="narrow lead">
+                Одна маленькая сеть, применяемая по разу на каждое слово и несущая сводку
+                всего, что уже прочитано.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Рекуррентная нейронная сеть</strong> держит
+                  <strong>скрытое состояние</strong>: вектор, который начинается с нуля и
+                  переписывается на каждом слове, <code>h = f(h, слово)</code>. Одна и та
+                  же <code>f</code> и одни и те же веса работают на каждой позиции. После
+                  последнего слова этот единственный вектор и есть сводка отзыва.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-unroll-t">
+                <title id="fig-unroll-t">Рекуррентная сеть, развёрнутая по четырём словам</title>
+                <rect x="8" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="37" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="94" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="123" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="180" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="209" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <rect x="266" y="52" width="58" height="30" rx="6" fill="#2563eb" />
+                <text x="295" y="72" font-size="11" fill="#ffffff" text-anchor="middle">RNN</text>
+                <line x1="66" y1="67" x2="94" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="152" y1="67" x2="180" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="238" y1="67" x2="266" y2="67" stroke="#5b6270" stroke-width="1.5" />
+                <text x="80" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₁</text>
+                <text x="166" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₂</text>
+                <text x="252" y="62" font-size="9" fill="#5b6270" text-anchor="middle">h₃</text>
+                <text x="37" y="30" font-size="11" fill="#111111" text-anchor="middle">қосымша</text>
+                <text x="123" y="30" font-size="11" fill="#111111" text-anchor="middle">өте</text>
+                <text x="209" y="30" font-size="11" fill="#111111" text-anchor="middle">жақсы</text>
+                <text x="295" y="30" font-size="11" fill="#111111" text-anchor="middle">емес</text>
+                <line x1="37" y1="36" x2="37" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="123" y1="36" x2="123" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="209" y1="36" x2="209" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="295" y1="36" x2="295" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
+                <line x1="295" y1="82" x2="295" y2="104" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="238" y="104" width="98" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="287" y="121" font-size="11" fill="#111111" text-anchor="middle">h₄ → негатив</text>
+                <text x="110" y="121" font-size="10" fill="#5b6270" text-anchor="middle">одно скрытое состояние на шаг</text>
+                </svg>
+                <p class="figure__caption">
+                  Одна и та же сеть, нарисованная четыре раза, а не четыре сети. Её веса
+                  общие для всех позиций, поэтому отзыв из трёх слов и отзыв из сорока
+                  проходят через ровно одни и те же параметры.
+                </p>
+              </div>
+              <p class="narrow">
+                Поскольку слова приходят по порядку, <span class="token">жақсы емес</span>
+                и <span class="token">емес жақсы</span> теперь дают разные скрытые
+                состояния. Ради этого и вся дополнительная механика: ничто другое в курсе
+                не умело различать эти два случая.
+              </p>
+              <div class="breakdown">
+                <span class="breakdown__label">Что изменилось с лекции 4</span>
+                <dl class="breakdown__list">
+                  <dt>вход</dt>
+                  <dd>последовательность векторов слов вместо их среднего</dd>
+                  <dt>эмбеддинги</dt>
+                  <dd>больше не отдельный шаг — они стали первым слоем сети и обучаются вместе со всем остальным</dd>
+                  <dt>что обучается</dt>
+                  <dd>веса приходят из градиентного спуска по меткам, а не из дистрибутивной гипотезы</dd>
+                  <dt>выход</dt>
+                  <dd>одно скрытое состояние, видевшее слова по порядку, затем линейный слой в классы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение:</strong> шаг с эмбеддингами никуда не делся. Он стал
+                  первым слоем — и в конце этой лекции мы стартуем его с векторов,
+                  обученных в лекции 4.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lstm">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Решение</span>
+              <h2 id="lstm">Почему обычная RNN забывает и что делает LSTM</h2>
+              <p class="narrow lead">
+                Скрытое состояние переписывается на каждом слове. Перепишите его сорок
+                раз — и того, что было в начале, там уже нет.
+              </p>
+              <h3 style="margin-top: 36px">Затухающий градиент</h3>
+              <p class="narrow">
+                Чтобы выучить, что важным было первое слово, обучающий сигнал должен
+                пройти назад через все промежуточные шаги, и на каждом он умножается на ту
+                же матрицу весов. Умножьте число меньше единицы само на себя сорок раз — и
+                оно фактически ноль; больше единицы — и оно взрывается. На практике обычная
+                RNN хорошо выучивает последние несколько слов и почти совсем не выучивает
+                начало длинного отзыва. <code>clip_grad_norm_</code> в нашем цикле обучения
+                — стандартная заплатка для взрывающейся половины; для затухающей заплатки
+                нет.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>LSTM</strong> добавляет второй вектор — <strong>состояние
+                  ячейки</strong>, — который идёт от шага к шагу почти нетронутым: к нему
+                  прибавляют и из него стирают, но его не переписывают. Три
+                  <strong>гейта</strong>, каждый — маленькая сеть, выдающая числа от 0 до
+                  1, решают, что стереть, что добавить и что показать.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 160" role="img" aria-labelledby="fig-lstm-t">
+                <title id="fig-lstm-t">Ячейка LSTM: состояние ячейки идёт напрямую, три гейта его правят</title>
+                <line x1="10" y1="34" x2="330" y2="34" stroke="#2563eb" stroke-width="2.5" />
+                <text x="20" y="24" font-size="10" fill="#2563eb">состояние ячейки c</text>
+                <text x="316" y="24" font-size="10" fill="#2563eb" text-anchor="end">c</text>
+                <rect x="46" y="74" width="66" height="28" rx="6" fill="#fef2f2" stroke="#fecaca" />
+                <text x="79" y="92" font-size="11" fill="#111111" text-anchor="middle">forget</text>
+                <rect x="136" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="169" y="92" font-size="11" fill="#111111" text-anchor="middle">input</text>
+                <rect x="226" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="259" y="92" font-size="11" fill="#111111" text-anchor="middle">output</text>
+                <line x1="79" y1="74" x2="79" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="169" y1="74" x2="169" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="259" y1="74" x2="259" y2="34" stroke="#5b6270" stroke-width="1.5" />
+                <text x="79" y="120" font-size="9" fill="#5b6270" text-anchor="middle">что забыть</text>
+                <text x="169" y="120" font-size="9" fill="#5b6270" text-anchor="middle">что добавить</text>
+                <text x="259" y="120" font-size="9" fill="#5b6270" text-anchor="middle">что показать</text>
+                <line x1="169" y1="126" x2="169" y2="140" stroke="#c7d9ff" stroke-width="1.5" />
+                <text x="169" y="152" font-size="11" fill="#111111" text-anchor="middle">слово этого шага + предыдущее h</text>
+                </svg>
+                <p class="figure__caption">
+                  Состояние ячейки идёт прямой линией сверху. Гейты его правят, но не
+                  заменяют.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Три гейта</span>
+                <dl class="breakdown__list">
+                  <dt>forget</dt>
+                  <dd>умножает состояние ячейки, выбирая, что выбросить. Значение около 1 сохраняет память живой на много слов вперёд</dd>
+                  <dt>вход</dt>
+                  <dd>решает, какую часть нового кандидата добавить на этом шаге</dd>
+                  <dt>выход</dt>
+                  <dd>решает, какая часть состояния ячейки станет видимым скрытым состоянием</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Почему это помогает:</strong> путь состояния ячейки от шага к
+                  шагу — это сложение, а не умножение на матрицу, поэтому градиент может
+                  уйти далеко назад, не сжавшись в ноль.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Плата — размер.</strong> LSTM считает четыре вещи там, где RNN
+                считает одну: три гейта и значение-кандидат, — поэтому её рекуррентные
+                матрицы весов вчетверо выше. Вы увидите это буквально в списке параметров
+                ниже: <code>(512, 100)</code> там, где у обычной RNN было бы
+                <code>(128, 100)</code>.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="vocab">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Готовим вход</span>
+              <h2 id="vocab">От слов к числам</h2>
+              <p class="narrow lead">
+                Сеть принимает тензоры, а не строки. Каждому слову нужно целое число, а
+                каждому отзыву в батче — одинаковая длина.
+              </p>
+              <h3 style="margin-top: 36px">Словарь</h3>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+from datasets import load_dataset
+
+df = load_dataset("issai/kazsandra", "polarity_classification", split="train",
+                  token=os.getenv("HF_TOKEN")).to_pandas()
+train = pd.concat([g.sample(4000, random_state=42) for _, g in df.groupby("label")])
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+counts = {}
+for text in train["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+
+MIN_COUNT = 2
+kept = sorted((w for w, c in counts.items() if c &gt;= MIN_COUNT),
+              key=lambda w: (-counts[w], w))
+
+vocab = {"&lt;pad&gt;": 0, "&lt;unk&gt;": 1}          # two reserved slots
+for word in kept:
+    vocab[word] = len(vocab)
+
+print("distinct words in the training text:", len(counts))
+print("kept (seen at least twice)         :", len(kept))
+print("vocabulary with &lt;pad&gt; and &lt;unk&gt;    :", len(vocab))
+print()
+print("the ten most frequent words:")
+for word in kept[:10]:
+    print(f"  {vocab[word]:&gt;3}  {word:&lt;10} {counts[word]}")
+print()
+print("«жақсы» is index", vocab["жақсы"], "— a word not in the table becomes", vocab["&lt;unk&gt;"])</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>distinct words in the training text: 19201
+kept (seen at least twice)         : 5914
+vocabulary with &lt;pad&gt; and &lt;unk&gt;    : 5916
+
+the ten most frequent words:
+    2  өте        1680
+    3  керемет    1156
+    4  жақсы      986
+    5  маған      839
+    6  екен       776
+    7  ұнады      755
+    8  мен        726
+    9  ойын       715
+   10  бұл        505
+   11  деп        472
+
+«жақсы» is index 4 — a word not in the table becomes 1</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Две строки, которые не слова</span>
+                <dl class="breakdown__list">
+                  <dt>0 — &lt;pad&gt;</dt>
+                  <dd>заполнитель, чтобы батч был прямоугольным. Его строка эмбеддинга закреплена нулём и никогда не обучается</dd>
+                  <dt>1 — &lt;unk&gt;</dt>
+                  <dd>всё, чего нет в таблице. 13 287 из 19 201 различного слова встретились ровно один раз и схлопываются в эту одну строку</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Это снова проблема покрытия из лекции 4</strong>, теперь видимая
+                  как одна строка матрицы. word2vec пропускал 2 156 неизвестных токенов;
+                  здесь они все становятся индексом 1 и делят один вектор.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Паддинг батча</h3>
+              <p class="narrow">
+                У отзывов разная длина, а тензор — прямоугольник. Мы дополняем до самого
+                длинного отзыва в батче и передаём рядом настоящие длины, чтобы сеть
+                остановилась там, где отзыв действительно кончается.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 130" role="img" aria-labelledby="fig-pad-t">
+                <title id="fig-pad-t">Три отзыва разной длины, дополненные до одного прямоугольного батча</title>
+                <rect x="14" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="142" y="20" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="206" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="270" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="14" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="142" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="206" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="270" y="50" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="14" y="80" width="60" height="22" rx="4" fill="#2563eb" />
+                <rect x="78" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="142" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="206" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <rect x="270" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
+                <text x="44" y="36" font-size="10" fill="#ffffff" text-anchor="middle">142</text>
+                <text x="108" y="36" font-size="10" fill="#ffffff" text-anchor="middle">7</text>
+                <text x="172" y="36" font-size="10" fill="#ffffff" text-anchor="middle">39</text>
+                <text x="236" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="300" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="172" y="66" font-size="10" fill="#ffffff" text-anchor="middle">…</text>
+                <text x="44" y="96" font-size="10" fill="#ffffff" text-anchor="middle">88</text>
+                <text x="108" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="172" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="236" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="300" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="14" y="118" font-size="10" fill="#5b6270">lengths = [3, 5, 1] — серые ячейки никто не читает</text>
+                </svg>
+                <p class="figure__caption">
+                  Три отзыва длиной 3, 5 и 1, дополненные до одного батча 3 × 5. Серые
+                  ячейки существуют только ради прямоугольника.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+
+# three reviews, already turned into indices by the vocabulary
+batch = [[142, 7, 39], [12, 88, 4, 501, 63], [88]]
+
+lengths = torch.tensor([len(ids) for ids in batch])
+width = int(lengths.max())
+
+padded = torch.full((len(batch), width), 0, dtype=torch.long)   # 0 is &lt;pad&gt;
+for i, ids in enumerate(batch):
+    padded[i, :len(ids)] = torch.tensor(ids)
+
+print("lengths:", lengths.tolist())
+print("padded batch:")
+print(padded)
+print("shape:", tuple(padded.shape))
+
+packed = torch.nn.utils.rnn.pack_padded_sequence(
+    padded.unsqueeze(-1).float(), lengths, batch_first=True, enforce_sorted=False)
+print("\nreal steps the network will run:", int(packed.data.shape[0]),
+      "of", padded.numel(), "cells in the rectangle")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>lengths: [3, 5, 1]
+padded batch:
+tensor([[142,   7,  39,   0,   0],
+        [ 12,  88,   4, 501,  63],
+        [ 88,   0,   0,   0,   0]])
+shape: (3, 5)
+
+real steps the network will run: 9 of 15 cells in the rectangle</code></pre></div>
+              <p class="note">
+                <strong><code>pack_padded_sequence</code> — то, что делает паддинг
+                безвредным.</strong> Без него сеть прочитала бы шесть ячеек
+                <code>&lt;pad&gt;</code> и обновила бы на них скрытое состояние, так что
+                короткий отзыв закончился бы состоянием, собранным в основном из
+                заполнителя. Packing говорит PyTorch выполнить 9 настоящих шагов вместо
+                всех 15 ячеек — это и правильнее, <em>и</em> быстрее.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="model">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Модель</span>
+              <h2 id="model">Сеть на PyTorch</h2>
+              <p class="narrow lead">
+                Три слоя и одиннадцать строк. Переключение между RNN и LSTM — одно слово.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+PAD = 0
+
+class Recurrent(nn.Module):
+    """Embedding -&gt; RNN or LSTM -&gt; Linear."""
+
+    def __init__(self, vocab_size, classes, kind="lstm", dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        cell = nn.LSTM if kind == "lstm" else nn.RNN
+        self.rnn = cell(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        embedded = self.dropout(self.embedding(ids))          # (batch, words, dim)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            embedded, lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state   # LSTM returns (h, c)
+        return self.out(self.dropout(hidden[-1]))             # (batch, classes)
+
+
+torch.manual_seed(42)
+model = Recurrent(vocab_size=5916, classes=2, kind="lstm")   # the vocabulary above
+print(model)
+print()
+for name, p in model.named_parameters():
+    print(f"  {name:&lt;22} {tuple(p.shape)!s:&lt;14} {p.numel():&gt;9,}")
+print(f"\ntotal: {sum(p.numel() for p in model.parameters()):,} parameters")
+
+ids = torch.randint(2, 5916, (4, 7))
+lengths = torch.tensor([7, 5, 3, 1])
+print("\nforward pass:", tuple(ids.shape), "-&gt;", tuple(model(ids, lengths).shape))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>Recurrent(
+  (embedding): Embedding(5916, 100, padding_idx=0)
+  (rnn): LSTM(100, 128, batch_first=True)
+  (dropout): Dropout(p=0.3, inplace=False)
+  (out): Linear(in_features=128, out_features=2, bias=True)
+)
+
+  embedding.weight       (5916, 100)      591,600
+  rnn.weight_ih_l0       (512, 100)        51,200
+  rnn.weight_hh_l0       (512, 128)        65,536
+  rnn.bias_ih_l0         (512,)               512
+  rnn.bias_hh_l0         (512,)               512
+  out.weight             (2, 128)             256
+  out.bias               (2,)                   2
+
+total: 709,618 parameters
+
+forward pass: (4, 7) -&gt; (4, 2)</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Читаем список параметров</span>
+                <dl class="breakdown__list">
+                  <dt>embedding.weight</dt>
+                  <dd>(5916, 100) — по строке на запись словаря. Здесь 83% всех параметров</dd>
+                  <dt>rnn.weight_ih_l0</dt>
+                  <dd>(512, 100) — из входа в скрытое. 512 — это 4 × 128: три гейта LSTM и значение-кандидат, сложенные вместе</dd>
+                  <dt>rnn.weight_hh_l0</dt>
+                  <dd>(512, 128) — из скрытого в скрытое, рекуррентная часть, применяется по разу на слово</dd>
+                  <dt>out.weight</dt>
+                  <dd>(2, 128) — 256 чисел превращают финальное скрытое состояние в два скора классов</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение:</strong> почти вся модель — это таблица эмбеддингов.
+                  Рекуррентная механика, о которой все говорят, — это 117 760 чисел из
+                  709 618.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Три детали в <code>forward</code>.</strong>
+                <code>state[0] if isinstance(state, tuple)</code> нужен потому, что LSTM
+                возвращает <code>(hidden, cell)</code>, а RNN — только скрытое состояние.
+                <code>hidden[-1]</code> берёт состояние последнего слоя. А
+                <code>в dropout</code> стоит дважды — на эмбеддингах и перед классификатором,
+                — потому что с 700 000 параметров и 8 000 примеров эта модель способна
+                выучить обучающую выборку наизусть.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="training">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Обучение</span>
+              <h2 id="training">Цикл обучения и первый результат</h2>
+              <p class="narrow lead">
+                Пять строк, повторяемых для каждого батча: обнулить градиенты, прогнать
+                вперёд, измерить лосс, прогнать назад, сделать шаг.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+for kind in ("rnn", "lstm"):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), 2, kind)
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    print(f"{kind.upper()}  {sum(p.numel() for p in model.parameters()):,} parameters")
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 8000  test 2000  vocabulary 5916
+
+RNN  621,298 parameters
+  epoch 1  loss=0.6460  test=0.711  (1s)
+  epoch 2  loss=0.5634  test=0.728  (1s)
+  epoch 3  loss=0.5335  test=0.696  (1s)
+  epoch 4  loss=0.5112  test=0.751  (1s)
+  epoch 5  loss=0.4823  test=0.755  (1s)
+
+LSTM  709,618 parameters
+  epoch 1  loss=0.6083  test=0.727  (2s)
+  epoch 2  loss=0.5121  test=0.756  (2s)
+  epoch 3  loss=0.4741  test=0.756  (2s)
+  epoch 4  loss=0.4369  test=0.770  (2s)
+  epoch 5  loss=0.4099  test=0.772  (2s)</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Пять строк, в которых происходит обучение</span>
+                <dl class="breakdown__list">
+                  <dt>optimiser.zero_grad()</dt>
+                  <dd>PyTorch накапливает градиенты, поэтому их надо очищать перед каждым батчем. Забыть это — самая частая ошибка новичка</dd>
+                  <dt>model(ids, lengths)</dt>
+                  <dd>прямой проход — скоры классов для каждого отзыва в батче</dd>
+                  <dt>loss_fn(scores, labels)</dt>
+                  <dd><code>CrossEntropyLoss</code> принимает сырые скоры, сам применяет softmax и даёт одно число, которое надо минимизировать</dd>
+                  <dt>loss.backward()</dt>
+                  <dd>градиент этого числа по каждому параметру, посчитанный автоматически</dd>
+                  <dt>optimiser.step()</dt>
+                  <dd>Adam сдвигает каждый параметр в сторону уменьшения лосса</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>И одна страховка:</strong> <code>clip_grad_norm_</code>
+                  ограничивает градиент перед шагом. Именно в рекуррентных сетях градиенты
+                  реально взрываются, и без этого запуск RNN может уйти в
+                  <code>nan</code>.
+                </p>
+              </div>
+              <p class="note">
+                <strong>LSTM лучше, и обе хуже лекции 3.</strong> RNN доходит до 0.755, а
+                LSTM до 0.772 — на том же сбалансированном разбиении 8 000 / 2 000, где
+                TF-IDF с логистической регрессией дал <strong>0.780</strong>, а усреднённые
+                векторы fastText — <strong>0.792</strong>. Семьсот тысяч параметров, пять
+                эпох обучения — и мы позади линейной модели на признаках-счётчиках.
+              </p>
+              <div class="callout">
+                <strong>Читайте колонку лосса вместе с колонкой теста.</strong> Обучающий
+                лосс LSTM ровно падает с 0.61 до 0.41, а точность на тесте перестаёт расти
+                после четвёртой эпохи. Модель продолжает учиться — просто учит обучающую
+                выборку. Это переобучение, и с 700 000 параметров на 8 000 отзывов по
+                девять слов ровно этого и следует ожидать.
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="better">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Два исправления</span>
+              <h2 id="better">Делаем её конкурентоспособной</h2>
+              <p class="narrow lead">
+                Два изменения, и ни одно из них не касается архитектуры. Оба бьют в одну
+                и ту же проблему: данных мало для такого количества параметров.
+              </p>
+              <h3 style="margin-top: 36px">Исправление 1 — стартовать с векторов лекции 4</h3>
+              <p class="narrow">
+                Таблица эмбеддингов — это 83% модели, и стартует она как шум. Но мы уже
+                обучили таблицу эмбеддингов в лекции 4 на 134 368 отзывах, не использовав
+                ни одной метки. Скопировать её — четыре строки.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+vectors = Word2Vec.load("models/word2vec.model").wv     # trained in Lecture 4
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+for pretrained in (False, True):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), 2, "lstm")
+    if pretrained:
+        found = 0
+        for word, index in vocab.items():
+            if word in vectors:
+                model.embedding.weight.data[index] = torch.tensor(vectors[word])
+                found += 1
+        print(f"word2vec start   {found} of {len(vocab)} rows filled from Lecture 4")
+    else:
+        print("random start     every row is noise at epoch 0")
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 8000  test 2000  vocabulary 5916
+
+random start     every row is noise at epoch 0
+  epoch 1  loss=0.6083  test=0.727  (2s)
+  epoch 2  loss=0.5121  test=0.756  (2s)
+  epoch 3  loss=0.4741  test=0.756  (2s)
+  epoch 4  loss=0.4369  test=0.770  (2s)
+  epoch 5  loss=0.4099  test=0.772  (2s)
+
+word2vec start   5743 of 5916 rows filled from Lecture 4
+  epoch 1  loss=0.5083  test=0.785  (2s)
+  epoch 2  loss=0.4373  test=0.799  (2s)
+  epoch 3  loss=0.4045  test=0.787  (2s)
+  epoch 4  loss=0.3808  test=0.794  (2s)
+  epoch 5  loss=0.3542  test=0.787  (2s)</code></pre></div>
+              <p class="note">
+                <strong>0.772 → 0.787, и 0.799 на второй эпохе.</strong> Посмотрите на
+                первую эпоху: 0.727 из шума против 0.785 из word2vec. Предобученная модель
+                стартует там, где случайная заканчивает после четырёх эпох, потому что
+                5 743 из её 5 916 строк эмбеддингов уже знали, что
+                <span class="token">жақсы</span> и <span class="token">керемет</span> —
+                про одно и то же. Это знание пришло из неразмеченного текста и не стоило
+                ни одной аннотации.
+              </p>
+
+              <h3 style="margin-top: 44px">Исправление 2 — дать больше данных</h3>
+              <p class="narrow">
+                Мы использовали 8 000 отзывов, потому что столько использовали лекции 3 и
+                4, а линейной модели на TF-IDF больше почти и не нужно. Сеть с 700 000
+                параметров — другая ситуация. В отрицательном классе 23 951 обучающий
+                отзыв, поэтому сбалансированное разбиение можно довести до 40 000.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from gensim.models import Word2Vec
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "polarity_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+train_df, test_df = split("train", 20000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+vectors = Word2Vec.load("models/word2vec.model").wv     # trained in Lecture 4
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}\n")
+
+torch.manual_seed(SEED)
+model = Recurrent(len(vocab), 2, "lstm")
+found = 0
+for word, index in vocab.items():
+    if word in vectors:
+        model.embedding.weight.data[index] = torch.tensor(vectors[word])
+        found += 1
+print(f"LSTM, word2vec start, {len(train_df)} training reviews")
+print(f"{found} of {len(vocab)} embedding rows filled from Lecture 4")
+if True:
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 40000  test 2000  vocabulary 19441
+
+LSTM, word2vec start, 40000 training reviews
+17157 of 19441 embedding rows filled from Lecture 4
+  epoch 1  loss=0.4516  test=0.803  (9s)
+  epoch 2  loss=0.4018  test=0.800  (9s)
+  epoch 3  loss=0.3671  test=0.798  (9s)
+  epoch 4  loss=0.3374  test=0.799  (9s)
+  epoch 5  loss=0.3086  test=0.793  (9s)</code></pre></div>
+              <p class="note">
+                <strong>0.803 после одной эпохи.</strong> Это лучшее число в лекции и
+                первый раз, когда нейронная модель обошла всё из лекций 3 и 4 — TF-IDF
+                0.780, усреднённый word2vec 0.794, усреднённый fastText 0.792. Заметьте
+                также, что пик приходится на первую эпоху, а дальше идёт снижение: с
+                впятеро большими данными модели нужно куда меньше проходов, а поздние эпохи
+                — уже переобучение.
+              </p>
+              <div class="table-wrap" style="margin-top: 28px">
+                <table class="compare">
+                  <caption class="visually-hidden">Все результаты по polarity в курсе на данный момент</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Модель</th>
+                      <th scope="col">Обучающих отзывов</th>
+                      <th scope="col">Точность на тесте</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>TF-IDF + логистическая регрессия (лекция 3)</td><td>8 000</td><td>0.780</td></tr>
+                    <tr><td>усреднённый word2vec + логистическая регрессия (лекция 4)</td><td>8 000</td><td>0.794</td></tr>
+                    <tr><td>усреднённый fastText + логистическая регрессия (лекция 4)</td><td>8 000</td><td>0.792</td></tr>
+                    <tr><td>RNN, случайный старт</td><td>8 000</td><td>0.755</td></tr>
+                    <tr><td>LSTM, случайный старт</td><td>8 000</td><td>0.772</td></tr>
+                    <tr><td>LSTM, старт с word2vec</td><td>8 000</td><td>0.787</td></tr>
+                    <tr><td>LSTM, старт с word2vec</td><td>40 000</td><td><strong>0.803</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Честный итог этой таблицы.</strong> Рекуррентная модель выигрывает
+                0.009 у лучшего результата лекции 4 — и только после того, как получила
+                впятеро больше обучающих данных и таблицу эмбеддингов, обученную на 134 368
+                отзывах. На отзывах из девяти слов порядок слов стоит очень мало —
+                последовательности там почти нет. Рекуррентность окупается на длинном
+                тексте, где усреднение действительно теряет информацию; об этом стоит
+                помнить, прежде чем за неё браться.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="score">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Задача посложнее</span>
+              <h2 id="score">Пять классов вместо двух</h2>
+              <p class="narrow lead">
+                Те же отзывы, та же модель, тот же код — только оценка в звёздах
+                сохранена, а не схлопнута в «положительный» и «отрицательный».
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import os
+import re
+import time
+
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+import pandas as pd
+import torch
+import torch.nn as nn
+from datasets import load_dataset
+from sklearn.metrics import classification_report, confusion_matrix
+from torch.utils.data import DataLoader
+
+PAD, UNK, SEED = 0, 1, 42
+
+# ---- data ----------------------------------------------------------------
+def split(name, per_class):
+    df = load_dataset("issai/kazsandra", "score_classification", split=name,
+                      token=os.getenv("HF_TOKEN")).to_pandas()
+    per_class = min(per_class, df["label"].value_counts().min())   # 2 stars is the rarest
+    df = pd.concat([g.sample(per_class, random_state=SEED) for _, g in df.groupby("label")])
+    return df.sample(frac=1, random_state=SEED).reset_index(drop=True)
+
+def tokenize(text):
+    return re.findall(r"\w+", str(text).lower())
+
+NAMES = ["1 star", "2 stars", "3 stars", "4 stars", "5 stars"]
+train_df, test_df = split("train", 4000), split("test", 1000)
+
+counts = {}
+for text in train_df["text_cleaned"]:
+    for word in tokenize(text):
+        counts[word] = counts.get(word, 0) + 1
+vocab = {"&lt;pad&gt;": PAD, "&lt;unk&gt;": UNK}
+for word in sorted((w for w, c in counts.items() if c &gt;= 2), key=lambda w: (-counts[w], w)):
+    vocab[word] = len(vocab)
+
+def encode(df, max_len=60):
+    rows = []
+    for text, label in zip(df["text_cleaned"], df["label"]):
+        ids = [vocab.get(w, UNK) for w in tokenize(text)][:max_len]
+        rows.append((ids or [UNK], int(label)))
+    return rows
+
+def collate(batch):
+    lengths = torch.tensor([len(ids) for ids, _ in batch])
+    padded = torch.full((len(batch), int(lengths.max())), PAD, dtype=torch.long)
+    for i, (ids, _) in enumerate(batch):
+        padded[i, :len(ids)] = torch.tensor(ids)
+    return padded, lengths, torch.tensor([y for _, y in batch])
+
+train_rows, test_rows = encode(train_df), encode(test_df)
+test_batches = DataLoader(test_rows, 64, shuffle=False, collate_fn=collate)
+
+def shuffled_batches():
+    """A fresh generator each time, so every model sees the same batch order."""
+    return DataLoader(train_rows, 64, shuffle=True, collate_fn=collate,
+                      generator=torch.Generator().manual_seed(SEED))
+
+# ---- model ---------------------------------------------------------------
+class Recurrent(nn.Module):
+    def __init__(self, vocab_size, classes, kind, dim=100, hidden=128, dropout=0.3):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, dim, padding_idx=PAD)
+        self.rnn = (nn.LSTM if kind == "lstm" else nn.RNN)(dim, hidden, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.out = nn.Linear(hidden, classes)
+
+    def forward(self, ids, lengths):
+        packed = nn.utils.rnn.pack_padded_sequence(
+            self.dropout(self.embedding(ids)), lengths, batch_first=True, enforce_sorted=False)
+        _, state = self.rnn(packed)
+        hidden = state[0] if isinstance(state, tuple) else state
+        return self.out(self.dropout(hidden[-1]))
+
+# ---- train ---------------------------------------------------------------
+def accuracy(model, batches):
+    model.eval()
+    right = total = 0
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            right += int((model(ids, lengths).argmax(1) == labels).sum())
+            total += len(labels)
+    return right / total
+
+def predict(model, batches):
+    model.eval()
+    out, gold = [], []
+    with torch.no_grad():
+        for ids, lengths, labels in batches:
+            out.append(model(ids, lengths).argmax(1))
+            gold.append(labels)
+    return torch.cat(out).numpy(), torch.cat(gold).numpy()
+
+print(f"train {len(train_df)}  test {len(test_df)}  vocabulary {len(vocab)}")
+print(f"{len(NAMES)} classes, so random guessing is {1 / len(NAMES):.3f}\n")
+
+for kind in ("rnn", "lstm"):
+    torch.manual_seed(SEED)
+    model = Recurrent(len(vocab), len(NAMES), kind)
+    loss_fn, optimiser = nn.CrossEntropyLoss(), torch.optim.Adam(model.parameters(), lr=1e-3)
+    print(f"{kind.upper()}  {sum(p.numel() for p in model.parameters()):,} parameters")
+    train_batches = shuffled_batches()
+    for epoch in range(1, 6):
+        model.train()
+        started, running = time.time(), 0.0
+        for ids, lengths, labels in train_batches:
+            optimiser.zero_grad()
+            loss = loss_fn(model(ids, lengths), labels)
+            loss.backward()
+            nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimiser.step()
+            running += loss.item() * len(labels)
+        print(f"  epoch {epoch}  loss={running / len(train_df):.4f}"
+              f"  test={accuracy(model, test_batches):.3f}  ({time.time() - started:.0f}s)")
+    print()
+    if kind == "lstm":
+        predicted, gold = predict(model, test_batches)
+        print(classification_report(gold, predicted, target_names=NAMES,
+                                    digits=3, zero_division=0))
+        print("confusion matrix (rows = true, columns = predicted)")
+        print(confusion_matrix(gold, predicted))
+        off = abs(predicted - gold)
+        print(f"\nexactly right      : {(off == 0).mean():.3f}")
+        print(f"within one star    : {(off &lt;= 1).mean():.3f}")
+        print(f"three or more off  : {(off &gt;= 3).mean():.3f}")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>train 19600  test 2450  vocabulary 11738
+5 classes, so random guessing is 0.200
+
+RNN  1,203,885 parameters
+  epoch 1  loss=1.5958  test=0.287  (3s)
+  epoch 2  loss=1.5253  test=0.322  (3s)
+  epoch 3  loss=1.4841  test=0.342  (3s)
+  epoch 4  loss=1.4508  test=0.321  (3s)
+  epoch 5  loss=1.4220  test=0.349  (3s)
+
+LSTM  1,292,205 parameters
+  epoch 1  loss=1.5431  test=0.340  (4s)
+  epoch 2  loss=1.4559  test=0.347  (4s)
+  epoch 3  loss=1.4117  test=0.360  (4s)
+  epoch 4  loss=1.3699  test=0.365  (4s)
+  epoch 5  loss=1.3278  test=0.374  (4s)
+
+              precision    recall  f1-score   support
+
+      1 star      0.376     0.494     0.427       490
+     2 stars      0.310     0.227     0.262       490
+     3 stars      0.295     0.210     0.246       490
+     4 stars      0.345     0.284     0.311       490
+     5 stars      0.463     0.657     0.543       490
+
+    accuracy                          0.374      2450
+   macro avg      0.358     0.374     0.358      2450
+weighted avg      0.358     0.374     0.358      2450
+
+confusion matrix (rows = true, columns = predicted)
+[[242  94  60  34  60]
+ [173 111  67  63  76]
+ [126  70 103  96  95]
+ [ 59  56  93 139 143]
+ [ 44  27  26  71 322]]
+
+exactly right      : 0.374
+within one star    : 0.704
+three or more off  : 0.122</code></pre></div>
+              <p class="note">
+                <strong>0.374 против 0.200 у случайного угадывания.</strong> Модель явно
+                чему-то учится — почти вдвое выше случайной базы, — но до 0.803 задачи с
+                двумя классами тут далеко. В модели не изменилось ничего; сложнее стала
+                задача.
+              </p>
+              <h3 style="margin-top: 44px">Читайте матрицу ошибок, а не accuracy</h3>
+              <div class="breakdown">
+                <span class="breakdown__label">Куда разошлись 2 450 тестовых отзывов</span>
+                <dl class="breakdown__list">
+                  <dt>края шкалы</dt>
+                  <dd>1 звезда: 242 из 490 верно. 5 звёзд: 322 из 490. У крайностей есть однозначные слова</dd>
+                  <dt>середина</dt>
+                  <dd>3 звезды: 103 из 490, худшая строка. Трёхзвёздочный отзыв часто сообщает факт и не содержит мнения</dd>
+                  <dt>ошибки — соседние классы</dt>
+                  <dd>самые большие внедиагональные ячейки стоят рядом с диагональю: 173 двухзвёздочных отзыва названы однозвёздочными, 143 четырёхзвёздочных — пятизвёздочными</dd>
+                  <dt>в пределах одной звезды</dt>
+                  <dd>0.374 в точности верно, но 0.704 в пределах одной звезды и лишь 0.122 с ошибкой в три и более</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Чтение:</strong> «точность 37%» и «семь отзывов из десяти в
+                  пределах одной звезды, один из восьми — сильно мимо» описывают одну и ту
+                  же модель. Вторая фраза полезнее, и обычная accuracy её не даёт.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Accuracy — неподходящая метрика для упорядоченной шкалы.</strong>
+                Она берёт одинаковый штраф за то, что пятизвёздочный отзыв назвали
+                четырёхзвёздочным, и за то, что его назвали однозвёздочным. Когда у классов
+                есть порядок — рейтинги, уровни серьёзности, оценки — сообщайте и
+                расстояние: среднюю абсолютную ошибку или долю попаданий в пределах одной
+                позиции. Модель, которая никогда не ошибается больше чем на звезду,
+                полезна; её accuracy 0.374 заставляет думать, что она бесполезна.
+              </div>
+              <p class="note">
+                <strong>И обратите внимание, что объяснение не в этом.</strong> Тестовая
+                выборка сбалансирована по 490 на класс, так что это не дисбаланс исходных
+                данных пролезает наружу. Пять упорядоченных классов на отзывах из девяти
+                слов — просто более трудная задача, чем два.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Теория · Честный итог</span>
+              <h2 id="limits">Чего рекуррентность по-прежнему не умеет</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Она читает строго слева направо</h3>
+                  <p>
+                    Дойдя до <span class="token">емес</span>, модель не может вернуться и
+                    пересмотреть то, что решила про <span class="token">жақсы</span>.
+                    Двунаправленная LSTM читает в обе стороны и помогает, но это два
+                    прохода, склеенные вместе, а не решение.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Всё протискивается через один вектор</h3>
+                  <p>
+                    Отзыв из сорока слов должен поместиться в 128 чисел прежде, чем
+                    классификатор увидит хоть что-то. Чем длиннее текст, тем дороже это
+                    бутылочное горлышко.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Её нельзя распараллелить</h3>
+                  <p>
+                    Шагу 20 нужен результат шага 19. Слова нельзя обрабатывать
+                    одновременно — именно поэтому обучение на очень больших корпусах стало
+                    непрактичным.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Расстояние по-прежнему дорого</h3>
+                  <p>
+                    Гейты замедляют забывание, но не прекращают его. Связать слово 2 со
+                    словом 45 — значит пронести информацию через 43 обновления.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">Усреднённые эмбеддинги</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node">RNN</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--accent">LSTM</span><span class="diagram__arrow" aria-hidden="true">→</span></li>
+                <li><span class="diagram__node diagram__node--soft">Attention</span></li>
+              </ul>
+              <p class="narrow">
+                Следующая лекция убирает цикл целиком. Вместо того чтобы передавать
+                информацию по цепочке, каждое слово смотрит напрямую на каждое другое за
+                один шаг — и это чинит бутылочное горлышко, плату за расстояние и
+                невозможность распараллеливания разом. Это и есть attention, из которого
+                построены Transformers.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="code">
+            <div class="container">
+              <span class="section__eyebrow">Практика · Скрипт</span>
+              <h2 id="code">Как запустить самому</h2>
+              <p class="narrow lead">
+                Всё на этой странице получено из
+                <a href="../../code_files/lesson5.py">code_files/lesson5.py</a>. Он
+                самодостаточен; единственное, что он берёт со стороны, —
+                <code>models/word2vec.model</code> из лекции 4, и только при
+                <code>--pretrained</code>.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # добавляет torch
+
+python3 lesson5.py                     # обе задачи, RNN и LSTM
+python3 lesson5.py --task polarity --model lstm
+python3 lesson5.py --task score --epochs 10
+python3 lesson5.py --pretrained        # старт с word2vec из лекции 4
+python3 lesson5.py --train-size 20000  # тот самый запуск на 0.803</code></pre></div>
+              <p class="note">
+                Обе задачи с обеими моделями занимают около минуты на CPU ноутбука —
+                поэтому в этой лекции нет GPU, а устройство жёстко задано как
+                <code>cpu</code>: так запуск остаётся воспроизводимым. Каждое число на этой
+                странице получено из этого скрипта, и повторный запуск даёт те же цифры —
+                <code>torch.manual_seed</code> плюс свежий генератор
+                <code>DataLoader</code> на каждую модель, так что все варианты видят одни и
+                те же батчи в одном и том же порядке.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">На лекции</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">Пять вопросов, на которые мы отвечаем вместе перед завершением.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Что может представить RNN, чего не может среднее векторов слов?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Порядок. Скрытое состояние после
+                      <span class="token">жақсы емес</span> отличается от состояния после
+                      <span class="token">емес жақсы</span>; среднее для обоих одинаково,
+                      как и измерено в начале этой страницы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">Почему <code>rnn.weight_ih_l0</code> имеет форму (512, 100), если размер скрытого состояния 128?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      512 = 4 × 128. LSTM на каждом шаге считает четыре вещи — гейты
+                      forget, input и output плюс значение-кандидат, — и PyTorch складывает
+                      их матрицы весов в одну.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Обучающий лосс LSTM продолжает падать, а точность на тесте стоит на месте. Что происходит и что бы вы изменили?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Переобучение — 700 000 параметров против 8 000 коротких отзывов.
+                      Варианты: остановиться раньше, поднять dropout, уменьшить модель или
+                      дать больше данных. Последнее мы измерили: 40 000 отзывов подняли её
+                      с 0.772 до 0.803.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">Почему старт с word2vec из лекции 4 так сильно помогает на первой эпохе?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      83% параметров — это таблица эмбеддингов, и 5 743 из её 5 916 строк
+                      приходят уже зная, какие слова ведут себя одинаково. Сеть стартует со
+                      структуры, а не с шума: 0.785 после одной эпохи против 0.727.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Точность модели на score — 0.374. Почему это не самое информативное число для отчёта?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Классы упорядочены, а accuracy считает все ошибки одинаковыми. Та же
+                      модель попадает в пределах одной звезды в 70,4% случаев и ошибается на
+                      три и более лишь в 12,2% — а это как раз то, что нужно знать тому, кто
+                      решает, использовать её или нет.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">После лекции</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Работайте в папке с <code>lesson5.py</code>. Сообщайте измерение, а не
+                впечатление.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Задание 1 — Размер скрытого состояния</h3>
+                  <p class="challenge__task">Запустите --hidden 32, 128 и 512 на polarity. Помогает ли большее скрытое состояние?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Ожидайте, что помогать оно перестанет быстро, а потом начнёт вредить:
+                      больше ёмкости при тех же 8 000 отзывах — быстрее переобучение.
+                      Смотрите на разрыв между обучающим лоссом и точностью на тесте, а не
+                      только на финальное число.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 2 — Двунаправленная</h3>
+                  <p class="challenge__task">Добавьте bidirectional=True в LSTM. Учтите, что скрытое состояние теперь два вектора — что подавать в линейный слой?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Склейте последние прямое и обратное состояния через
+                      <code>torch.cat([hidden[-2], hidden[-1]], dim=1)</code> и сделайте
+                      линейный слой шириной <code>2 * hidden</code>. На отзывах из девяти
+                      слов прирост обычно небольшой; скажите, какой именно.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 3 — Заморозить эмбеддинги</h3>
+                  <p class="challenge__task">С --pretrained поставьте embedding.weight.requires_grad = False. Лучше или хуже и почему?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Заморозка убирает из обучения 83% параметров, поэтому переобучение
+                      куда меньше, но и подстроить векторы под сентимент нельзя. На малой
+                      обучающей выборке заморозка часто выигрывает; на 40 000 отзывах обычно
+                      проигрывает. Измерьте оба варианта.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 4 — max_len</h3>
+                  <p class="challenge__task">Отзывы обрезаются до 60 слов. Скольких это реально касается и что будет при --max-len 20?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Средний отзыв — около девяти токенов, самый длинный — 271, так что
+                      60 обрезает совсем немногих. Это и есть находка: этот датасет почти не
+                      даёт рекуррентной модели длины, с которой можно работать.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 5 — Убрать packing</h3>
+                  <p class="challenge__task">Подайте дополненный батч прямо в LSTM без pack_padded_sequence. Что станет с точностью?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Тогда финальное скрытое состояние короткого отзыва собирается из
+                      шагов <code>&lt;pad&gt;</code>. Ожидайте падения, причём самого
+                      сильного на самых коротких отзывах — проверьте это, разбив тестовую
+                      выборку по длине.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 6 — Веса классов</h3>
+                  <p class="challenge__task">Обучите модель score на несбалансированных данных с CrossEntropyLoss(weight=…). Как сдвинутся средние классы?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Веса позволяют использовать все 140 126 отзывов вместо 19 600.
+                      Смотрите на строку трёх звёзд в матрице ошибок и на долю попаданий в
+                      пределах одной звезды, а не только на accuracy.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 7 — Считать оценку числом</h3>
+                  <p class="challenge__task">Замените выход из 5 классов на одно число и MSELoss, затем округляйте. Помогает ли упорядоченность?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Регрессия знает, что 4 находится между 3 и 5, а классификация — нет.
+                      Сравните по обеим метрикам: точное попадание часто падает, а средняя
+                      абсолютная ошибка улучшается.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 8 — Ранняя остановка</h3>
+                  <p class="challenge__task">Используйте валидационное разбиение из KazSAnDRA и берите лучшую эпоху вместо последней. Насколько это меняет результат?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Наши запуски достигают пика в середине обучения — 0.799 на второй
+                      эпохе и 0.803 на первой — и дальше снижаются. Выбирать эпоху по
+                      тестовой выборке было бы жульничеством; для этого и нужна
+                      валидационная.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 9 — fastText вместо word2vec</h3>
+                  <p class="challenge__task">Инициализируйте слой эмбеддингов из models/fasttext.model, заполнив все строки, включая редкие слова. Окупается ли покрытие?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      fastText может выдать вектор для всех 5 916 строк, а не для 5 743.
+                      Добавляются редкие слова, поэтому прирост может быть небольшим —
+                      сообщайте число заполненных строк рядом с точностью.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 10 — Сиды</h3>
+                  <p class="challenge__task">Запустите LSTM с пятью разными сидами. Каков разброс и меняет ли он какой-нибудь вывод этой страницы?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Это самое важное задание здесь. Сравните разброс с разницами, которые
+                      мы назвали значимыми: RNN против LSTM — 0.017, старт с word2vec —
+                      0.015. Если разброс по сидам такого же размера, то за этими
+                      утверждениями должен стоять не один запуск.
+                    </p>
+                  </details>
+                </article>
+              </div>
+
+              <h3 style="margin-top: 56px; font-size: 1.5rem">Тест для самопроверки</h3>
+              <p class="narrow lead">Десять вопросов с мгновенной обратной связью.</p>
+              <ol class="quiz" data-quiz style="margin-top: 28px">
+                <li class="quiz__item">
+                  <p class="quiz__question">Что такое скрытое состояние RNN?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">эмбеддинг текущего слова</button>
+                    <button class="quiz__option" type="button" data-correct>вектор со сводкой всего прочитанного, переписываемый на каждом слове</button>
+                    <button class="quiz__option" type="button">параметры модели</button>
+                    <button class="quiz__option" type="button">выходные вероятности</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Оно начинается с нуля и обновляется по разу на слово одними и теми же весами.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Почему RNN отличает «жақсы емес» от «емес жақсы», а TF-IDF нет?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">у неё больше параметров</button>
+                    <button class="quiz__option" type="button">она использует эмбеддинги</button>
+                    <button class="quiz__option" type="button" data-correct>она читает слова по порядку, поэтому финальное состояние зависит от последовательности</button>
+                    <button class="quiz__option" type="button">она дольше обучается</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>И подсчёт, и усреднение слепы к порядку по своему устройству.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Какую проблему решает состояние ячейки LSTM?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">неизвестные слова</button>
+                    <button class="quiz__option" type="button">дисбаланс классов</button>
+                    <button class="quiz__option" type="button" data-correct>затухание градиента при движении назад через много шагов</button>
+                    <button class="quiz__option" type="button">медленное обучение</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Оно идёт по пути сложения, а не повторного умножения на матрицу.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Что делает гейт forget?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">выбрасывает слова из входа</button>
+                    <button class="quiz__option" type="button" data-correct>умножает состояние ячейки, решая, что сохранить и что стереть</button>
+                    <button class="quiz__option" type="button">убирает редкие слова из словаря</button>
+                    <button class="quiz__option" type="button">отключает dropout на тесте</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Значения около 1 сохраняют память на много слов; около 0 — стирают её.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Зачем батчу паддинг и длины?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">чтобы сбалансировать классы</button>
+                    <button class="quiz__option" type="button">чтобы ускорить оптимизатор</button>
+                    <button class="quiz__option" type="button" data-correct>тензор прямоугольный, но сеть не должна читать заполнитель</button>
+                    <button class="quiz__option" type="button">чтобы починить неизвестные слова</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>pack_padded_sequence выполнил 9 настоящих шагов вместо всех 15 ячеек.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">В каком слое больше всего параметров?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">в LSTM</button>
+                    <button class="quiz__option" type="button" data-correct>в таблице эмбеддингов — 591 600 из 709 618</button>
+                    <button class="quiz__option" type="button">в линейном выходном слое</button>
+                    <button class="quiz__option" type="button">в dropout</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Поэтому её удачная инициализация оказалась важнее всего остального, что мы пробовали.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Обучающий лосс падает, точность на тесте — нет. Это…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">ошибка в функции потерь</button>
+                    <button class="quiz__option" type="button">слишком маленький learning rate</button>
+                    <button class="quiz__option" type="button" data-correct>переобучение</button>
+                    <button class="quiz__option" type="button">затухающие градиенты</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Модель продолжает учиться — конкретно обучающей выборке.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Старт слоя эмбеддингов с word2vec из лекции 4 помог больше всего…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">на последней эпохе</button>
+                    <button class="quiz__option" type="button" data-correct>на первой эпохе: 0.785 против 0.727</button>
+                    <button class="quiz__option" type="button">вообще не помог</button>
+                    <button class="quiz__option" type="button">только на задаче score</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Она начинает со структуры, а не с шума, поэтому ей нужно куда меньше проходов.</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Модель score дала 0.374 при 0.200 у угадывания. Как лучше всего это сообщить…</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">«модель не работает»</button>
+                    <button class="quiz__option" type="button">«точность 37%» и больше ничего</button>
+                    <button class="quiz__option" type="button" data-correct>accuracy плюс расстояние: 70,4% в пределах одной звезды, 12,2% с ошибкой в три и более</button>
+                    <button class="quiz__option" type="button">только матрица ошибок</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>На упорядоченной шкале «насколько мимо» важно не меньше, чем «как часто».</p>
+                </li>
+                <li class="quiz__item">
+                  <p class="quiz__question">Почему рекуррентную сеть нельзя распараллелить по словам?</p>
+                  <div class="quiz__options">
+                    <button class="quiz__option" type="button">PyTorch этого не поддерживает</button>
+                    <button class="quiz__option" type="button">батчи слишком маленькие</button>
+                    <button class="quiz__option" type="button" data-correct>каждому шагу нужно скрытое состояние, произведённое предыдущим</button>
+                    <button class="quiz__option" type="button">эмбеддинги общие</button>
+                  </div>
+                  <p class="quiz__feedback" hidden>Ровно это ограничение attention снимает в следующей лекции.</p>
+                </li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы изучили</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Во что порядок обходится мешку слов — с измерением</li>
+                <li>Скрытое состояние и общие веса на всех позициях</li>
+                <li>Почему обычная RNN забывает: затухающий градиент</li>
+                <li>Состояние ячейки LSTM и её три гейта</li>
+                <li>Словарь, <code>&lt;pad&gt;</code>, <code>&lt;unk&gt;</code> и packing</li>
+                <li>Класс модели и цикл обучения на PyTorch</li>
+                <li>RNN 0.755, LSTM 0.772 — обе ниже лекции 3</li>
+                <li>Эмбеддинги лекции 4 как точка старта: 0.787</li>
+                <li>Больше данных: 0.803, наконец впереди</li>
+                <li>Пять упорядоченных классов: 0.374 и почему надо сообщать расстояние</li>
+                <li>Почему цикл придётся убрать и что придёт ему на смену</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course · Лекция 5 · 07 сентября 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

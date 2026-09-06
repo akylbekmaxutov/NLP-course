@@ -135,9 +135,9 @@ window.NLP_COURSE = {
       }
     },
     {
-      id: "text-classification",
+      id: "rnn-lstm",
       num: 5,
-      file: null,
+      file: "05-rnn-lstm.html",
       date: {
         en: "07 Sep 2026",
         kk: "07 қыркүйек 2026",
@@ -145,8 +145,13 @@ window.NLP_COURSE = {
       },
       title: {
         en: "Text Classification",
-        kk: "Text Classification",
-        ru: "Text Classification"
+        kk: "Мәтінді жіктеу",
+        ru: "Классификация текста"
+      },
+      topics: {
+        en: "PyTorch · RNN · LSTM · polarity and score",
+        kk: "PyTorch · RNN · LSTM · polarity және score",
+        ru: "PyTorch · RNN · LSTM · polarity и score"
       }
     },
     {
