@@ -104,3 +104,14 @@ Changed:
 - `code_files/requirements.txt` — `torch` added
 - `page/js/course.js` — Lecture 5 published as "Text Classification" / "Мәтінді жіктеу" / "Классификация текста"
 - `index.html` — link to Lecture 5
+
+### 07.09.2026 (later)
+
+Changed:
+
+- `language/*/05-rnn-lstm.html` — the theory sections rewritten around visuals, with six new runnable demonstrations and four new diagrams:
+  - **How the hidden state is passed** — a diagram of one RNN step annotated with `hₜ = tanh(W·xₜ + U·hₜ₋₁ + b)`, then the recurrence run by hand in a loop and checked against `nn.RNN`, then a coloured grid of the four state numbers redrawn after every word
+  - **The vanishing gradient, measured** — one signal sent back from the final state of a 40-word sequence, printing how much reaches each position: the RNN keeps ×0.48 per step (5·10⁻¹³ at the far end), an untrained LSTM ×0.60, and the same LSTM with the forget gate held open ×1.00 — the honest point being that the architecture alone fixes nothing, it only adds a knob the training can turn. Plotted on a log axis from the measured numbers
+  - **The LSTM cell** — a full diagram of the cell-state path through one multiplication and one addition, the four gate equations term by term, and the gates printed step by step from a hand-written implementation checked against `nn.LSTM`
+  - **Batching and padding** — why a rectangle is needed at all, the three decisions in `collate`, a diagram of the padded batch turning into `data` + `batch_sizes`, and a measurement of what breaks without packing (padding changes the final state by 0.583; `pack_padded_sequence` reproduces the honest answer exactly)
+  - **The network end to end** — a layer-by-layer diagram with the tensor shape between each pair of layers, printed live: `(3, 5)` → `(3, 5, 100)` → packed `(9, 100)` → `(1, 3, 128)` → `(3, 128)` → `(3, 2)`, and the observation that 591 600 of the 709 618 parameters are the embedding table

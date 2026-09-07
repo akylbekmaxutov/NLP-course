@@ -221,7 +221,7 @@ one review per score:
             </div>
           </section>
 
-          <section class="section section--surface" aria-labelledby="rnn">
+          <section class="section" aria-labelledby="rnn">
             <div class="container">
               <span class="section__eyebrow">Theory · The model</span>
               <h2 id="rnn">What a recurrent network is</h2>
@@ -238,6 +238,7 @@ one review per score:
                   last word, that one vector is the model's summary of the review.
                 </p>
               </div>
+
               <div class="figure">
                 <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-unroll-t">
                 <title id="fig-unroll-t">A recurrent network unrolled over four words</title>
@@ -269,11 +270,166 @@ one review per score:
                 <text x="110" y="121" font-size="10" fill="#5b6270" text-anchor="middle">one hidden state per step</text>
                 </svg>
                 <p class="figure__caption">
-                  The same network drawn four times, not four networks. Its weights are
-                  shared across positions, so a review of three words and one of forty go
-                  through exactly the same parameters.
+                  The same network drawn four times, not four networks. Its weights are shared across positions, so a review of three words and one of forty go through exactly the same parameters.
                 </p>
               </div>
+              <h3 style="margin-top: 44px">Inside a single step</h3>
+              <p class="narrow">
+                Everything happens in one line of arithmetic. The step takes two things —
+                the state from the previous word and the current word — multiplies each by
+                its own weight matrix, adds them together, and squashes the result.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-cell-t">
+                <title id="fig-cell-t">Inside one RNN step: the previous state and the new word are mixed, then squashed</title>
+                <rect x="8" y="16" width="66" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="41" y="33" font-size="11" fill="#111111" text-anchor="middle">hₜ₋₁</text>
+                <text x="41" y="56" font-size="9" fill="#5b6270" text-anchor="middle">what we knew</text>
+                <rect x="8" y="96" width="66" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="41" y="113" font-size="11" fill="#111111" text-anchor="middle">xₜ</text>
+                <text x="41" y="136" font-size="9" fill="#5b6270" text-anchor="middle">this word</text>
+                <line x1="74" y1="29" x2="112" y2="60" stroke="#5b6270" stroke-width="1.5" />
+                <line x1="74" y1="109" x2="112" y2="78" stroke="#5b6270" stroke-width="1.5" />
+                <text x="92" y="40" font-size="9" fill="#5b6270" text-anchor="middle">·U</text>
+                <text x="92" y="103" font-size="9" fill="#5b6270" text-anchor="middle">·W</text>
+                <circle cx="124" cy="69" r="13" fill="#ffffff" stroke="#5b6270" stroke-width="1.5" />
+                <text x="124" y="74" font-size="13" fill="#111111" text-anchor="middle">+</text>
+                <line x1="137" y1="69" x2="166" y2="69" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="166" y="55" width="62" height="28" rx="5" fill="#2563eb" />
+                <text x="197" y="74" font-size="12" fill="#ffffff" text-anchor="middle">tanh</text>
+                <text x="197" y="98" font-size="9" fill="#5b6270" text-anchor="middle">squashes to (−1, 1)</text>
+                <line x1="228" y1="69" x2="262" y2="69" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="262" y="55" width="66" height="28" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="295" y="74" font-size="11" fill="#111111" text-anchor="middle">hₜ</text>
+                <text x="295" y="98" font-size="9" fill="#5b6270" text-anchor="middle">what we know now</text>
+                <text x="170" y="20" font-size="10" fill="#111111" text-anchor="middle">hₜ = tanh(W·xₜ + U·hₜ₋₁ + b)</text>
+                <path d="M 295 45 L 295 34 L 41 34 L 41 12" fill="none" stroke="#c7d9ff" stroke-width="1.5" stroke-dasharray="4 3" />
+                <text x="168" y="160" font-size="9" fill="#5b6270" text-anchor="middle">the dashed line is the loop: hₜ becomes hₜ₋₁ at the next word</text>
+                </svg>
+                <p class="figure__caption">
+                  One step of a plain RNN. <code>W</code> is applied to the word, <code>U</code> to the previous state; the two are added and squashed by <code>tanh</code> into the new state.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading <code>hₜ = tanh(W·xₜ + U·hₜ₋₁ + b)</code></span>
+                <dl class="breakdown__list">
+                  <dt>xₜ</dt>
+                  <dd>the current word, as its embedding vector — 100 numbers in our model</dd>
+                  <dt>hₜ₋₁</dt>
+                  <dd>what the network knew after the previous word — 128 numbers</dd>
+                  <dt>W, U</dt>
+                  <dd>the two weight matrices. They are the same at every position: this is what "recurrent" means</dd>
+                  <dt>tanh</dt>
+                  <dd>squashes every number into (−1, 1), which stops the state from growing without limit</dd>
+                  <dt>hₜ</dt>
+                  <dd>the new state, which becomes hₜ₋₁ at the next word</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> there is no memory anywhere else. Whatever the
+                  network wants to remember about the first word has to survive inside
+                  <code>h</code>, through every rewrite that follows.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Watch the state being passed</h3>
+              <p class="narrow">
+                The clearest way to see it is to run the recurrence by hand and check the
+                answer against PyTorch. Below, a 4-dimensional state and four words —
+                small enough that every number fits on the page.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+
+# A tiny RNN so the numbers fit on the page: 3-dimensional words, 4-dimensional state.
+rnn = nn.RNN(input_size=3, hidden_size=4, batch_first=True)
+
+words = torch.tensor([[[1.0, 0.0, 0.0],    # қосымша
+                       [0.0, 1.0, 0.0],    # өте
+                       [0.0, 0.0, 1.0],    # жақсы
+                       [1.0, 1.0, 0.0]]])  # емес
+
+# --- what nn.RNN does, written out ----------------------------------------
+W_ih, W_hh = rnn.weight_ih_l0, rnn.weight_hh_l0
+b_ih, b_hh = rnn.bias_ih_l0, rnn.bias_hh_l0
+
+h = torch.zeros(4)                                      # the state starts at zero
+print("h0 (before any word):", h.numpy().round(3))
+for step in range(4):
+    x = words[0, step]
+    h = torch.tanh(W_ih @ x + b_ih + W_hh @ h + b_hh)   # &lt;- the whole recurrence
+    print(f"h{step + 1} after word {step + 1}   :", h.detach().numpy().round(3))
+
+# --- the same thing, done by PyTorch --------------------------------------
+outputs, last = rnn(words)
+print("\nPyTorch's last hidden state:", last[0, 0].detach().numpy().round(3))
+print("matches our loop           :", bool(torch.allclose(h, last[0, 0], atol=1e-6)))
+print("\noutputs holds every step   :", tuple(outputs.shape), "= (batch, words, hidden)")
+print("its last row is the last hidden state:",
+      bool(torch.allclose(outputs[0, -1], last[0, 0])))</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>h0 (before any word): [0. 0. 0. 0.]
+h1 after word 1   : [-0.567 -0.62  -0.504  0.096]
+h2 after word 2   : [ 0.208 -0.603 -0.397 -0.419]
+h3 after word 3   : [-0.704 -0.136 -0.725 -0.167]
+h4 after word 4   : [ 0.152 -0.672 -0.318 -0.251]
+
+PyTorch's last hidden state: [ 0.152 -0.672 -0.318 -0.251]
+matches our loop           : True
+
+outputs holds every step   : (1, 4, 4) = (batch, words, hidden)
+its last row is the last hidden state: True</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-state-t">
+                <title id="fig-state-t">The four numbers of the hidden state, redrawn after every word</title>
+                <text x="8" y="14" font-size="9" fill="#5b6270">each column is one hidden state; blue is positive, red is negative</text>
+                <text x="36" y="34" font-size="10" fill="#111111" text-anchor="middle">h₀</text>
+                <text x="102" y="34" font-size="10" fill="#111111" text-anchor="middle">h₁</text>
+                <text x="168" y="34" font-size="10" fill="#111111" text-anchor="middle">h₂</text>
+                <text x="234" y="34" font-size="10" fill="#111111" text-anchor="middle">h₃</text>
+                <text x="300" y="34" font-size="10" fill="#111111" text-anchor="middle">h₄</text>
+                <rect x="14" y="42" width="44" height="18" fill="#f3f5f8" stroke="#d1d6de" /><text x="36" y="55" font-size="9" fill="#5b6270" text-anchor="middle">0.00</text>
+                <rect x="14" y="62" width="44" height="18" fill="#f3f5f8" stroke="#d1d6de" /><text x="36" y="75" font-size="9" fill="#5b6270" text-anchor="middle">0.00</text>
+                <rect x="14" y="82" width="44" height="18" fill="#f3f5f8" stroke="#d1d6de" /><text x="36" y="95" font-size="9" fill="#5b6270" text-anchor="middle">0.00</text>
+                <rect x="14" y="102" width="44" height="18" fill="#f3f5f8" stroke="#d1d6de" /><text x="36" y="115" font-size="9" fill="#5b6270" text-anchor="middle">0.00</text>
+                <rect x="80" y="42" width="44" height="18" fill="#fbdcdc" stroke="#fecaca" /><text x="102" y="55" font-size="9" fill="#111111" text-anchor="middle">-0.57</text>
+                <rect x="80" y="62" width="44" height="18" fill="#f9cfcf" stroke="#fecaca" /><text x="102" y="75" font-size="9" fill="#111111" text-anchor="middle">-0.62</text>
+                <rect x="80" y="82" width="44" height="18" fill="#fbdfdf" stroke="#fecaca" /><text x="102" y="95" font-size="9" fill="#111111" text-anchor="middle">-0.50</text>
+                <rect x="80" y="102" width="44" height="18" fill="#e8effd" stroke="#c7d9ff" /><text x="102" y="115" font-size="9" fill="#111111" text-anchor="middle">0.10</text>
+                <rect x="146" y="42" width="44" height="18" fill="#dbe6fb" stroke="#c7d9ff" /><text x="168" y="55" font-size="9" fill="#111111" text-anchor="middle">0.21</text>
+                <rect x="146" y="62" width="44" height="18" fill="#f9d1d1" stroke="#fecaca" /><text x="168" y="75" font-size="9" fill="#111111" text-anchor="middle">-0.60</text>
+                <rect x="146" y="82" width="44" height="18" fill="#fce4e4" stroke="#fecaca" /><text x="168" y="95" font-size="9" fill="#111111" text-anchor="middle">-0.40</text>
+                <rect x="146" y="102" width="44" height="18" fill="#fce2e2" stroke="#fecaca" /><text x="168" y="115" font-size="9" fill="#111111" text-anchor="middle">-0.42</text>
+                <rect x="212" y="42" width="44" height="18" fill="#f7c6c6" stroke="#fecaca" /><text x="234" y="55" font-size="9" fill="#111111" text-anchor="middle">-0.70</text>
+                <rect x="212" y="62" width="44" height="18" fill="#fdeded" stroke="#fecaca" /><text x="234" y="75" font-size="9" fill="#111111" text-anchor="middle">-0.14</text>
+                <rect x="212" y="82" width="44" height="18" fill="#f7c4c4" stroke="#fecaca" /><text x="234" y="95" font-size="9" fill="#111111" text-anchor="middle">-0.73</text>
+                <rect x="212" y="102" width="44" height="18" fill="#fdebeb" stroke="#fecaca" /><text x="234" y="115" font-size="9" fill="#111111" text-anchor="middle">-0.17</text>
+                <rect x="278" y="42" width="44" height="18" fill="#e3ecfc" stroke="#c7d9ff" /><text x="300" y="55" font-size="9" fill="#111111" text-anchor="middle">0.15</text>
+                <rect x="278" y="62" width="44" height="18" fill="#f8cbcb" stroke="#fecaca" /><text x="300" y="75" font-size="9" fill="#111111" text-anchor="middle">-0.67</text>
+                <rect x="278" y="82" width="44" height="18" fill="#fce8e8" stroke="#fecaca" /><text x="300" y="95" font-size="9" fill="#111111" text-anchor="middle">-0.32</text>
+                <rect x="278" y="102" width="44" height="18" fill="#fce5e5" stroke="#fecaca" /><text x="300" y="115" font-size="9" fill="#111111" text-anchor="middle">-0.25</text>
+                <text x="36" y="136" font-size="9" fill="#5b6270" text-anchor="middle">start</text>
+                <text x="102" y="136" font-size="9" fill="#111111" text-anchor="middle">қосымша</text>
+                <text x="168" y="136" font-size="9" fill="#111111" text-anchor="middle">өте</text>
+                <text x="234" y="136" font-size="9" fill="#111111" text-anchor="middle">жақсы</text>
+                <text x="300" y="136" font-size="9" fill="#111111" text-anchor="middle">емес</text>
+                <line x1="278" y1="126" x2="322" y2="126" stroke="#2563eb" stroke-width="2" />
+                <text x="300" y="160" font-size="9" fill="#2563eb" text-anchor="middle">only this column</text>
+                <text x="300" y="170" font-size="9" fill="#2563eb" text-anchor="middle">reaches the classifier</text>
+                </svg>
+                <p class="figure__caption">
+                  The same four numbers, redrawn after every word. Each column is the entire memory of the network at that moment; the last one is all the classifier ever sees.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Three things this shows.</strong> First, <code>h₀</code> is all
+                zeros — the network starts with no knowledge and builds everything from
+                the words. Second, each column is computed only from the previous column
+                and the current word, which is why order matters: feed the words in a
+                different order and every column after the first changes. Third,
+                <code>nn.RNN</code> is exactly the loop we wrote — the framework is a fast
+                implementation, not a different algorithm.
+              </p>
               <p class="narrow">
                 Because the words arrive in order, <span class="token">жақсы емес</span>
                 and <span class="token">емес жақсы</span> now produce different hidden
@@ -309,68 +465,292 @@ one review per score:
                 The hidden state is rewritten at every single word. Rewrite it forty times
                 and whatever was in it at the start is gone.
               </p>
-              <h3 style="margin-top: 36px">The vanishing gradient</h3>
+
+              <h3 style="margin-top: 36px">The vanishing gradient, in words</h3>
               <p class="narrow">
-                To learn that the first word mattered, the training signal has to travel
-                back through every step in between, and at each step it is multiplied by
-                the same weight matrix. Multiply a number smaller than one by itself forty
-                times and it is effectively zero; multiply one larger than one and it
-                explodes. In practice a plain RNN learns the last few words well and the
-                start of a long review hardly at all. The
-                <code>clip_grad_norm_</code> in our training loop is the standard patch for
-                the exploding half; nothing patches the vanishing half.
+                Training works backwards. The loss is computed at the end of the review,
+                and to discover that the <em>first</em> word mattered, that signal has to
+                travel back through every step in between. At each step it is multiplied
+                by the same two things: the derivative of <code>tanh</code>, which is never
+                greater than 1, and the recurrent matrix <code>U</code>. Multiply by
+                roughly the same factor forty times and one of two things happens.
               </p>
+              <div class="grid grid--2" style="margin-top: 24px">
+                <div class="card">
+                  <h3>Factor below 1 — vanishing</h3>
+                  <p>
+                    0.5<sup>40</sup> is about 10<sup>−12</sup>. The signal arrives as
+                    nothing, the early weights never move, and the model simply never
+                    learns that the beginning of the review existed.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Factor above 1 — exploding</h3>
+                  <p>
+                    1.5<sup>40</sup> is about 10<sup>7</sup>. One batch produces an
+                    enormous update and the weights jump to nonsense. This half is easy to
+                    patch, and <code>clip_grad_norm_</code> in our training loop is the
+                    patch.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 44px">The vanishing gradient, measured</h3>
+              <p class="narrow">
+                This is not a story — it is something you can print. Feed a 40-word
+                sequence in, send one signal back from the final state, and ask how much
+                of it reaches each input position.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+LENGTH, DIM, HIDDEN = 40, 32, 64
+
+def gradient_by_position(cell):
+    """How much does the final state still depend on the word at each position?"""
+    torch.manual_seed(0)
+    words = torch.randn(1, LENGTH, DIM, requires_grad=True)
+    _, state = cell(words)
+    hidden = state[0] if isinstance(state, tuple) else state   # LSTM returns (h, c)
+    hidden.sum().backward()                    # one signal, sent back from the end
+    return words.grad[0].norm(dim=1)           # one number per position
+
+torch.manual_seed(0)
+rnn = nn.RNN(DIM, HIDDEN, batch_first=True)
+torch.manual_seed(0)
+lstm = nn.LSTM(DIM, HIDDEN, batch_first=True)
+
+# The standard trick: start the forget gate open. nn.LSTM stacks the gates as
+# (input, forget, cell, output), so the forget bias is the second quarter.
+torch.manual_seed(0)
+open_lstm = nn.LSTM(DIM, HIDDEN, batch_first=True)
+with torch.no_grad():
+    open_lstm.bias_ih_l0[HIDDEN:2 * HIDDEN].fill_(3.0)      # sigmoid(3) ≈ 0.95
+
+grads = {name: gradient_by_position(cell) for name, cell in
+         (("RNN", rnn), ("LSTM", lstm), ("LSTM, forget open", open_lstm))}
+
+print(f"{'steps back':&gt;10} {'RNN':&gt;10} {'LSTM':&gt;10} {'LSTM, forget open':&gt;19}")
+for back in (0, 1, 2, 5, 10, 20, 30, 39):
+    i = LENGTH - 1 - back
+    row = "  ".join(f"{g[i]:&gt;8.1e}" for g in grads.values())
+    print(f"{back:&gt;10}   {row}")
+
+print("\nhow much of the last word's signal still reaches the first word:")
+for name, g in grads.items():
+    ratio = float(g[0] / g[-1])
+    per_step = ratio ** (1 / (LENGTH - 1))
+    print(f"  {name:&lt;18} {ratio:&gt;9.1e}   ×{per_step:.2f} per step")
+
+print("\nThe RNN loses half the signal at every step, so after 39 there is nothing")
+print("left. The LSTM's default init is barely better. But hold the forget gate")
+print("open and the factor becomes 1.00 — the signal survives the whole sequence.")
+print("That knob is the entire point of the cell state, and an LSTM can learn it.")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>steps back        RNN       LSTM   LSTM, forget open
+         0    3.1e+00   8.0e-01   7.0e-01
+         1    1.0e+00   4.0e-01   5.4e-01
+         2    5.6e-01   1.8e-01   4.7e-01
+         5    6.6e-02   3.6e-02   4.7e-01
+        10    1.8e-03   2.6e-03   4.1e-01
+        20    9.2e-07   2.1e-05   3.9e-01
+        30    6.7e-10   9.5e-08   4.6e-01
+        39    1.7e-12   1.5e-09   5.8e-01
+
+how much of the last word's signal still reaches the first word:
+  RNN                  5.4e-13   ×0.48 per step
+  LSTM                 1.9e-09   ×0.60 per step
+  LSTM, forget open    8.3e-01   ×1.00 per step
+
+The RNN loses half the signal at every step, so after 39 there is nothing
+left. The LSTM's default init is barely better. But hold the forget gate
+open and the factor becomes 1.00 — the signal survives the whole sequence.
+That knob is the entire point of the cell state, and an LSTM can learn it.</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-vanish-t">
+                <title id="fig-vanish-t">Measured gradient reaching each position, on a logarithmic scale</title>
+                <line x1="42" y1="18" x2="42" y2="146" stroke="#d1d6de" />
+                <line x1="42" y1="146" x2="326" y2="146" stroke="#d1d6de" />
+                <text x="38" y="25" font-size="8" fill="#5b6270" text-anchor="end">1e+0</text>
+                <text x="38" y="56" font-size="8" fill="#5b6270" text-anchor="end">1e−3</text>
+                <text x="38" y="87" font-size="8" fill="#5b6270" text-anchor="end">1e−6</text>
+                <text x="38" y="118" font-size="8" fill="#5b6270" text-anchor="end">1e−9</text>
+                <text x="38" y="149" font-size="8" fill="#5b6270" text-anchor="end">1e−12</text>
+                <line x1="42" y1="53" x2="326" y2="53" stroke="#eef1f5" />
+                <line x1="42" y1="84" x2="326" y2="84" stroke="#eef1f5" />
+                <line x1="42" y1="115" x2="326" y2="115" stroke="#eef1f5" />
+                <polyline points="49,22 56,22 63,25 69,27 76,31 83,34 90,38 97,42 104,44 110,47 117,50 124,54 131,58 138,60 144,65 151,67 158,70 165,73 172,77 179,82 185,84 192,87 199,89 206,93 213,95 220,99 226,102 233,106 240,109 247,113 254,117 260,120 267,123 274,125 281,128 288,130 295,134 301,137 308,141 315,144" fill="none" stroke="#b91c1c" stroke-width="2" />
+                <polyline points="49,23 56,26 63,30 69,32 76,35 83,37 90,40 97,42 104,44 110,46 117,49 124,51 131,54 138,55 144,56 151,59 158,62 165,65 172,66 179,69 185,70 192,73 199,76 206,78 213,80 220,83 226,85 233,86 240,88 247,92 254,95 260,96 267,98 274,101 281,103 288,105 295,107 301,109 308,111 315,113" fill="none" stroke="#5b6270" stroke-width="1.8" stroke-dasharray="5 3" />
+                <polyline points="49,24 56,25 63,25 69,26 76,25 83,25 90,26 97,26 104,26 110,26 117,26 124,27 131,26 138,26 144,27 151,26 158,26 165,26 172,27 179,26 185,26 192,26 199,26 206,26 213,26 220,26 226,26 233,26 240,25 247,25 254,26 260,25 267,25 274,25 281,25 288,24 295,25 301,24 308,25 315,24" fill="none" stroke="#2563eb" stroke-width="2.5" />
+                <text x="49" y="158" font-size="8" fill="#5b6270" text-anchor="middle">0</text>
+                <text x="115" y="158" font-size="8" fill="#5b6270" text-anchor="middle">10</text>
+                <text x="182" y="158" font-size="8" fill="#5b6270" text-anchor="middle">20</text>
+                <text x="248" y="158" font-size="8" fill="#5b6270" text-anchor="middle">30</text>
+                <text x="315" y="158" font-size="8" fill="#5b6270" text-anchor="middle">39</text>
+                <text x="184" y="170" font-size="9" fill="#5b6270" text-anchor="middle">steps back from the last word</text>
+                <rect x="30" y="180" width="10" height="3" fill="#b91c1c" />
+                <text x="44" y="186" font-size="8" fill="#111111">RNN ×0.48/step</text>
+                <rect x="126" y="180" width="10" height="3" fill="#5b6270" />
+                <text x="140" y="186" font-size="8" fill="#111111">LSTM ×0.60</text>
+                <rect x="212" y="180" width="10" height="3" fill="#2563eb" />
+                <text x="226" y="186" font-size="8" fill="#111111">forget gate open ×1.00</text>
+                </svg>
+                <p class="figure__caption">
+                  The three curves are the three columns of that table. Note the axis: each gridline is a thousand-fold drop. The red line falls off the chart; the blue one is flat.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">How to read this</span>
+                <dl class="breakdown__list">
+                  <dt>×0.48 per step</dt>
+                  <dd>the plain RNN loses half the signal at every word. After 20 words there is a millionth left; after 39, 5·10⁻¹³</dd>
+                  <dt>×0.60 per step</dt>
+                  <dd>an untrained LSTM is only a little better. The gates start half-open, so it still decays — <strong>the architecture alone does not fix anything</strong></dd>
+                  <dt>×1.00 per step</dt>
+                  <dd>the same LSTM with the forget gate held open. The signal reaches the first word essentially undiminished — 0.83 of what the last word gets</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The point:</strong> an LSTM does not remove the vanishing
+                  gradient. It gives the model a knob that <em>can</em> switch it off, and
+                  lets training decide, per dimension and per review, when to turn it.
+                  A plain RNN has no such knob.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">What an LSTM adds</h3>
               <div class="definition">
                 <p>
                   An <strong>LSTM</strong> adds a second vector, the
                   <strong>cell state</strong>, which travels from step to step almost
-                  untouched — added to and erased from, not rewritten. Three
-                  <strong>gates</strong>, each a small network producing numbers between 0
-                  and 1, decide what to erase, what to add, and what to reveal.
+                  untouched — multiplied and added to, never passed through a weight
+                  matrix. Three <strong>gates</strong>, each a small network producing
+                  numbers between 0 and 1, decide what to erase, what to add, and what to
+                  reveal.
                 </p>
               </div>
               <div class="figure">
-                <svg viewBox="0 0 340 160" role="img" aria-labelledby="fig-lstm-t">
-                <title id="fig-lstm-t">An LSTM cell: the cell state runs straight through, three gates edit it</title>
-                <line x1="10" y1="34" x2="330" y2="34" stroke="#2563eb" stroke-width="2.5" />
-                <text x="20" y="24" font-size="10" fill="#2563eb">cell state c</text>
-                <text x="316" y="24" font-size="10" fill="#2563eb" text-anchor="end">c</text>
-                <rect x="46" y="74" width="66" height="28" rx="6" fill="#fef2f2" stroke="#fecaca" />
-                <text x="79" y="92" font-size="11" fill="#111111" text-anchor="middle">forget</text>
-                <rect x="136" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="169" y="92" font-size="11" fill="#111111" text-anchor="middle">input</text>
-                <rect x="226" y="74" width="66" height="28" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="259" y="92" font-size="11" fill="#111111" text-anchor="middle">output</text>
-                <line x1="79" y1="74" x2="79" y2="34" stroke="#5b6270" stroke-width="1.5" />
-                <line x1="169" y1="74" x2="169" y2="34" stroke="#5b6270" stroke-width="1.5" />
-                <line x1="259" y1="74" x2="259" y2="34" stroke="#5b6270" stroke-width="1.5" />
-                <text x="79" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to drop</text>
-                <text x="169" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to add</text>
-                <text x="259" y="120" font-size="9" fill="#5b6270" text-anchor="middle">what to reveal</text>
-                <line x1="169" y1="126" x2="169" y2="140" stroke="#c7d9ff" stroke-width="1.5" />
-                <text x="169" y="152" font-size="11" fill="#111111" text-anchor="middle">word at this step + previous h</text>
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-lstmfull-t">
+                <title id="fig-lstmfull-t">One LSTM step: the cell state is multiplied by the forget gate, then added to</title>
+                <line x1="10" y1="30" x2="330" y2="30" stroke="#2563eb" stroke-width="3" />
+                <text x="14" y="22" font-size="9" fill="#2563eb">cₜ₋₁</text>
+                <text x="326" y="22" font-size="9" fill="#2563eb" text-anchor="end">cₜ</text>
+                <circle cx="104" cy="30" r="11" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" />
+                <text x="104" y="35" font-size="12" fill="#111111" text-anchor="middle">×</text>
+                <circle cx="196" cy="30" r="11" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" />
+                <text x="196" y="35" font-size="12" fill="#111111" text-anchor="middle">+</text>
+                <rect x="74" y="82" width="60" height="24" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="104" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  forget</text>
+                <line x1="104" y1="82" x2="104" y2="41" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="146" y="82" width="46" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="169" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  in</text>
+                <rect x="198" y="82" width="52" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="224" y="98" font-size="10" fill="#111111" text-anchor="middle">tanh  ĉ</text>
+                <circle cx="196" cy="62" r="9" fill="#ffffff" stroke="#5b6270" stroke-width="1.3" />
+                <text x="196" y="66" font-size="10" fill="#111111" text-anchor="middle">×</text>
+                <line x1="169" y1="82" x2="190" y2="70" stroke="#5b6270" stroke-width="1.3" />
+                <line x1="224" y1="82" x2="203" y2="70" stroke="#5b6270" stroke-width="1.3" />
+                <line x1="196" y1="53" x2="196" y2="41" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="262" y="82" width="62" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="293" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  out</text>
+                <line x1="293" y1="82" x2="293" y2="60" stroke="#5b6270" stroke-width="1.3" />
+                <circle cx="293" cy="49" r="9" fill="#ffffff" stroke="#5b6270" stroke-width="1.3" />
+                <text x="293" y="53" font-size="10" fill="#111111" text-anchor="middle">×</text>
+                <path d="M 310 30 L 318 30 L 318 44 L 302 49" fill="none" stroke="#2563eb" stroke-width="1.3" />
+                <text x="330" y="44" font-size="8" fill="#5b6270" text-anchor="end">tanh</text>
+                <line x1="293" y1="58" x2="293" y2="128" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="262" y="128" width="62" height="24" rx="5" fill="#ffffff" stroke="#c7d9ff" />
+                <text x="293" y="144" font-size="10" fill="#111111" text-anchor="middle">hₜ</text>
+                <rect x="74" y="128" width="176" height="24" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="162" y="144" font-size="10" fill="#111111" text-anchor="middle">xₜ  and  hₜ₋₁  feed all four</text>
+                <line x1="104" y1="128" x2="104" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
+                <line x1="169" y1="128" x2="169" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
+                <line x1="224" y1="128" x2="224" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
+                <line x1="256" y1="140" x2="262" y2="140" stroke="#c7d9ff" stroke-width="1.3" />
+                <text x="170" y="176" font-size="10" fill="#111111" text-anchor="middle">cₜ = f ⊙ cₜ₋₁ + i ⊙ ĉ      hₜ = o ⊙ tanh(cₜ)</text>
+                <text x="170" y="196" font-size="9" fill="#5b6270" text-anchor="middle">the blue line meets only × and + — never a weight matrix,</text>
+                <text x="170" y="210" font-size="9" fill="#5b6270" text-anchor="middle">which is why a gradient can travel along it unchanged</text>
                 </svg>
                 <p class="figure__caption">
-                  The cell state runs straight along the top. The gates edit it; they do
-                  not replace it.
+                  The blue line is the cell state. Follow it across: it meets one multiplication and one addition, and nothing else. That straight path is what the gradient travels back along.
                 </p>
               </div>
               <div class="breakdown">
-                <span class="breakdown__label">The three gates</span>
+                <span class="breakdown__label">The two equations, term by term</span>
                 <dl class="breakdown__list">
-                  <dt>forget</dt>
-                  <dd>multiplies the cell state, choosing what to drop. Near 1 keeps a memory alive across many words</dd>
-                  <dt>input</dt>
-                  <dd>decides how much of the new candidate value to add at this step</dd>
-                  <dt>output</dt>
-                  <dd>decides how much of the cell state becomes the visible hidden state</dd>
+                  <dt>f ⊙ cₜ₋₁</dt>
+                  <dd><strong>forget.</strong> A number near 1 keeps that dimension of the memory; near 0 erases it. This is the knob measured above</dd>
+                  <dt>i ⊙ ĉ</dt>
+                  <dd><strong>input.</strong> <code>ĉ</code> is the new candidate value, <code>i</code> decides how much of it to write</dd>
+                  <dt>cₜ = f ⊙ cₜ₋₁ + i ⊙ ĉ</dt>
+                  <dd>the whole update: scale what was there, add what is new. An addition, not a rewrite</dd>
+                  <dt>hₜ = o ⊙ tanh(cₜ)</dt>
+                  <dd><strong>output.</strong> The memory and the visible state are now two different things — the cell can hold something without exposing it</dd>
                 </dl>
                 <p class="breakdown__reading">
-                  <strong>Why this helps:</strong> the cell state's path from one step to
-                  the next is an addition, not a matrix multiplication, so the gradient can
-                  travel a long way back without shrinking to nothing.
+                  <strong>Compare with the RNN:</strong> there, <code>h</code> was both the
+                  memory and the output, and every step overwrote it. Here the memory has
+                  its own protected lane.
                 </p>
               </div>
+
+              <h3 style="margin-top: 44px">The gates, printed</h3>
+              <p class="narrow">
+                The same trick as before: write the equations out by hand, print the gate
+                values at every step, and confirm against <code>nn.LSTM</code>.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+
+lstm = nn.LSTM(input_size=3, hidden_size=4, batch_first=True)
+words = torch.randn(1, 6, 3)
+
+# nn.LSTM stacks the four gates into one matrix, in this order:
+i_w, f_w, g_w, o_w = lstm.weight_ih_l0.chunk(4)
+i_u, f_u, g_u, o_u = lstm.weight_hh_l0.chunk(4)
+i_b, f_b, g_b, o_b = (lstm.bias_ih_l0 + lstm.bias_hh_l0).chunk(4)
+
+h = torch.zeros(4)
+c = torch.zeros(4)
+print(f"{'step':&gt;4}  {'forget':&gt;22}  {'input':&gt;22}  {'cell state c':&gt;26}")
+for t in range(6):
+    x = words[0, t]
+    f = torch.sigmoid(f_w @ x + f_u @ h + f_b)      # what to keep from c
+    i = torch.sigmoid(i_w @ x + i_u @ h + i_b)      # how much of the new value to add
+    g = torch.tanh(g_w @ x + g_u @ h + g_b)         # the candidate value
+    o = torch.sigmoid(o_w @ x + o_u @ h + o_b)      # what to reveal
+    c = f * c + i * g                               # &lt;- the highway: multiply, then add
+    h = o * torch.tanh(c)                           # &lt;- what the next layer sees
+    print(f"{t + 1:&gt;4}  {str(f.detach().numpy().round(2)):&gt;22}"
+          f"  {str(i.detach().numpy().round(2)):&gt;22}"
+          f"  {str(c.detach().numpy().round(2)):&gt;26}")
+
+_, (h_torch, c_torch) = lstm(words)
+print("\nmatches nn.LSTM — h:", bool(torch.allclose(h, h_torch[0, 0], atol=1e-6)),
+      " c:", bool(torch.allclose(c, c_torch[0, 0], atol=1e-6)))
+print("\nforget values near 1 keep a memory alive; near 0 erase it.")
+print("c is only ever multiplied by f and added to — never passed through a matrix.")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>step                  forget                   input                cell state c
+   1   [0.39 0.53 0.63 0.52]   [0.36 0.54 0.57 0.4 ]   [ 0.13  0.02 -0.08  0.16]
+   2   [0.35 0.52 0.55 0.43]   [0.5  0.45 0.66 0.4 ]   [ 0.03 -0.09  0.26  0.25]
+   3   [0.28 0.49 0.52 0.55]   [0.48 0.4  0.61 0.42]   [ 0.01 -0.25  0.22  0.22]
+   4   [0.41 0.49 0.65 0.54]   [0.36 0.55 0.54 0.4 ]   [ 0.11 -0.09  0.04  0.26]
+   5   [0.51 0.45 0.7  0.53]   [0.31 0.59 0.45 0.45]   [ 0.12  0.19 -0.2   0.45]
+   6   [0.49 0.6  0.76 0.45]   [0.3  0.65 0.55 0.37]   [ 0.24  0.38 -0.25  0.33]
+
+matches nn.LSTM — h: True  c: True
+
+forget values near 1 keep a memory alive; near 0 erase it.
+c is only ever multiplied by f and added to — never passed through a matrix.</code></pre></div>
+              <p class="note">
+                <strong>Read the forget column.</strong> Every value is a separate decision
+                for a separate dimension of the memory — at step 6 this untrained network
+                keeps 76% of dimension 3 and 45% of dimension 4. Training moves these
+                towards the values the task needs. Read the cell-state column across and
+                you can see values persisting and accumulating rather than being replaced:
+                dimension 4 climbs 0.16 → 0.25 → 0.22 → 0.26 → 0.45 while the words keep
+                changing.
+              </p>
               <p class="note">
                 <strong>The cost is size.</strong> An LSTM computes four things where an
                 RNN computes one — the three gates and the candidate value — so its
@@ -461,84 +841,195 @@ the ten most frequent words:
                 </p>
               </div>
 
-              <h3 style="margin-top: 44px">Padding a batch</h3>
+              <h3 style="margin-top: 44px">Batching: why padding is needed at all</h3>
               <p class="narrow">
-                Reviews have different lengths, but a tensor is a rectangle. We pad to the
-                longest review in the batch and pass the true lengths alongside, so the
-                network can stop where each review actually ends.
+                The network is fastest when it processes many reviews at once, because
+                that turns per-word arithmetic into matrix multiplication. But a batch is
+                a tensor, and a tensor is a rectangle: every row must have the same
+                length. Reviews do not. So we pad each batch out to its longest review and
+                pass the true lengths alongside.
               </p>
+              <div class="breakdown">
+                <span class="breakdown__label">Three decisions in <code>collate</code></span>
+                <dl class="breakdown__list">
+                  <dt>pad to the batch</dt>
+                  <dd>not to a fixed width. A batch of short reviews stays narrow, so no work is wasted on a rectangle sized for the longest review in the dataset</dd>
+                  <dt>pad with 0</dt>
+                  <dd>index 0 is <code>&lt;pad&gt;</code>, and <code>Embedding(..., padding_idx=0)</code> keeps that row at zero and never trains it</dd>
+                  <dt>keep the lengths</dt>
+                  <dd>without them nothing downstream can tell a real word from filler</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> padding is a shape problem, not a modelling
+                  idea. Everything that follows exists to undo it.
+                </p>
+              </div>
               <div class="figure">
-                <svg viewBox="0 0 340 130" role="img" aria-labelledby="fig-pad-t">
-                <title id="fig-pad-t">Padding three reviews of different length into one rectangular batch</title>
-                <rect x="14" y="20" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="78" y="20" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="142" y="20" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="206" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <rect x="270" y="20" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <rect x="14" y="50" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="78" y="50" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="142" y="50" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="206" y="50" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="270" y="50" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="14" y="80" width="60" height="22" rx="4" fill="#2563eb" />
-                <rect x="78" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <rect x="142" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <rect x="206" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <rect x="270" y="80" width="60" height="22" rx="4" fill="#e8ecf2" stroke="#d1d6de" />
-                <text x="44" y="36" font-size="10" fill="#ffffff" text-anchor="middle">142</text>
-                <text x="108" y="36" font-size="10" fill="#ffffff" text-anchor="middle">7</text>
-                <text x="172" y="36" font-size="10" fill="#ffffff" text-anchor="middle">39</text>
-                <text x="236" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="300" y="36" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="172" y="66" font-size="10" fill="#ffffff" text-anchor="middle">…</text>
-                <text x="44" y="96" font-size="10" fill="#ffffff" text-anchor="middle">88</text>
-                <text x="108" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="172" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="236" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="300" y="96" font-size="10" fill="#5b6270" text-anchor="middle">0</text>
-                <text x="14" y="118" font-size="10" fill="#5b6270">lengths = [3, 5, 1] — so nothing reads the grey cells</text>
+                <svg viewBox="0 0 340 208" role="img" aria-labelledby="fig-pack-t">
+                <title id="fig-pack-t">How pack_padded_sequence turns a padded rectangle into real steps only</title>
+                <text x="8" y="14" font-size="9" fill="#5b6270">the padded rectangle: 15 cells, 6 of them meaningless</text>
+                <rect x="10" y="22" width="40" height="20" fill="#2563eb" /><text x="30" y="36" font-size="9" fill="#ffffff" text-anchor="middle">142</text>
+                <rect x="52" y="22" width="40" height="20" fill="#2563eb" /><text x="72" y="36" font-size="9" fill="#ffffff" text-anchor="middle">7</text>
+                <rect x="94" y="22" width="40" height="20" fill="#2563eb" /><text x="114" y="36" font-size="9" fill="#ffffff" text-anchor="middle">39</text>
+                <rect x="136" y="22" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="156" y="36" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="178" y="22" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="198" y="36" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="10" y="44" width="40" height="20" fill="#2563eb" /><text x="30" y="58" font-size="9" fill="#ffffff" text-anchor="middle">12</text>
+                <rect x="52" y="44" width="40" height="20" fill="#2563eb" /><text x="72" y="58" font-size="9" fill="#ffffff" text-anchor="middle">88</text>
+                <rect x="94" y="44" width="40" height="20" fill="#2563eb" /><text x="114" y="58" font-size="9" fill="#ffffff" text-anchor="middle">4</text>
+                <rect x="136" y="44" width="40" height="20" fill="#2563eb" /><text x="156" y="58" font-size="9" fill="#ffffff" text-anchor="middle">501</text>
+                <rect x="178" y="44" width="40" height="20" fill="#2563eb" /><text x="198" y="58" font-size="9" fill="#ffffff" text-anchor="middle">63</text>
+                <rect x="10" y="66" width="40" height="20" fill="#2563eb" /><text x="30" y="80" font-size="9" fill="#ffffff" text-anchor="middle">88</text>
+                <rect x="52" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="72" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="94" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="114" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="136" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="156" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="178" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="198" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
+                <text x="226" y="36" font-size="9" fill="#5b6270">len 3</text>
+                <text x="226" y="58" font-size="9" fill="#5b6270">len 5</text>
+                <text x="226" y="80" font-size="9" fill="#5b6270">len 1</text>
+                <text x="30" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=1</text>
+                <text x="72" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=2</text>
+                <text x="114" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=3</text>
+                <text x="156" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=4</text>
+                <text x="198" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=5</text>
+                <text x="8" y="126" font-size="9" fill="#5b6270">packed: the same 9 real cells, read column by column</text>
+                <rect x="10" y="134" width="34" height="18" fill="#2563eb" /><text x="27" y="147" font-size="8" fill="#ffffff" text-anchor="middle">12</text>
+                <rect x="46" y="134" width="34" height="18" fill="#2563eb" /><text x="63" y="147" font-size="8" fill="#ffffff" text-anchor="middle">142</text>
+                <rect x="82" y="134" width="34" height="18" fill="#2563eb" /><text x="99" y="147" font-size="8" fill="#ffffff" text-anchor="middle">88</text>
+                <rect x="122" y="134" width="34" height="18" fill="#2563eb" /><text x="139" y="147" font-size="8" fill="#ffffff" text-anchor="middle">88</text>
+                <rect x="158" y="134" width="34" height="18" fill="#2563eb" /><text x="175" y="147" font-size="8" fill="#ffffff" text-anchor="middle">7</text>
+                <rect x="198" y="134" width="34" height="18" fill="#2563eb" /><text x="215" y="147" font-size="8" fill="#ffffff" text-anchor="middle">4</text>
+                <rect x="234" y="134" width="34" height="18" fill="#2563eb" /><text x="251" y="147" font-size="8" fill="#ffffff" text-anchor="middle">39</text>
+                <rect x="274" y="134" width="34" height="18" fill="#2563eb" /><text x="291" y="147" font-size="8" fill="#ffffff" text-anchor="middle">501</text>
+                <rect x="310" y="134" width="26" height="18" fill="#2563eb" /><text x="323" y="147" font-size="8" fill="#ffffff" text-anchor="middle">63</text>
+                <line x1="118" y1="130" x2="118" y2="156" stroke="#5b6270" />
+                <line x1="194" y1="130" x2="194" y2="156" stroke="#5b6270" />
+                <line x1="230" y1="130" x2="230" y2="156" stroke="#5b6270" />
+                <line x1="270" y1="130" x2="270" y2="156" stroke="#5b6270" />
+                <text x="63" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=1: 3</text>
+                <text x="156" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=2: 2</text>
+                <text x="212" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=3: 2</text>
+                <text x="250" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=4: 1</text>
+                <text x="303" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=5: 1</text>
+                <text x="168" y="190" font-size="9" fill="#111111" text-anchor="middle">batch_sizes = [3, 2, 2, 1, 1] — how many reviews are still running</text>
+                <text x="168" y="203" font-size="9" fill="#5b6270" text-anchor="middle">the grey cells are never computed, and never touch a hidden state</text>
                 </svg>
                 <p class="figure__caption">
-                  Three reviews of length 3, 5 and 1, padded into one 3 × 5 batch. The grey
-                  cells exist only to make the rectangle.
+                  Above: the rectangle, 15 cells for 9 real words. Below: the same words packed into a flat list, ordered by time step, with a count of how many reviews are still running at each step.
                 </p>
               </div>
               <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
 
-# three reviews, already turned into indices by the vocabulary
+# three reviews of different length, already turned into indices
 batch = [[142, 7, 39], [12, 88, 4, 501, 63], [88]]
-
 lengths = torch.tensor([len(ids) for ids in batch])
-width = int(lengths.max())
 
-padded = torch.full((len(batch), width), 0, dtype=torch.long)   # 0 is &lt;pad&gt;
+padded = torch.zeros(len(batch), int(lengths.max()), dtype=torch.long)
 for i, ids in enumerate(batch):
     padded[i, :len(ids)] = torch.tensor(ids)
 
-print("lengths:", lengths.tolist())
-print("padded batch:")
+print("the rectangle we have to build:")
 print(padded)
-print("shape:", tuple(padded.shape))
+print("real cells:", int(lengths.sum()), " padding cells:", padded.numel() - int(lengths.sum()))
 
-packed = torch.nn.utils.rnn.pack_padded_sequence(
+packed = nn.utils.rnn.pack_padded_sequence(
     padded.unsqueeze(-1).float(), lengths, batch_first=True, enforce_sorted=False)
-print("\nreal steps the network will run:", int(packed.data.shape[0]),
-      "of", padded.numel(), "cells in the rectangle")</code></pre></div>
-              <div class="code-block" data-lang="output"><pre><code>lengths: [3, 5, 1]
-padded batch:
+
+print("\npack_padded_sequence turns it into a flat list of the real steps only:")
+print("data       :", packed.data.squeeze(-1).long().tolist())
+print("batch_sizes:", packed.batch_sizes.tolist())
+print("\nread batch_sizes as: at time step 1 there are 3 reviews still running,")
+print("at step 2 there are 2, at steps 3, 4 and 5 only 1.")
+print("The network runs", len(packed.batch_sizes), "steps and touches",
+      int(packed.batch_sizes.sum()), "cells instead of", padded.numel())</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>the rectangle we have to build:
 tensor([[142,   7,  39,   0,   0],
         [ 12,  88,   4, 501,  63],
         [ 88,   0,   0,   0,   0]])
-shape: (3, 5)
+real cells: 9  padding cells: 6
 
-real steps the network will run: 9 of 15 cells in the rectangle</code></pre></div>
+pack_padded_sequence turns it into a flat list of the real steps only:
+data       : [12, 142, 88, 88, 7, 4, 39, 501, 63]
+batch_sizes: [3, 2, 2, 1, 1]
+
+read batch_sizes as: at time step 1 there are 3 reviews still running,
+at step 2 there are 2, at steps 3, 4 and 5 only 1.
+The network runs 5 steps and touches 9 cells instead of 15</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What the two arrays mean</span>
+                <dl class="breakdown__list">
+                  <dt>data</dt>
+                  <dd>every real word, ordered by time step rather than by review: all the first words, then all the second words, and so on</dd>
+                  <dt>batch_sizes</dt>
+                  <dd><code>[3, 2, 2, 1, 1]</code> — three reviews are still running at step 1, only one by step 4. The counts fall as short reviews finish</dd>
+                  <dt>the result</dt>
+                  <dd>5 time steps, 9 cells touched. The 6 padding cells are never computed at all</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Reading:</strong> <code>enforce_sorted=False</code> is what lets
+                  us hand reviews over in any order — PyTorch sorts them internally and
+                  puts the results back in our order afterwards.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">What goes wrong without packing</h3>
+              <p class="narrow">
+                It is tempting to skip this and feed the rectangle straight in. The model
+                still runs, and the bug is silent — which is exactly why it is worth
+                measuring.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+torch.manual_seed(0)
+rnn = nn.RNN(input_size=4, hidden_size=5, batch_first=True)
+
+# One review of 3 words, padded out to 8 with zeros.
+review = torch.randn(1, 3, 4)
+padded = torch.cat([review, torch.zeros(1, 5, 4)], dim=1)
+lengths = torch.tensor([3])
+
+_, honest = rnn(review)                                   # only the real words
+_, naive = rnn(padded)                                    # padding included
+
+packed = nn.utils.rnn.pack_padded_sequence(padded, lengths, batch_first=True,
+                                           enforce_sorted=False)
+_, packed_state = rnn(packed)
+
+print("last hidden state, reading only the 3 real words:")
+print("  ", honest[0, 0].detach().numpy().round(3))
+print("last hidden state, reading 5 padding steps as well:")
+print("  ", naive[0, 0].detach().numpy().round(3))
+print("last hidden state with pack_padded_sequence:")
+print("  ", packed_state[0, 0].detach().numpy().round(3))
+
+print("\npadding changed the answer  :",
+      not bool(torch.allclose(honest, naive, atol=1e-5)),
+      f" (largest difference {float((honest - naive).abs().max()):.3f})")
+print("packing gave the right answer:",
+      bool(torch.allclose(honest, packed_state, atol=1e-6)))
+print("\n&lt;pad&gt; is index 0, but a zero embedding is not a no-op: tanh(W·0 + b + U·h)")
+print("still rewrites the state. Packing is what stops it.")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>last hidden state, reading only the 3 real words:
+   [0.432 0.716 0.593 0.367 0.586]
+last hidden state, reading 5 padding steps as well:
+   [ 0.217  0.695  0.478 -0.216  0.188]
+last hidden state with pack_padded_sequence:
+   [0.432 0.716 0.593 0.367 0.586]
+
+padding changed the answer  : True  (largest difference 0.583)
+packing gave the right answer: True
+
+&lt;pad&gt; is index 0, but a zero embedding is not a no-op: tanh(W·0 + b + U·h)
+still rewrites the state. Packing is what stops it.</code></pre></div>
               <p class="note">
-                <strong><code>pack_padded_sequence</code> is what makes the padding
-                harmless.</strong> Without it the network would read six cells of
-                <code>&lt;pad&gt;</code> and update its hidden state on them, so a short
-                review would end with a state built mostly from filler. Packing tells
-                PyTorch to run 9 real steps instead of all 15 cells — correct
-                <em>and</em> faster.
+                <strong>The padded run gives a different answer, and a wrong one.</strong>
+                A zero embedding is not a no-op: the step still computes
+                <code>tanh(W·0 + b + U·h)</code>, so five padding steps keep rewriting the
+                state after the review has ended. The shorter the review, the more of its
+                final state is filler — and short reviews are most of our data, at about
+                nine words each. <code>pack_padded_sequence</code> reproduces the honest
+                answer exactly, and does less work doing it.
               </p>
             </div>
           </section>
@@ -551,6 +1042,122 @@ real steps the network will run: 9 of 15 cells in the rectangle</code></pre></di
                 Three layers and eleven lines. Switching between an RNN and an LSTM is one
                 word.
               </p>
+              <h3 style="margin-top: 36px">The shape of the data at every layer</h3>
+              <p class="narrow">
+                Before the class, the pipeline it implements — four layers, and the shape
+                of what flows between them.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 232" role="img" aria-labelledby="fig-shapes-t">
+                <title id="fig-shapes-t">The shape of the data at every layer of the network</title>
+                <rect x="66" y="10" width="208" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="27" font-size="10" fill="#111111" text-anchor="middle">ids  (3, 5)  — a batch of 3 reviews, 5 slots</text>
+                <line x1="170" y1="36" x2="170" y2="48" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="66" y="48" width="208" height="26" rx="5" fill="#2563eb" />
+                <text x="170" y="65" font-size="10" fill="#ffffff" text-anchor="middle">Embedding(5916, 100)</text>
+                <text x="284" y="65" font-size="9" fill="#5b6270">591 600</text>
+                <line x1="170" y1="74" x2="170" y2="86" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="66" y="86" width="208" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="101" font-size="10" fill="#111111" text-anchor="middle">(3, 5, 100)  →  packed  (9, 100)</text>
+                <line x1="170" y1="108" x2="170" y2="120" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="66" y="120" width="208" height="26" rx="5" fill="#2563eb" />
+                <text x="170" y="137" font-size="10" fill="#ffffff" text-anchor="middle">LSTM(100, 128)</text>
+                <text x="284" y="137" font-size="9" fill="#5b6270">117 760</text>
+                <line x1="170" y1="146" x2="170" y2="158" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="66" y="158" width="208" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="173" font-size="10" fill="#111111" text-anchor="middle">h[-1]  (3, 128)  — one vector per review</text>
+                <line x1="170" y1="180" x2="170" y2="192" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="66" y="192" width="208" height="24" rx="5" fill="#2563eb" />
+                <text x="170" y="208" font-size="10" fill="#ffffff" text-anchor="middle">Linear(128, 2)  →  (3, 2)</text>
+                <text x="284" y="208" font-size="9" fill="#5b6270">258</text>
+                <text x="10" y="65" font-size="9" fill="#5b6270">layer</text>
+                <text x="10" y="101" font-size="9" fill="#5b6270">shape</text>
+                <text x="10" y="137" font-size="9" fill="#5b6270">layer</text>
+                <text x="10" y="173" font-size="9" fill="#5b6270">shape</text>
+                <text x="10" y="208" font-size="9" fill="#5b6270">layer</text>
+                <text x="284" y="24" font-size="9" fill="#5b6270">weights</text>
+                <text x="170" y="228" font-size="9" fill="#5b6270" text-anchor="middle">709 618 parameters, and 83% of them are the embedding table</text>
+                </svg>
+                <p class="figure__caption">
+                  A batch of three reviews going through the whole network. Blue boxes hold weights; grey boxes are the data between them.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+import torch.nn as nn
+
+PAD = 0
+torch.manual_seed(0)
+
+embedding = nn.Embedding(5916, 100, padding_idx=PAD)
+lstm = nn.LSTM(100, 128, batch_first=True)
+out = nn.Linear(128, 2)
+
+ids = torch.tensor([[142, 7, 39, 0, 0],       # 3 real words, 2 padding
+                    [12, 88, 4, 501, 63],     # 5 real words
+                    [88, 0, 0, 0, 0]])        # 1 real word
+lengths = torch.tensor([3, 5, 1])
+
+print("ids                          ", tuple(ids.shape), "  integers")
+e = embedding(ids)
+print("after Embedding              ", tuple(e.shape), " one 100-number vector per word")
+packed = nn.utils.rnn.pack_padded_sequence(e, lengths, batch_first=True, enforce_sorted=False)
+print("after pack_padded_sequence   ", tuple(packed.data.shape), "  only the 9 real words")
+_, (h, c) = lstm(packed)
+print("hidden state h               ", tuple(h.shape), "  (layers, batch, hidden)")
+print("cell state c                 ", tuple(c.shape), "  same shape, stays inside")
+last = h[-1]
+print("h[-1] — the last layer       ", tuple(last.shape), "  one vector per review")
+logits = out(last)
+print("after Linear                 ", tuple(logits.shape), "    one score per class")
+print("\nlogits:\n", logits.detach().numpy().round(3))
+print("\npredicted class per review:", logits.argmax(1).tolist())
+print("\n5 words in, 2 numbers out. Everything the model decided about a review")
+print("has to fit through the 128 numbers of h[-1].")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>ids                           (3, 5)   integers
+after Embedding               (3, 5, 100)  one 100-number vector per word
+after pack_padded_sequence    (9, 100)   only the 9 real words
+hidden state h                (1, 3, 128)   (layers, batch, hidden)
+cell state c                  (1, 3, 128)   same shape, stays inside
+h[-1] — the last layer        (3, 128)   one vector per review
+after Linear                  (3, 2)     one score per class
+
+logits:
+ [[ 0.016 -0.012]
+ [ 0.018 -0.15 ]
+ [-0.037 -0.159]]
+
+predicted class per review: [0, 0, 0]
+
+5 words in, 2 numbers out. Everything the model decided about a review
+has to fit through the 128 numbers of h[-1].</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Where every number goes</span>
+                <dl class="breakdown__list">
+                  <dt>(3, 5) → (3, 5, 100)</dt>
+                  <dd><code>Embedding</code> replaces each integer with its row of the table. This is the layer we will start from the Lecture 4 vectors</dd>
+                  <dt>(3, 5, 100) → (9, 100)</dt>
+                  <dd>packing drops the padding: 15 slots become the 9 words that exist</dd>
+                  <dt>→ (1, 3, 128)</dt>
+                  <dd>the LSTM returns the final state per review. The leading 1 is the layer count — with <code>num_layers=2</code> it would be 2</dd>
+                  <dt>h[-1] → (3, 128)</dt>
+                  <dd>take the last layer. One 128-number vector per review, whatever its length was</dd>
+                  <dt>(3, 128) → (3, 2)</dt>
+                  <dd><code>Linear</code> turns that into one score per class</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The bottleneck:</strong> a review of any length leaves as 128
+                  numbers. Everything the model concluded has to fit through <code>h[-1]</code> —
+                  and that limit is what the next lecture's attention mechanism removes.
+                </p>
+              </div>
+              <p class="note">
+                <strong>83% of the parameters are the embedding table.</strong>
+                591 600 of 709 618, against 117 760 for the LSTM itself. The network is
+                mostly a word lookup — which is why initialising it well, rather than at
+                random, turns out to matter more than any change to the recurrent layer.
+              </p>
+
+              <h3 style="margin-top: 44px">The class</h3>
               <div class="code-block" data-lang="python"><pre><code>import torch
 import torch.nn as nn
 
