@@ -164,6 +164,34 @@
                 </p>
               </div>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-eng-t">
+                <title id="fig-eng-t">What a regex engine does: walk the text, try the pattern at each position</title>
+                <text x="8" y="14" font-size="9" fill="#5b6270">движок пробует шаблон на позиции 0, затем 1, затем 2 …</text>
+                <text x="8" y="36" font-size="10" fill="#111111">шаблон</text>
+                <rect x="58" y="24" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="98" y="38" font-size="10" fill="#ffffff" text-anchor="middle">\d{4}</text>
+                <text x="150" y="38" font-size="9" fill="#5b6270">четыре цифры подряд</text>
+                <text x="8" y="64" font-size="10" fill="#111111">текст</text>
+                <rect x="58" y="52" width="22" height="24" fill="#ffffff" stroke="#d1d6de" /><text x="69" y="69" font-size="11" fill="#111111" text-anchor="middle">A</text>
+                <rect x="82" y="52" width="22" height="24" fill="#ffffff" stroke="#d1d6de" /><text x="93" y="69" font-size="11" fill="#111111" text-anchor="middle">s</text>
+                <rect x="106" y="52" width="22" height="24" fill="#2563eb" /><text x="117" y="69" font-size="11" fill="#ffffff" text-anchor="middle">2</text>
+                <rect x="130" y="52" width="22" height="24" fill="#2563eb" /><text x="141" y="69" font-size="11" fill="#ffffff" text-anchor="middle">0</text>
+                <rect x="154" y="52" width="22" height="24" fill="#2563eb" /><text x="165" y="69" font-size="11" fill="#ffffff" text-anchor="middle">2</text>
+                <rect x="178" y="52" width="22" height="24" fill="#2563eb" /><text x="189" y="69" font-size="11" fill="#ffffff" text-anchor="middle">6</text>
+                <rect x="202" y="52" width="22" height="24" fill="#ffffff" stroke="#d1d6de" /><text x="213" y="69" font-size="11" fill="#111111" text-anchor="middle">ж</text>
+                <text x="58" y="92" font-size="8" fill="#b91c1c">✗</text>
+                <text x="82" y="92" font-size="8" fill="#b91c1c">✗</text>
+                <text x="106" y="92" font-size="8" fill="#2563eb">✓ совпадение начинается здесь</text>
+                <rect x="8" y="104" width="324" height="36" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="119" font-size="9" fill="#111111" text-anchor="middle">совпадение — это позиция и длина, больше движок ничего не возвращает,</text>
+                <text x="170" y="132" font-size="9" fill="#111111" text-anchor="middle">а группы добавляют позиции своих под-совпадений</text>
+                </svg>
+                <p class="figure__caption">
+                  Движок скользит по тексту и пробует шаблон на каждой позиции. Совпадение — это всего лишь начальная точка и длина.
+                </p>
+              </div>
+
               <ul
                 class="diagram"
                 style="margin-top: 32px"
@@ -227,6 +255,35 @@
                 Класс символов совпадает с <strong>одним</strong> символом. Это
                 самая маленькая деталь любого шаблона.
               </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-cc-t">
+                <title id="fig-cc-t">A character class matches exactly one character out of a set</title>
+                <text x="8" y="14" font-size="10" fill="#111111">[аеиоу] — один символ из этого набора</text>
+                <rect x="8" y="24" width="118" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="67" y="41" font-size="11" fill="#111111" text-anchor="middle">а е и о у</text>
+                <text x="134" y="41" font-size="10" fill="#5b6270">выбрать ровно один</text>
+                <text x="8" y="74" font-size="10" fill="#111111">ищем в «салем» — по одному символу на совпадение</text>
+                <rect x="8" y="84" width="30" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="23" y="103" font-size="13" fill="#111111" text-anchor="middle">с</text>
+                <rect x="40" y="84" width="30" height="28" fill="#2563eb" />
+                <text x="55" y="103" font-size="13" fill="#ffffff" text-anchor="middle">а</text>
+                <rect x="72" y="84" width="30" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="87" y="103" font-size="13" fill="#111111" text-anchor="middle">л</text>
+                <rect x="104" y="84" width="30" height="28" fill="#2563eb" />
+                <text x="119" y="103" font-size="13" fill="#ffffff" text-anchor="middle">е</text>
+                <rect x="136" y="84" width="30" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="151" y="103" font-size="13" fill="#111111" text-anchor="middle">м</text>
+                <text x="180" y="103" font-size="10" fill="#2563eb">2 совпадения, по 1 символу</text>
+                <rect x="8" y="126" width="150" height="24" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="83" y="142" font-size="10" fill="#111111" text-anchor="middle">[^аеиоу] — всё остальное</text>
+                <text x="166" y="142" font-size="10" fill="#5b6270">^ внутри [ ] значит «не»</text>
+                <text x="8" y="163" font-size="9" fill="#5b6270">класс — это один символ; сколько раз — решает квантификатор</text>
+                </svg>
+                <p class="figure__caption">
+                  Класс — это меню, и движок берёт из него ровно один пункт на совпадение. Две гласные в «салем» дают два отдельных совпадения по одному символу.
+                </p>
+              </div>
 
               <div class="table-wrap" style="margin-top: 28px">
                 <table>
@@ -325,6 +382,44 @@
                 Квантификатор повторяет ту деталь, которая написана прямо перед
                 ним.
               </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-q-t">
+                <title id="fig-q-t">The four quantifiers, by how many repetitions each allows</title>
+                <text x="8" y="14" font-size="9" fill="#5b6270">сколько раз может повториться то, что стоит перед ним?</text>
+                <text x="8" y="34" font-size="11" fill="#111111">?</text>
+                <rect x="30" y="22" width="24" height="16" fill="#eef1f5" stroke="#d1d6de" />
+                <rect x="56" y="22" width="24" height="16" fill="#2563eb" />
+                <text x="92" y="34" font-size="9" fill="#5b6270">0 или 1</text>
+                <text x="8" y="62" font-size="11" fill="#111111">*</text>
+                <rect x="30" y="50" width="24" height="16" fill="#eef1f5" stroke="#d1d6de" />
+                <rect x="56" y="50" width="24" height="16" fill="#2563eb" />
+                <rect x="82" y="50" width="24" height="16" fill="#2563eb" />
+                <rect x="108" y="50" width="24" height="16" fill="#2563eb" />
+                <text x="138" y="62" font-size="9" fill="#5b6270">0 или больше</text>
+                <text x="8" y="90" font-size="11" fill="#111111">+</text>
+                <rect x="30" y="78" width="24" height="16" fill="#2563eb" />
+                <rect x="56" y="78" width="24" height="16" fill="#2563eb" />
+                <rect x="82" y="78" width="24" height="16" fill="#2563eb" />
+                <text x="138" y="90" font-size="9" fill="#5b6270">1 или больше — хотя бы один</text>
+                <text x="8" y="118" font-size="11" fill="#111111">{2,4}</text>
+                <rect x="46" y="106" width="24" height="16" fill="#2563eb" />
+                <rect x="72" y="106" width="24" height="16" fill="#2563eb" />
+                <rect x="98" y="106" width="24" height="16" fill="#eef1f5" stroke="#d1d6de" />
+                <rect x="124" y="106" width="24" height="16" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="156" y="118" font-size="9" fill="#5b6270">от 2 до 4</text>
+                <text x="8" y="136" font-size="8" fill="#5b6270">синее — обязательно, серое — необязательно</text>
+                <line x1="8" y1="146" x2="332" y2="146" stroke="#e8ecf2" />
+                <text x="8" y="162" font-size="10" fill="#111111">жадный и ленивый на «&lt;a&gt;&lt;b&gt;»</text>
+                <rect x="8" y="170" width="150" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="184" font-size="9" fill="#111111" text-anchor="middle">&lt;.+&gt; берёт «&lt;a&gt;&lt;b&gt;»</text>
+                <rect x="170" y="170" width="162" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="251" y="184" font-size="9" fill="#111111" text-anchor="middle">&lt;.+?&gt; берёт «&lt;a&gt;», потом «&lt;b&gt;»</text>
+                </svg>
+                <p class="figure__caption">
+                  Синие ячейки обязательны, серые — нет. <code>?</code> после квантификатора делает его ленивым: он останавливается при первой возможности, а не при последней.
+                </p>
+              </div>
 
               <div class="table-wrap" style="margin-top: 28px">
                 <table>
@@ -466,6 +561,36 @@
               <span class="section__eyebrow">Строительный блок 3</span>
               <h2 id="groups">Альтернация и группы — это или то?</h2>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 186" role="img" aria-labelledby="fig-alt-t">
+                <title id="fig-alt-t">Alternation picks one branch; groups decide how far the choice reaches</title>
+                <text x="8" y="14" font-size="10" fill="#111111">(көше|даңғыл|шағын аудан) — одна из трёх веток</text>
+                <rect x="8" y="24" width="66" height="22" rx="5" fill="#2563eb" />
+                <text x="41" y="39" font-size="10" fill="#ffffff" text-anchor="middle">көше</text>
+                <rect x="80" y="24" width="70" height="22" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="115" y="39" font-size="10" fill="#111111" text-anchor="middle">даңғыл</text>
+                <rect x="156" y="24" width="104" height="22" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="208" y="39" font-size="10" fill="#111111" text-anchor="middle">шағын аудан</text>
+                <text x="266" y="39" font-size="9" fill="#5b6270">первая ветка</text>
+                <line x1="8" y1="58" x2="332" y2="58" stroke="#e8ecf2" />
+                <text x="8" y="76" font-size="10" fill="#111111">почему важны скобки</text>
+                <rect x="8" y="86" width="156" height="46" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="86" y="102" font-size="10" fill="#111111" text-anchor="middle">^көше|даңғыл$</text>
+                <text x="86" y="116" font-size="9" fill="#5b6270" text-anchor="middle">«^көше» ИЛИ «даңғыл$»</text>
+                <text x="86" y="128" font-size="9" fill="#b91c1c" text-anchor="middle">якоря разъехались</text>
+                <rect x="176" y="86" width="156" height="46" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="254" y="102" font-size="10" fill="#111111" text-anchor="middle">^(көше|даңғыл)$</text>
+                <text x="254" y="116" font-size="9" fill="#5b6270" text-anchor="middle">вся строка — одно из двух</text>
+                <text x="254" y="128" font-size="9" fill="#2563eb" text-anchor="middle">группа держит их вместе</text>
+                <text x="8" y="152" font-size="9" fill="#5b6270">| имеет самый низкий приоритет: он делит</text>
+<text x="8" y="164" font-size="9" fill="#5b6270">весь шаблон, если группа не остановит</text>
+                <text x="8" y="178" font-size="9" fill="#5b6270">(?:…) группирует без захвата, если нужны только скобки</text>
+                </svg>
+                <p class="figure__caption">
+                  У <code>|</code> самый низкий приоритет во всём языке, поэтому он делит всё вокруг себя. Скобками вы говорите ему, где остановиться.
+                </p>
+              </div>
+
               <h3>Альтернация: <span class="token">|</span> значит ИЛИ</h3>
               <div class="example">
                 <span class="example__label">Любой из нескольких городов</span>
@@ -599,6 +724,41 @@
                 ничего не «съедают», а лишь говорят «вот здесь».
               </p>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 156" role="img" aria-labelledby="fig-an-t">
+                <title id="fig-an-t">Anchors match a position between characters, not a character</title>
+                <text x="8" y="14" font-size="9" fill="#5b6270">якоря нулевой ширины: они совпадают с промежутками, а не с буквами</text>
+                <rect x="30" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="43" y="45" font-size="13" fill="#111111" text-anchor="middle">б</text>
+                <rect x="58" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="71" y="45" font-size="13" fill="#111111" text-anchor="middle">і</text>
+                <rect x="86" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="99" y="45" font-size="13" fill="#111111" text-anchor="middle">р</text>
+                <rect x="128" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="141" y="45" font-size="13" fill="#111111" text-anchor="middle">е</text>
+                <rect x="156" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="169" y="45" font-size="13" fill="#111111" text-anchor="middle">к</text>
+                <rect x="184" y="26" width="26" height="28" fill="#ffffff" stroke="#d1d6de" />
+                <text x="197" y="45" font-size="13" fill="#111111" text-anchor="middle">і</text>
+                <line x1="28" y1="20" x2="28" y2="60" stroke="#2563eb" stroke-width="2" />
+                <text x="28" y="74" font-size="9" fill="#2563eb" text-anchor="middle">^</text>
+                <line x1="114" y1="20" x2="114" y2="60" stroke="#b91c1c" stroke-width="2" />
+                <text x="114" y="74" font-size="9" fill="#b91c1c" text-anchor="middle">\b</text>
+                <line x1="126" y1="20" x2="126" y2="60" stroke="#b91c1c" stroke-width="2" />
+                <text x="126" y="74" font-size="9" fill="#b91c1c" text-anchor="middle">\b</text>
+                <line x1="212" y1="20" x2="212" y2="60" stroke="#2563eb" stroke-width="2" />
+                <text x="212" y="74" font-size="9" fill="#2563eb" text-anchor="middle">$</text>
+                <text x="232" y="45" font-size="9" fill="#5b6270">«бір екі»</text>
+                <text x="8" y="98" font-size="9" fill="#111111">^ начало строки     $ конец строки     \b граница слова</text>
+                <rect x="8" y="108" width="324" height="38" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="123" font-size="9" fill="#111111" text-anchor="middle">в JavaScript \b только ASCII: кириллица для него не буква,</text>
+                <text x="170" y="136" font-size="9" fill="#111111" text-anchor="middle">поэтому \bбір\b не работает на казахском — берите \p{L} с флагом u</text>
+                </svg>
+                <p class="figure__caption">
+                  Синие и красные полоски стоят между буквами, а не на них. Это и значит «нулевая ширина» — якорь никогда не съедает символ.
+                </p>
+              </div>
+
               <div class="grid grid--2" style="margin-top: 28px">
                 <div class="card">
                   <h3><span class="token">^</span> начало текста</h3>
@@ -674,6 +834,26 @@
               <p class="narrow lead">
                 У этих символов внутри шаблона особая работа:
               </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 138" role="img" aria-labelledby="fig-esc-t">
+                <title id="fig-esc-t">A backslash turns a special character back into an ordinary one</title>
+                <text x="8" y="14" font-size="10" fill="#111111">двенадцать символов, которые значат нечто иное</text>
+                <rect x="8" y="22" width="324" height="24" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="39" font-size="12" fill="#111111" text-anchor="middle">. ^ $ * + ? ( ) [ ] { } |  \</text>
+                <text x="8" y="66" font-size="10" fill="#111111">ищем настоящую точку в «сайт.kz»</text>
+                <rect x="8" y="76" width="150" height="42" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="83" y="92" font-size="11" fill="#111111" text-anchor="middle">сайт.kz</text>
+                <text x="83" y="108" font-size="8" fill="#b91c1c" text-anchor="middle">. — любой символ, подойдёт и «сайтXkz»</text>
+                <rect x="176" y="76" width="156" height="42" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="254" y="92" font-size="11" fill="#111111" text-anchor="middle">сайт\.kz</text>
+                <text x="254" y="108" font-size="8" fill="#2563eb" text-anchor="middle">\. — настоящая точка, и только</text>
+                <text x="8" y="133" font-size="9" fill="#5b6270">внутри [ ] почти все теряют силу: [.+*] — три обычных символа</text>
+                </svg>
+                <p class="figure__caption">
+                  Без обратного слэша <code>.</code> совпадает с любым символом — и шаблон принял бы текст, который доменом не является.
+                </p>
+              </div>
               <p>
                 <span class="regex">. + * ? ( ) [ ] { } | ^ $ \</span>
               </p>

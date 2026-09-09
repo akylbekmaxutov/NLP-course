@@ -136,6 +136,35 @@
               <span class="section__eyebrow">Theory · The map</span>
               <h2 id="pipeline">From raw text to numbers</h2>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-pipe-t">
+                <title id="fig-pipe-t">The pipeline from raw text to a matrix of numbers</title>
+                <rect x="8" y="20" width="74" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="45" y="37" font-size="10" fill="#111111" text-anchor="middle">raw text</text>
+                <text x="45" y="58" font-size="8" fill="#5b6270" text-anchor="middle">«Өте Жақсы!!!»</text>
+                <line x1="82" y1="33" x2="98" y2="33" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="98" y="20" width="74" height="26" rx="5" fill="#2563eb" />
+                <text x="135" y="37" font-size="10" fill="#ffffff" text-anchor="middle">normalize</text>
+                <text x="135" y="58" font-size="8" fill="#5b6270" text-anchor="middle">«өте жақсы»</text>
+                <line x1="172" y1="33" x2="188" y2="33" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="188" y="20" width="74" height="26" rx="5" fill="#2563eb" />
+                <text x="225" y="37" font-size="10" fill="#ffffff" text-anchor="middle">tokenize</text>
+                <text x="225" y="58" font-size="8" fill="#5b6270" text-anchor="middle">[өте, жақсы]</text>
+                <line x1="262" y1="33" x2="278" y2="33" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="278" y="20" width="54" height="26" rx="5" fill="#2563eb" />
+                <text x="305" y="37" font-size="10" fill="#ffffff" text-anchor="middle">count</text>
+                <text x="305" y="58" font-size="8" fill="#5b6270" text-anchor="middle">[1, 1, 0…]</text>
+                <rect x="8" y="76" width="324" height="30" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="92" font-size="9" fill="#111111" text-anchor="middle">every arrow throws something away: case, punctuation, order</text>
+                <text x="170" y="102" font-size="9" fill="#111111" text-anchor="middle">the skill is knowing what you are losing, and whether you need it</text>
+                <text x="170" y="128" font-size="9" fill="#5b6270" text-anchor="middle">a model never sees text — it sees the last column</text>
+                <text x="170" y="142" font-size="9" fill="#5b6270" text-anchor="middle">so everything upstream decides what it can possibly learn</text>
+                </svg>
+                <p class="figure__caption">
+                  Four steps, and each one is a deliberate loss. The last column is the only thing a classical model ever sees.
+                </p>
+              </div>
+
               <div class="definition">
                 <p>
                   A Machine Learning model cannot read a sentence. It reads
@@ -414,6 +443,37 @@ True
             <div class="container">
               <span class="section__eyebrow">Theory · Step 2</span>
               <h2 id="tokenization">Tokenization — cutting text into units</h2>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-tok-t">
+                <title id="fig-tok-t">Three ways to cut the same sentence into units</title>
+                <text x="8" y="14" font-size="10" fill="#111111">«2-бөлмелі пәтер, 15.5 млн теңге»</text>
+                <text x="8" y="36" font-size="9" fill="#5b6270">split on spaces</text>
+                <rect x="92" y="24" width="66" height="18" rx="3" fill="#2563eb" /><text x="125" y="37" font-size="8" fill="#ffffff" text-anchor="middle">2-бөлмелі</text>
+                <rect x="160" y="24" width="52" height="18" rx="3" fill="#2563eb" /><text x="186" y="37" font-size="8" fill="#ffffff" text-anchor="middle">пәтер,</text>
+                <rect x="214" y="24" width="40" height="18" rx="3" fill="#2563eb" /><text x="234" y="37" font-size="8" fill="#ffffff" text-anchor="middle">15.5</text>
+                <rect x="256" y="24" width="34" height="18" rx="3" fill="#2563eb" /><text x="273" y="37" font-size="8" fill="#ffffff" text-anchor="middle">млн</text>
+                <text x="8" y="52" font-size="8" fill="#b91c1c">comma stuck to the word</text>
+                <text x="8" y="76" font-size="9" fill="#5b6270">\w+ only</text>
+                <rect x="92" y="64" width="20" height="18" rx="3" fill="#2563eb" /><text x="102" y="77" font-size="8" fill="#ffffff" text-anchor="middle">2</text>
+                <rect x="114" y="64" width="50" height="18" rx="3" fill="#2563eb" /><text x="139" y="77" font-size="8" fill="#ffffff" text-anchor="middle">бөлмелі</text>
+                <rect x="166" y="64" width="42" height="18" rx="3" fill="#2563eb" /><text x="187" y="77" font-size="8" fill="#ffffff" text-anchor="middle">пәтер</text>
+                <rect x="210" y="64" width="24" height="18" rx="3" fill="#2563eb" /><text x="222" y="77" font-size="8" fill="#ffffff" text-anchor="middle">15</text>
+                <rect x="236" y="64" width="20" height="18" rx="3" fill="#2563eb" /><text x="246" y="77" font-size="8" fill="#ffffff" text-anchor="middle">5</text>
+                <text x="8" y="92" font-size="8" fill="#b91c1c">15.5 became two numbers</text>
+                <text x="8" y="116" font-size="9" fill="#5b6270">protect first</text>
+                <rect x="92" y="104" width="66" height="18" rx="3" fill="#2563eb" /><text x="125" y="117" font-size="8" fill="#ffffff" text-anchor="middle">2-бөлмелі</text>
+                <rect x="160" y="104" width="42" height="18" rx="3" fill="#2563eb" /><text x="181" y="117" font-size="8" fill="#ffffff" text-anchor="middle">пәтер</text>
+                <rect x="204" y="104" width="40" height="18" rx="3" fill="#2563eb" /><text x="224" y="117" font-size="8" fill="#ffffff" text-anchor="middle">15.5</text>
+                <rect x="246" y="104" width="34" height="18" rx="3" fill="#2563eb" /><text x="263" y="117" font-size="8" fill="#ffffff" text-anchor="middle">млн</text>
+                <text x="8" y="132" font-size="8" fill="#2563eb">numbers and hyphens survive</text>
+                <rect x="8" y="142" width="324" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="158" font-size="9" fill="#111111" text-anchor="middle">no tokenizer is correct — only one that keeps what your task needs</text>
+                </svg>
+                <p class="figure__caption">
+                  The same sentence, three tokenizers. Each row keeps something the row above lost, and the third only exists because someone decided prices and room counts mattered.
+                </p>
+              </div>
 
               <div class="definition">
                 <p>
@@ -697,6 +757,30 @@ merge 4: 'кіта' + 'п'  (seen 4x)
               <span class="section__eyebrow">Theory · Step 3</span>
               <h2 id="lemmatization">Stemming and Lemmatization</h2>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-stem-t">
+                <title id="fig-stem-t">Stemming chops, lemmatization looks up — and both lose something</title>
+                <text x="8" y="14" font-size="10" fill="#111111">кітаптарымыздан  «from our books»</text>
+                <text x="8" y="40" font-size="9" fill="#5b6270">stemming</text>
+                <rect x="76" y="28" width="42" height="20" rx="3" fill="#2563eb" /><text x="97" y="42" font-size="9" fill="#ffffff" text-anchor="middle">кітап</text>
+                <rect x="118" y="28" width="34" height="20" rx="3" fill="#eef1f5" stroke="#d1d6de" /><text x="135" y="42" font-size="9" fill="#98a0ac" text-anchor="middle">тар</text>
+                <rect x="152" y="28" width="46" height="20" rx="3" fill="#eef1f5" stroke="#d1d6de" /><text x="175" y="42" font-size="9" fill="#98a0ac" text-anchor="middle">ымыз</text>
+                <rect x="198" y="28" width="34" height="20" rx="3" fill="#eef1f5" stroke="#d1d6de" /><text x="215" y="42" font-size="9" fill="#98a0ac" text-anchor="middle">дан</text>
+                <text x="240" y="42" font-size="8" fill="#5b6270">cut by rules, fast</text>
+                <text x="8" y="70" font-size="9" fill="#5b6270">lemmatization</text>
+                <rect x="76" y="58" width="42" height="20" rx="3" fill="#2563eb" /><text x="97" y="72" font-size="9" fill="#ffffff" text-anchor="middle">кітап</text>
+                <text x="126" y="72" font-size="8" fill="#5b6270">looked up in a dictionary, slower, needs one</text>
+                <rect x="8" y="90" width="324" height="42" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="106" font-size="9" fill="#111111" text-anchor="middle">what both threw away: whose books, how many, and the direction «from»</text>
+                <text x="170" y="120" font-size="9" fill="#111111" text-anchor="middle">fine for topic classification, fatal if the suffix carried the answer</text>
+                <text x="8" y="150" font-size="9" fill="#5b6270">Kazakh is agglutinative: one root takes dozens of endings, so</text>
+                <text x="8" y="162" font-size="9" fill="#5b6270">cutting them merges many forms into one column — a win and a loss</text>
+                </svg>
+                <p class="figure__caption">
+                  Stemming cuts by rule, lemmatization looks the word up. Both collapse many forms into one column — which is the point, and also the loss.
+                </p>
+              </div>
+
               <p class="narrow lead">
                 Both answer the same question: how do we make
                 <span class="token">кітап</span> and
@@ -899,6 +983,42 @@ safe  : ['тамақ', 'дәмді', 'емес', 'қымбат']</code></pre>
               <span class="section__eyebrow">Theory · Step 5</span>
               <h2 id="bag-of-words">Bag of Words — the first vector</h2>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-bow-t">
+                <title id="fig-bow-t">Bag of Words: one row per document, one column per vocabulary word</title>
+                <text x="8" y="13" font-size="9" fill="#5b6270">vocabulary, in a fixed order</text>
+                <text x="86" y="30" font-size="9" fill="#111111" text-anchor="middle">жақсы</text>
+                <text x="146" y="30" font-size="9" fill="#111111" text-anchor="middle">өте</text>
+                <text x="200" y="30" font-size="9" fill="#111111" text-anchor="middle">нашар</text>
+                <text x="258" y="30" font-size="9" fill="#111111" text-anchor="middle">емес</text>
+                <text x="8" y="52" font-size="9" fill="#111111">«өте жақсы»</text>
+                <rect x="62" y="38" width="48" height="20" fill="#2563eb" /><text x="86" y="52" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <rect x="122" y="38" width="48" height="20" fill="#2563eb" /><text x="146" y="52" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <rect x="176" y="38" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="200" y="52" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="234" y="38" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="258" y="52" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <text x="8" y="78" font-size="9" fill="#111111">«жақсы емес»</text>
+                <rect x="62" y="64" width="48" height="20" fill="#2563eb" /><text x="86" y="78" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <rect x="122" y="64" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="146" y="78" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="176" y="64" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="200" y="78" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="234" y="64" width="48" height="20" fill="#2563eb" /><text x="258" y="78" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <text x="8" y="104" font-size="9" fill="#111111">«емес жақсы»</text>
+                <rect x="62" y="90" width="48" height="20" fill="#2563eb" /><text x="86" y="104" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <rect x="122" y="90" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="146" y="104" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="176" y="90" width="48" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="200" y="104" font-size="10" fill="#98a0ac" text-anchor="middle">0</text>
+                <rect x="234" y="90" width="48" height="20" fill="#2563eb" /><text x="258" y="104" font-size="10" fill="#ffffff" text-anchor="middle">1</text>
+                <line x1="290" y1="64" x2="290" y2="110" stroke="#b91c1c" stroke-width="2" />
+                <text x="296" y="82" font-size="8" fill="#b91c1c">rows 2</text>
+                <text x="296" y="92" font-size="8" fill="#b91c1c">and 3 are</text>
+                <text x="296" y="102" font-size="8" fill="#b91c1c">identical</text>
+                <rect x="8" y="122" width="324" height="26" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="139" font-size="9" fill="#111111" text-anchor="middle">no order in the bag: «жақсы емес» = «емес жақсы»</text>
+                <text x="170" y="166" font-size="9" fill="#5b6270" text-anchor="middle">the vocabulary sets the width — thousands of columns, almost all zero</text>
+                </svg>
+                <p class="figure__caption">
+                  One row per document, one column per vocabulary word. Rows 2 and 3 are byte-identical, which is the flaw this course spends three more lectures fixing.
+                </p>
+              </div>
+
               <div class="definition">
                 <p>
                   <strong>Bag of Words</strong> represents a document as a count
@@ -1044,6 +1164,38 @@ D1 vs D3: 0.25</code></pre>
             <div class="container">
               <span class="section__eyebrow">Theory · Step 6</span>
               <h2 id="tfidf">TF-IDF — not all words are equally useful</h2>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-tfidf-t">
+                <title id="fig-tfidf-t">TF-IDF multiplies how often a word appears by how rare it is</title>
+                <rect x="8" y="20" width="94" height="28" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="55" y="38" font-size="10" fill="#111111" text-anchor="middle">TF</text>
+                <text x="55" y="60" font-size="8" fill="#5b6270" text-anchor="middle">how often here</text>
+                <text x="112" y="38" font-size="14" fill="#111111">×</text>
+                <rect x="128" y="20" width="94" height="28" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="175" y="38" font-size="10" fill="#111111" text-anchor="middle">IDF</text>
+                <text x="175" y="60" font-size="8" fill="#5b6270" text-anchor="middle">how rare overall</text>
+                <text x="232" y="38" font-size="14" fill="#111111">=</text>
+                <rect x="248" y="20" width="84" height="28" rx="5" fill="#2563eb" />
+                <text x="290" y="38" font-size="10" fill="#ffffff" text-anchor="middle">weight</text>
+                <text x="290" y="60" font-size="8" fill="#5b6270" text-anchor="middle">how telling</text>
+                <line x1="8" y1="74" x2="332" y2="74" stroke="#e8ecf2" />
+                <text x="8" y="90" font-size="9" fill="#5b6270">in a set of app reviews</text>
+                <text x="8" y="108" font-size="10" fill="#111111">«және»</text>
+                <rect x="72" y="98" width="180" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <rect x="72" y="98" width="176" height="14" fill="#d1d6de" />
+                <text x="330" y="109" font-size="8" fill="#5b6270" text-anchor="end">in nearly every review → low</text>
+                <text x="8" y="130" font-size="10" fill="#111111">«қатып»</text>
+                <rect x="72" y="120" width="180" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <rect x="72" y="120" width="22" height="14" fill="#2563eb" />
+                <text x="330" y="131" font-size="8" fill="#2563eb" text-anchor="end">rare → high weight</text>
+                <text x="8" y="152" font-size="9" fill="#5b6270">bars show how many documents contain the word; IDF is its inverse</text>
+                <text x="8" y="164" font-size="9" fill="#5b6270">a word in every document distinguishes nothing — weight is zero</text>
+                </svg>
+                <p class="figure__caption">
+                  The bars show how many documents contain each word. IDF is the inverse: a word in every document distinguishes nothing, so its weight collapses.
+                </p>
+              </div>
 
               <p class="narrow lead">
                 In raw counts, a word that appears in every document weighs as
@@ -1194,6 +1346,29 @@ D3 top terms: [('бүгін', 0.275), ('жауды', 0.275)]</code></pre>
             <div class="container">
               <span class="section__eyebrow">Theory · Step 7</span>
               <h2 id="ngrams">N-grams — putting a little order back</h2>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 148" role="img" aria-labelledby="fig-ng-t">
+                <title id="fig-ng-t">N-grams put a little word order back into the bag</title>
+                <text x="8" y="14" font-size="10" fill="#111111">«өте жақсы емес»</text>
+                <text x="8" y="36" font-size="9" fill="#5b6270">unigrams</text>
+                <rect x="76" y="24" width="42" height="18" rx="3" fill="#2563eb" /><text x="97" y="37" font-size="8" fill="#ffffff" text-anchor="middle">өте</text>
+                <rect x="122" y="24" width="52" height="18" rx="3" fill="#2563eb" /><text x="148" y="37" font-size="8" fill="#ffffff" text-anchor="middle">жақсы</text>
+                <rect x="178" y="24" width="46" height="18" rx="3" fill="#2563eb" /><text x="201" y="37" font-size="8" fill="#ffffff" text-anchor="middle">емес</text>
+                <text x="232" y="37" font-size="8" fill="#b91c1c">order lost</text>
+                <text x="8" y="66" font-size="9" fill="#5b6270">bigrams</text>
+                <rect x="76" y="54" width="86" height="18" rx="3" fill="#2563eb" /><text x="119" y="67" font-size="8" fill="#ffffff" text-anchor="middle">өте жақсы</text>
+                <rect x="166" y="54" width="92" height="18" rx="3" fill="#2563eb" /><text x="212" y="67" font-size="8" fill="#ffffff" text-anchor="middle">жақсы емес</text>
+                <text x="266" y="67" font-size="8" fill="#2563eb">negation kept</text>
+                <rect x="8" y="84" width="324" height="26" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="170" y="100" font-size="9" fill="#111111" text-anchor="middle">the price: the vocabulary explodes, and most bigrams appear once</text>
+                <text x="8" y="128" font-size="9" fill="#5b6270">bigrams see two words at a time, never three apart — order needs</text>
+                <text x="8" y="140" font-size="9" fill="#5b6270">a model that reads sequences, which is Lecture 5</text>
+                </svg>
+                <p class="figure__caption">
+                  Bigrams keep <span class="token">жақсы емес</span> together as one feature, so the negation survives — at the price of a much wider vocabulary.
+                </p>
+              </div>
 
               <div class="definition">
                 <p>

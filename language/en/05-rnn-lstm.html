@@ -414,8 +414,8 @@ its last row is the last hidden state: True</code></pre></div>
                 <text x="234" y="136" font-size="9" fill="#111111" text-anchor="middle">жақсы</text>
                 <text x="300" y="136" font-size="9" fill="#111111" text-anchor="middle">емес</text>
                 <line x1="278" y1="126" x2="322" y2="126" stroke="#2563eb" stroke-width="2" />
-                <text x="300" y="160" font-size="9" fill="#2563eb" text-anchor="middle">only this column</text>
-                <text x="300" y="170" font-size="9" fill="#2563eb" text-anchor="middle">reaches the classifier</text>
+                <text x="300" y="160" font-size="8" fill="#2563eb" text-anchor="end">only this column</text>
+                <text x="300" y="170" font-size="8" fill="#2563eb" text-anchor="end">reaches the classifier</text>
                 </svg>
                 <p class="figure__caption">
                   The same four numbers, redrawn after every word. Each column is the entire memory of the network at that moment; the last one is all the classifier ever sees.
@@ -1050,8 +1050,8 @@ still rewrites the state. Packing is what stops it.</code></pre></div>
               <div class="figure">
                 <svg viewBox="0 0 340 232" role="img" aria-labelledby="fig-shapes-t">
                 <title id="fig-shapes-t">The shape of the data at every layer of the network</title>
-                <rect x="66" y="10" width="208" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
-                <text x="170" y="27" font-size="10" fill="#111111" text-anchor="middle">ids  (3, 5)  — a batch of 3 reviews, 5 slots</text>
+                <rect x="60" y="10" width="196" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="158" y="27" font-size="9" fill="#111111" text-anchor="middle">ids  (3, 5) — 3 reviews, 5 slots</text>
                 <line x1="170" y1="36" x2="170" y2="48" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="66" y="48" width="208" height="26" rx="5" fill="#2563eb" />
                 <text x="170" y="65" font-size="10" fill="#ffffff" text-anchor="middle">Embedding(5916, 100)</text>
@@ -1075,7 +1075,7 @@ still rewrites the state. Packing is what stops it.</code></pre></div>
                 <text x="10" y="137" font-size="9" fill="#5b6270">layer</text>
                 <text x="10" y="173" font-size="9" fill="#5b6270">shape</text>
                 <text x="10" y="208" font-size="9" fill="#5b6270">layer</text>
-                <text x="284" y="24" font-size="9" fill="#5b6270">weights</text>
+                <text x="332" y="24" font-size="9" fill="#5b6270" text-anchor="end">weights</text>
                 <text x="170" y="228" font-size="9" fill="#5b6270" text-anchor="middle">709 618 parameters, and 83% of them are the embedding table</text>
                 </svg>
                 <p class="figure__caption">

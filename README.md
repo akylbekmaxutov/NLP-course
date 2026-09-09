@@ -115,3 +115,54 @@ Changed:
   - **The LSTM cell** — a full diagram of the cell-state path through one multiplication and one addition, the four gate equations term by term, and the gates printed step by step from a hand-written implementation checked against `nn.LSTM`
   - **Batching and padding** — why a rectangle is needed at all, the three decisions in `collate`, a diagram of the padded batch turning into `data` + `batch_sizes`, and a measurement of what breaks without packing (padding changes the final state by 0.583; `pack_padded_sequence` reproduces the honest answer exactly)
   - **The network end to end** — a layer-by-layer diagram with the tensor shape between each pair of layers, printed live: `(3, 5)` → `(3, 5, 100)` → packed `(9, 100)` → `(1, 3, 128)` → `(3, 128)` → `(3, 2)`, and the observation that 591 600 of the 709 618 parameters are the embedding table
+
+### 09.09.2026
+
+Added:
+
+- `code_files/lesson6.py` — the Lecture 6 script: attention and Transformers written out rather than taken from `nn.Transformer`. Scaled dot-product attention, multi-head splitting, sine/cosine positional encoding, pre-norm encoder blocks with residuals, masked mean pooling, and `--attention-map` to print the learned weights over real reviews. Runs both KazSAnDRA tasks on CPU with a fixed seed
+- `language/en/06-attention-transformers.html`, `language/kk/06-attention-transformers.html`, `language/ru/06-attention-transformers.html` — Lecture 6, Attention and Transformers. What attention is (query/key/value, with the four steps computed by hand and checked against `F.scaled_dot_product_attention`), why the √d scaling is not optional (entropy 1.879 → 0.359 without it), the four types of attention with a diagram, the padding mask measured (59% of attention wasted without it), multi-head splitting, the measured proof that attention is order-blind and how positional encoding fixes it, the encoder block, and the full classifier
+- Results on our own data: Transformer from scratch reaches **0.750** on polarity — below the LSTM's 0.772 and TF-IDF's 0.780 — and the lecture shows this is data starvation rather than tuning: 10 epochs gives 0.749, a smaller model 0.750, five times the data **0.787**. The five-class task lands at 0.378 against the LSTM's 0.374. Attention maps over real reviews show one crude global "find the sentiment word" pattern, which is what 8 000 reviews support
+
+Changed:
+
+- `page/js/course.js` — Lecture 6 published as "Attention and Transformers"
+- `index.html` — link to Lecture 6
+
+### 09.09.2026 (later)
+
+Added:
+
+- `tools/check-figures.py` — a layout checker for the inline SVG figures. It measures every `<text>` node and reports overlapping labels and text running past the viewBox, which is how the problems below were found rather than by eye
+- Figures where there were none: **Lecture 0** gains 2 (what NLP sits between; the four reasons language is hard), **Lecture 1** gains 6 (the engine walking the text, character classes, quantifiers with greedy vs lazy, alternation and why brackets matter, anchors as zero-width positions, escaping), **Lecture 2** gains 6 (the whole pipeline and what each arrow discards, three tokenizers on one sentence, stemming vs lemmatization, the Bag of Words matrix with two identical rows, TF-IDF as frequency × rarity, n-grams keeping negation)
+
+Fixed:
+
+- Overlapping and overflowing text in five existing figures — `fig-space-t` in Lecture 4, `fig-state-t` and `fig-shapes-t` in Lecture 5, `fig-steps-t` and `fig-types-t` in Lecture 6 (the last two redrawn as a proper 2×2 grid)
+- **Figure text was English on the Russian and Kazakh pages.** 313 labels across Lectures 3–6 were localised, plus every label and caption in the 14 new figures. Formulas (`hₜ = tanh(W·xₜ + U·hₜ₋₁ + b)`, `softmax(Q·Kᵀ / √d) · V`) are deliberately left as they are
+
+All 96 inline SVGs are valid XML, the layout checker reports zero problems, and figure counts match across en/kk/ru in every lecture.
+
+### 09.09.2026 (rewrite)
+
+Changed:
+
+- `language/*/06-attention-transformers.html` — Lecture 6 rebuilt as a full step-by-step course on attention and Transformers, roughly three times its previous size (34 sections, 30 inline SVG figures per language, up from 16 and 5). The measured KazSAnDRA results are unchanged and still come from `code_files/lesson6.py`; what was added is the teaching path around them:
+  - **Before attention** — the 2014 encoder–decoder RNN drawn in full ("The cat sat on the mat" → "Кошка сидела на коврике"), the fixed context vector as a bottleneck, and Bahdanau's fix as a weighted read over all encoder states
+  - **Intuition first** — one running example ("The animal didn't cross the street because *it* was tired"), the weights *it* computes over the sentence, and the seven questions (problem / intuition / inputs / operation / output / why / where) that every later component is introduced with
+  - **Q, K, V separately** — the three roles as cards, the database analogy and its limit, `Q = XW_Q` with every symbol's shape spelled out, and a projection diagram
+  - **A worked example with exact arithmetic** — three Kazakh tokens in two dimensions, carried through X → Q/K/V → `QKᵀ` → `÷√2` → softmax → `·V` as four `.matrix` tables, ending with «жақсы» moving from `[0, 1]` to `[1.436, 2.152]`. Every number verified independently
+  - **Scaling argued, not asserted** — why dot products grow like √d, why softmax is scale-sensitive, why a saturated softmax has no gradient, then the existing entropy measurement (1.879 → 0.359)
+  - **The variants taught, not listed** — additive (Bahdanau) vs multiplicative (Luong) vs scaled dot-product on one axis, and self / causal / cross / padding on the other, with a comparison table of where Q, K and V come from
+  - **Causal masking** — the triangular mask over "I love deep learning", why −inf rather than 0, and why training stays parallel
+  - **Multi-head** — four simultaneous relationships in one sentence, the eight-head diagram, and the full shape table at `d_model = 512`, `h = 8`, `d_k = 64`
+  - **The Transformer itself** — a large encoder–decoder diagram as the central visual, then decomposed: tokenization → ids → embeddings → positions, the encoder block component by component, a dedicated figure for "attention mixes across tokens, the FFN transforms within one", residuals and LayerNorm, and what changes with depth
+  - **The decoder** — the three-sub-layer block, cross-attention with a rectangular EN→KK alignment map, an eleven-step walkthrough of "I love machine learning" → "Мен машиналық оқытуды жақсы көремін", and the output head on "The capital of Kazakhstan is ___"
+  - **The three families** — encoder-only, decoder-only, encoder–decoder side by side, and why decoder-only won
+  - **Modern LLMs** — pre-norm, RMSNorm, SwiGLU, RoPE, GQA/MQA and the KV cache, framed strictly as "how 2024 differs from 2017"
+  - **Code mapped to maths** — scaled dot-product attention, `MultiHeadAttention`, `Block` and the full model, each explained at block level with a figure linking code lines to diagram boxes
+  - **A tensor-shape reference table** and a closing "one token, all the way through" section that answers the fifteen questions the lecture must leave a student able to answer
+  - Knowledge check grown from 5 to 8 questions, practice tasks from 10 to 11 (including building a tiny causal language model out of the classifier), quiz rewritten
+- `page/js/course.js` — Lecture 6 topics line updated to "Attention · Q/K/V · Multi-head · Encoder & decoder · PyTorch"
+
+All 90 inline SVGs (30 per language) are valid XML, `tools/check-figures.py` reports zero layout problems, figure and section counts match across en/kk/ru, and every code block is byte-identical in all three languages

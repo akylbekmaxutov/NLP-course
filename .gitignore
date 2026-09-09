@@ -48,3 +48,6 @@ scratch/
 # --- downloaded datasets (gated, large) --------------------------------------
 code_files/data/
 code_files/models/
+
+# --- local tooling ------------------------------------------------------------
+tools_svgcheck.py

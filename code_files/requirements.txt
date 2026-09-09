@@ -4,4 +4,4 @@ pandas>=2.0
 python-dotenv>=1.0
 matplotlib>=3.7   # only for --figure
 gensim>=4.3            # lesson4: word2vec and fastText
-torch>=2.2             # lesson5: RNN and LSTM
+torch>=2.2             # lesson5 and lesson6: RNN, LSTM and Transformers

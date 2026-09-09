@@ -157,16 +157,21 @@ window.NLP_COURSE = {
     {
       id: "transformers",
       num: 6,
-      file: null,
+      file: "06-attention-transformers.html",
       date: {
         en: "09 Sep 2026",
         kk: "09 қыркүйек 2026",
         ru: "09 сентября 2026"
       },
       title: {
-        en: "Transformers and Attention Mechanism",
-        kk: "Transformers және Attention механизмі",
-        ru: "Transformers и механизм Attention"
+        en: "Attention and Transformers",
+        kk: "Attention және Transformers",
+        ru: "Attention и Transformers"
+      },
+      topics: {
+        en: "Attention · Q/K/V · Multi-head · Encoder & decoder · PyTorch",
+        kk: "Attention · Q/K/V · Multi-head · Encoder & decoder · PyTorch",
+        ru: "Attention · Q/K/V · Multi-head · Encoder & decoder · PyTorch"
       }
     },
     {

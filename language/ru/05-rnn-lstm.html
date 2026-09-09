@@ -264,8 +264,8 @@ one review per score:
                 <line x1="295" y1="36" x2="295" y2="52" stroke="#c7d9ff" stroke-width="1.5" />
                 <line x1="295" y1="82" x2="295" y2="104" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="238" y="104" width="98" height="26" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="287" y="121" font-size="11" fill="#111111" text-anchor="middle">h₄ → negative</text>
-                <text x="110" y="121" font-size="10" fill="#5b6270" text-anchor="middle">one hidden state per step</text>
+                <text x="287" y="121" font-size="11" fill="#111111" text-anchor="middle">h₄ → негативный</text>
+                <text x="110" y="121" font-size="10" fill="#5b6270" text-anchor="middle">по одному состоянию на шаг</text>
                 </svg>
                 <p class="figure__caption">
                   Одна и та же сеть, нарисованная четыре раза, а не четыре сети. Веса общие для всех позиций, поэтому отзыв из трёх слов и отзыв из сорока проходят через одни и те же параметры.
@@ -283,10 +283,10 @@ one review per score:
                 <title id="fig-cell-t">Inside one RNN step: the previous state and the new word are mixed, then squashed</title>
                 <rect x="8" y="16" width="66" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="41" y="33" font-size="11" fill="#111111" text-anchor="middle">hₜ₋₁</text>
-                <text x="41" y="56" font-size="9" fill="#5b6270" text-anchor="middle">what we knew</text>
+                <text x="41" y="56" font-size="9" fill="#5b6270" text-anchor="middle">что мы знали</text>
                 <rect x="8" y="96" width="66" height="26" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="41" y="113" font-size="11" fill="#111111" text-anchor="middle">xₜ</text>
-                <text x="41" y="136" font-size="9" fill="#5b6270" text-anchor="middle">this word</text>
+                <text x="41" y="136" font-size="9" fill="#5b6270" text-anchor="middle">это слово</text>
                 <line x1="74" y1="29" x2="112" y2="60" stroke="#5b6270" stroke-width="1.5" />
                 <line x1="74" y1="109" x2="112" y2="78" stroke="#5b6270" stroke-width="1.5" />
                 <text x="92" y="40" font-size="9" fill="#5b6270" text-anchor="middle">·U</text>
@@ -296,14 +296,14 @@ one review per score:
                 <line x1="137" y1="69" x2="166" y2="69" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="166" y="55" width="62" height="28" rx="5" fill="#2563eb" />
                 <text x="197" y="74" font-size="12" fill="#ffffff" text-anchor="middle">tanh</text>
-                <text x="197" y="98" font-size="9" fill="#5b6270" text-anchor="middle">squashes to (−1, 1)</text>
+                <text x="197" y="98" font-size="9" fill="#5b6270" text-anchor="middle">сжимает в (−1, 1)</text>
                 <line x1="228" y1="69" x2="262" y2="69" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="262" y="55" width="66" height="28" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="295" y="74" font-size="11" fill="#111111" text-anchor="middle">hₜ</text>
-                <text x="295" y="98" font-size="9" fill="#5b6270" text-anchor="middle">what we know now</text>
+                <text x="295" y="98" font-size="9" fill="#5b6270" text-anchor="middle">что знаем теперь</text>
                 <text x="170" y="20" font-size="10" fill="#111111" text-anchor="middle">hₜ = tanh(W·xₜ + U·hₜ₋₁ + b)</text>
                 <path d="M 295 45 L 295 34 L 41 34 L 41 12" fill="none" stroke="#c7d9ff" stroke-width="1.5" stroke-dasharray="4 3" />
-                <text x="168" y="160" font-size="9" fill="#5b6270" text-anchor="middle">the dashed line is the loop: hₜ becomes hₜ₋₁ at the next word</text>
+                <text x="168" y="160" font-size="9" fill="#5b6270" text-anchor="middle">пунктир — это цикл: hₜ становится hₜ₋₁ на следующем слове</text>
                 </svg>
                 <p class="figure__caption">
                   Один шаг обычной RNN. <code>W</code> применяется к слову, <code>U</code> — к предыдущему состоянию; их сумма сжимается <code>tanh</code> в новое состояние.
@@ -381,7 +381,7 @@ its last row is the last hidden state: True</code></pre></div>
               <div class="figure">
                 <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-state-t">
                 <title id="fig-state-t">The four numbers of the hidden state, redrawn after every word</title>
-                <text x="8" y="14" font-size="9" fill="#5b6270">each column is one hidden state; blue is positive, red is negative</text>
+                <text x="8" y="14" font-size="9" fill="#5b6270">столбец = скрытое состояние; синее +, красное −</text>
                 <text x="36" y="34" font-size="10" fill="#111111" text-anchor="middle">h₀</text>
                 <text x="102" y="34" font-size="10" fill="#111111" text-anchor="middle">h₁</text>
                 <text x="168" y="34" font-size="10" fill="#111111" text-anchor="middle">h₂</text>
@@ -407,14 +407,14 @@ its last row is the last hidden state: True</code></pre></div>
                 <rect x="278" y="62" width="44" height="18" fill="#f8cbcb" stroke="#fecaca" /><text x="300" y="75" font-size="9" fill="#111111" text-anchor="middle">-0.67</text>
                 <rect x="278" y="82" width="44" height="18" fill="#fce8e8" stroke="#fecaca" /><text x="300" y="95" font-size="9" fill="#111111" text-anchor="middle">-0.32</text>
                 <rect x="278" y="102" width="44" height="18" fill="#fce5e5" stroke="#fecaca" /><text x="300" y="115" font-size="9" fill="#111111" text-anchor="middle">-0.25</text>
-                <text x="36" y="136" font-size="9" fill="#5b6270" text-anchor="middle">start</text>
+                <text x="36" y="136" font-size="9" fill="#5b6270" text-anchor="middle">старт</text>
                 <text x="102" y="136" font-size="9" fill="#111111" text-anchor="middle">қосымша</text>
                 <text x="168" y="136" font-size="9" fill="#111111" text-anchor="middle">өте</text>
                 <text x="234" y="136" font-size="9" fill="#111111" text-anchor="middle">жақсы</text>
                 <text x="300" y="136" font-size="9" fill="#111111" text-anchor="middle">емес</text>
                 <line x1="278" y1="126" x2="322" y2="126" stroke="#2563eb" stroke-width="2" />
-                <text x="300" y="160" font-size="9" fill="#2563eb" text-anchor="middle">only this column</text>
-                <text x="300" y="170" font-size="9" fill="#2563eb" text-anchor="middle">reaches the classifier</text>
+                <text x="300" y="160" font-size="8" fill="#2563eb" text-anchor="end">только этот столбец</text>
+                <text x="300" y="170" font-size="8" fill="#2563eb" text-anchor="end">доходит до классификатора</text>
                 </svg>
                 <p class="figure__caption">
                   Те же четыре числа, перерисованные после каждого слова. Каждый столбец — это вся память сети в этот момент; последний столбец — единственное, что видит классификатор.
@@ -585,13 +585,13 @@ That knob is the entire point of the cell state, and an LSTM can learn it.</code
                 <text x="182" y="158" font-size="8" fill="#5b6270" text-anchor="middle">20</text>
                 <text x="248" y="158" font-size="8" fill="#5b6270" text-anchor="middle">30</text>
                 <text x="315" y="158" font-size="8" fill="#5b6270" text-anchor="middle">39</text>
-                <text x="184" y="170" font-size="9" fill="#5b6270" text-anchor="middle">steps back from the last word</text>
+                <text x="184" y="170" font-size="9" fill="#5b6270" text-anchor="middle">шагов назад от последнего слова</text>
                 <rect x="30" y="180" width="10" height="3" fill="#b91c1c" />
-                <text x="44" y="186" font-size="8" fill="#111111">RNN ×0.48/step</text>
+                <text x="44" y="186" font-size="8" fill="#111111">RNN ×0.48/шаг</text>
                 <rect x="126" y="180" width="10" height="3" fill="#5b6270" />
                 <text x="140" y="186" font-size="8" fill="#111111">LSTM ×0.60</text>
                 <rect x="212" y="180" width="10" height="3" fill="#2563eb" />
-                <text x="226" y="186" font-size="8" fill="#111111">forget gate open ×1.00</text>
+                <text x="226" y="186" font-size="8" fill="#111111">forget открыт ×1.00</text>
                 </svg>
                 <p class="figure__caption">
                   Три кривые — это три столбца таблицы. Обратите внимание на ось: каждая линия сетки — падение в тысячу раз. Красная линия уходит за пределы графика, синяя идёт горизонтально.
@@ -636,7 +636,7 @@ That knob is the entire point of the cell state, and an LSTM can learn it.</code
                 <circle cx="196" cy="30" r="11" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" />
                 <text x="196" y="35" font-size="12" fill="#111111" text-anchor="middle">+</text>
                 <rect x="74" y="82" width="60" height="24" rx="5" fill="#fef2f2" stroke="#fecaca" />
-                <text x="104" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  forget</text>
+                <text x="104" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  забыть</text>
                 <line x1="104" y1="82" x2="104" y2="41" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="146" y="82" width="46" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="169" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  in</text>
@@ -648,7 +648,7 @@ That knob is the entire point of the cell state, and an LSTM can learn it.</code
                 <line x1="224" y1="82" x2="203" y2="70" stroke="#5b6270" stroke-width="1.3" />
                 <line x1="196" y1="53" x2="196" y2="41" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="262" y="82" width="62" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="293" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  out</text>
+                <text x="293" y="98" font-size="10" fill="#111111" text-anchor="middle">σ  выход</text>
                 <line x1="293" y1="82" x2="293" y2="60" stroke="#5b6270" stroke-width="1.3" />
                 <circle cx="293" cy="49" r="9" fill="#ffffff" stroke="#5b6270" stroke-width="1.3" />
                 <text x="293" y="53" font-size="10" fill="#111111" text-anchor="middle">×</text>
@@ -658,14 +658,14 @@ That knob is the entire point of the cell state, and an LSTM can learn it.</code
                 <rect x="262" y="128" width="62" height="24" rx="5" fill="#ffffff" stroke="#c7d9ff" />
                 <text x="293" y="144" font-size="10" fill="#111111" text-anchor="middle">hₜ</text>
                 <rect x="74" y="128" width="176" height="24" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
-                <text x="162" y="144" font-size="10" fill="#111111" text-anchor="middle">xₜ  and  hₜ₋₁  feed all four</text>
+                <text x="162" y="144" font-size="10" fill="#111111" text-anchor="middle">xₜ  и  hₜ₋₁  питают все четыре</text>
                 <line x1="104" y1="128" x2="104" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
                 <line x1="169" y1="128" x2="169" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
                 <line x1="224" y1="128" x2="224" y2="106" stroke="#c7d9ff" stroke-width="1.3" />
                 <line x1="256" y1="140" x2="262" y2="140" stroke="#c7d9ff" stroke-width="1.3" />
                 <text x="170" y="176" font-size="10" fill="#111111" text-anchor="middle">cₜ = f ⊙ cₜ₋₁ + i ⊙ ĉ      hₜ = o ⊙ tanh(cₜ)</text>
-                <text x="170" y="196" font-size="9" fill="#5b6270" text-anchor="middle">the blue line meets only × and + — never a weight matrix,</text>
-                <text x="170" y="210" font-size="9" fill="#5b6270" text-anchor="middle">which is why a gradient can travel along it unchanged</text>
+                <text x="170" y="196" font-size="9" fill="#5b6270" text-anchor="middle">синяя линия встречает только × и + — никогда матрицу весов,</text>
+                <text x="170" y="210" font-size="9" fill="#5b6270" text-anchor="middle">поэтому градиент проходит по ней без потерь</text>
                 </svg>
                 <p class="figure__caption">
                   Синяя линия — состояние ячейки. Проследите её слева направо: на пути встречаются одно умножение и одно сложение, и больше ничего. Именно по этому прямому пути градиент и идёт назад.
@@ -864,7 +864,7 @@ the ten most frequent words:
               <div class="figure">
                 <svg viewBox="0 0 340 208" role="img" aria-labelledby="fig-pack-t">
                 <title id="fig-pack-t">How pack_padded_sequence turns a padded rectangle into real steps only</title>
-                <text x="8" y="14" font-size="9" fill="#5b6270">the padded rectangle: 15 cells, 6 of them meaningless</text>
+                <text x="8" y="14" font-size="9" fill="#5b6270">прямоугольник с паддингом: 15 ячеек, 6 из них пустые</text>
                 <rect x="10" y="22" width="40" height="20" fill="#2563eb" /><text x="30" y="36" font-size="9" fill="#ffffff" text-anchor="middle">142</text>
                 <rect x="52" y="22" width="40" height="20" fill="#2563eb" /><text x="72" y="36" font-size="9" fill="#ffffff" text-anchor="middle">7</text>
                 <rect x="94" y="22" width="40" height="20" fill="#2563eb" /><text x="114" y="36" font-size="9" fill="#ffffff" text-anchor="middle">39</text>
@@ -880,15 +880,15 @@ the ten most frequent words:
                 <rect x="94" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="114" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
                 <rect x="136" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="156" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
                 <rect x="178" y="66" width="40" height="20" fill="#eef1f5" stroke="#d1d6de" /><text x="198" y="80" font-size="9" fill="#98a0ac" text-anchor="middle">0</text>
-                <text x="226" y="36" font-size="9" fill="#5b6270">len 3</text>
-                <text x="226" y="58" font-size="9" fill="#5b6270">len 5</text>
-                <text x="226" y="80" font-size="9" fill="#5b6270">len 1</text>
+                <text x="226" y="36" font-size="9" fill="#5b6270">длина 3</text>
+                <text x="226" y="58" font-size="9" fill="#5b6270">длина 5</text>
+                <text x="226" y="80" font-size="9" fill="#5b6270">длина 1</text>
                 <text x="30" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=1</text>
                 <text x="72" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=2</text>
                 <text x="114" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=3</text>
                 <text x="156" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=4</text>
                 <text x="198" y="100" font-size="8" fill="#5b6270" text-anchor="middle">t=5</text>
-                <text x="8" y="126" font-size="9" fill="#5b6270">packed: the same 9 real cells, read column by column</text>
+                <text x="8" y="126" font-size="9" fill="#5b6270">packed: те же 9 настоящих ячеек, по столбцам</text>
                 <rect x="10" y="134" width="34" height="18" fill="#2563eb" /><text x="27" y="147" font-size="8" fill="#ffffff" text-anchor="middle">12</text>
                 <rect x="46" y="134" width="34" height="18" fill="#2563eb" /><text x="63" y="147" font-size="8" fill="#ffffff" text-anchor="middle">142</text>
                 <rect x="82" y="134" width="34" height="18" fill="#2563eb" /><text x="99" y="147" font-size="8" fill="#ffffff" text-anchor="middle">88</text>
@@ -907,8 +907,8 @@ the ten most frequent words:
                 <text x="212" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=3: 2</text>
                 <text x="250" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=4: 1</text>
                 <text x="303" y="168" font-size="8" fill="#5b6270" text-anchor="middle">t=5: 1</text>
-                <text x="168" y="190" font-size="9" fill="#111111" text-anchor="middle">batch_sizes = [3, 2, 2, 1, 1] — how many reviews are still running</text>
-                <text x="168" y="203" font-size="9" fill="#5b6270" text-anchor="middle">the grey cells are never computed, and never touch a hidden state</text>
+                <text x="168" y="190" font-size="9" fill="#111111" text-anchor="middle">batch_sizes = [3, 2, 2, 1, 1] — сколько отзывов ещё идёт</text>
+                <text x="168" y="203" font-size="9" fill="#5b6270" text-anchor="middle">серые ячейки не считаются и не трогают скрытое состояние</text>
                 </svg>
                 <p class="figure__caption">
                   Сверху: прямоугольник, 15 ячеек на 9 настоящих слов. Снизу: те же слова, упакованные в плоский список по временным шагам, со счётчиком того, сколько отзывов ещё продолжается на каждом шаге.
@@ -1047,8 +1047,8 @@ still rewrites the state. Packing is what stops it.</code></pre></div>
               <div class="figure">
                 <svg viewBox="0 0 340 232" role="img" aria-labelledby="fig-shapes-t">
                 <title id="fig-shapes-t">The shape of the data at every layer of the network</title>
-                <rect x="66" y="10" width="208" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
-                <text x="170" y="27" font-size="10" fill="#111111" text-anchor="middle">ids  (3, 5)  — a batch of 3 reviews, 5 slots</text>
+                <rect x="60" y="10" width="196" height="26" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="158" y="27" font-size="9" fill="#111111" text-anchor="middle">ids  (3, 5) — 3 отзыва, 5 ячеек</text>
                 <line x1="170" y1="36" x2="170" y2="48" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="66" y="48" width="208" height="26" rx="5" fill="#2563eb" />
                 <text x="170" y="65" font-size="10" fill="#ffffff" text-anchor="middle">Embedding(5916, 100)</text>
@@ -1062,18 +1062,18 @@ still rewrites the state. Packing is what stops it.</code></pre></div>
                 <text x="284" y="137" font-size="9" fill="#5b6270">117 760</text>
                 <line x1="170" y1="146" x2="170" y2="158" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="66" y="158" width="208" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
-                <text x="170" y="173" font-size="10" fill="#111111" text-anchor="middle">h[-1]  (3, 128)  — one vector per review</text>
+                <text x="170" y="173" font-size="10" fill="#111111" text-anchor="middle">h[-1]  (3, 128) — по вектору на отзыв</text>
                 <line x1="170" y1="180" x2="170" y2="192" stroke="#5b6270" stroke-width="1.5" />
                 <rect x="66" y="192" width="208" height="24" rx="5" fill="#2563eb" />
                 <text x="170" y="208" font-size="10" fill="#ffffff" text-anchor="middle">Linear(128, 2)  →  (3, 2)</text>
                 <text x="284" y="208" font-size="9" fill="#5b6270">258</text>
-                <text x="10" y="65" font-size="9" fill="#5b6270">layer</text>
-                <text x="10" y="101" font-size="9" fill="#5b6270">shape</text>
-                <text x="10" y="137" font-size="9" fill="#5b6270">layer</text>
-                <text x="10" y="173" font-size="9" fill="#5b6270">shape</text>
-                <text x="10" y="208" font-size="9" fill="#5b6270">layer</text>
-                <text x="284" y="24" font-size="9" fill="#5b6270">weights</text>
-                <text x="170" y="228" font-size="9" fill="#5b6270" text-anchor="middle">709 618 parameters, and 83% of them are the embedding table</text>
+                <text x="10" y="65" font-size="9" fill="#5b6270">слой</text>
+                <text x="10" y="101" font-size="9" fill="#5b6270">форма</text>
+                <text x="10" y="137" font-size="9" fill="#5b6270">слой</text>
+                <text x="10" y="173" font-size="9" fill="#5b6270">форма</text>
+                <text x="10" y="208" font-size="9" fill="#5b6270">слой</text>
+                <text x="332" y="24" font-size="9" fill="#5b6270" text-anchor="end">веса</text>
+                <text x="170" y="228" font-size="9" fill="#5b6270" text-anchor="middle">709 618 параметров, и 83% из них — таблица эмбеддингов</text>
                 </svg>
                 <p class="figure__caption">
                   Батч из трёх отзывов проходит через всю сеть. Синие блоки содержат веса, серые — данные между ними.

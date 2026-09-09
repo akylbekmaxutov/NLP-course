@@ -130,6 +130,40 @@
               <span class="section__eyebrow">Opening</span>
               <h2 id="what-is-nlp">What is Natural Language Processing?</h2>
 
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-nlp-t">
+                <title id="fig-nlp-t">NLP sits between human language and things a computer can compute with</title>
+                <rect x="8" y="24" width="96" height="44" rx="6" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="56" y="44" font-size="10" fill="#111111" text-anchor="middle">human language</text>
+                <text x="56" y="58" font-size="8" fill="#5b6270" text-anchor="middle">ambiguous, endless</text>
+                <line x1="104" y1="46" x2="122" y2="46" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="122" y="24" width="96" height="44" rx="6" fill="#2563eb" />
+                <text x="170" y="44" font-size="10" fill="#ffffff" text-anchor="middle">NLP</text>
+                <text x="170" y="58" font-size="8" fill="#eff4ff" text-anchor="middle">rules, counts, models</text>
+                <line x1="218" y1="46" x2="236" y2="46" stroke="#5b6270" stroke-width="1.5" />
+                <rect x="236" y="24" width="96" height="44" rx="6" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="284" y="44" font-size="10" fill="#111111" text-anchor="middle">numbers</text>
+                <text x="284" y="58" font-size="8" fill="#5b6270" text-anchor="middle">exact, comparable</text>
+                <text x="8" y="92" font-size="9" fill="#5b6270">what the course builds, lecture by lecture</text>
+                <rect x="8" y="100" width="50" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="33" y="114" font-size="8" fill="#111111" text-anchor="middle">regex</text>
+                <rect x="62" y="100" width="58" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="91" y="114" font-size="8" fill="#111111" text-anchor="middle">counting</text>
+                <rect x="124" y="100" width="66" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="157" y="114" font-size="8" fill="#111111" text-anchor="middle">embeddings</text>
+                <rect x="194" y="100" width="54" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="221" y="114" font-size="8" fill="#111111" text-anchor="middle">LSTM</text>
+                <rect x="252" y="100" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="292" y="114" font-size="8" fill="#ffffff" text-anchor="middle">Transformers</text>
+                <rect x="8" y="132" width="324" height="36" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="147" font-size="9" fill="#111111" text-anchor="middle">every one of these is a different answer to the same question:</text>
+                <text x="170" y="160" font-size="9" fill="#111111" text-anchor="middle">how do you turn words into numbers without losing what matters?</text>
+                </svg>
+                <p class="figure__caption">
+                  Every technique in this course is a different answer to the middle box: how to turn words into numbers without losing what matters.
+                </p>
+              </div>
+
               <div class="definition">
                 <p>
                   <strong>Natural Language Processing (NLP)</strong> is the field
@@ -203,6 +237,35 @@
             <div class="container">
               <span class="section__eyebrow">Concept</span>
               <h2 id="difficult">Why is NLP difficult?</h2>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-hard-t">
+                <title id="fig-hard-t">Four reasons language resists computers</title>
+                <rect x="8" y="16" width="158" height="52" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="16" y="32" font-size="9" fill="#111111">ambiguity</text>
+                <text x="16" y="46" font-size="9" fill="#5b6270">«әйнек» = glass, window</text>
+                <text x="16" y="60" font-size="9" fill="#5b6270">only context decides</text>
+                <rect x="174" y="16" width="158" height="52" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="182" y="32" font-size="9" fill="#111111">morphology</text>
+                <text x="182" y="46" font-size="9" fill="#5b6270">кітап → кітаптарымыздан</text>
+                <text x="182" y="60" font-size="9" fill="#5b6270">one root, dozens of forms</text>
+                <rect x="8" y="76" width="158" height="52" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="16" y="92" font-size="9" fill="#111111">context</text>
+                <text x="16" y="106" font-size="9" fill="#5b6270">«жақсы емес» flips</text>
+                <text x="16" y="120" font-size="9" fill="#5b6270">on one later word</text>
+                <rect x="174" y="76" width="158" height="52" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="182" y="92" font-size="9" fill="#111111">resources</text>
+                <text x="182" y="106" font-size="9" fill="#5b6270">English has billions of</text>
+                <text x="182" y="120" font-size="9" fill="#5b6270">labelled words; Kazakh does not</text>
+                <rect x="8" y="140" width="324" height="46" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="156" font-size="9" fill="#111111" text-anchor="middle">the first three are properties of language and never go away —</text>
+                <text x="170" y="169" font-size="9" fill="#111111" text-anchor="middle">every model in this course handles them better or worse.</text>
+                <text x="170" y="181" font-size="9" fill="#111111" text-anchor="middle">the fourth is why Kazakh needs different choices than English.</text>
+                </svg>
+                <p class="figure__caption">
+                  The first three are properties of language itself. The fourth is a property of Kazakh specifically, and it changes which methods are practical.
+                </p>
+              </div>
               <p class="narrow lead">
                 A programming language has one grammar and no exceptions. Human
                 language has neither. It is:
