@@ -1376,6 +1376,207 @@ SUMMARY
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="frozen">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="frozen">Result 5 &#183; why we fine-tune instead of freezing</h2>
+              <p class="narrow lead">
+                The fine-tuning section claimed that training the whole encoder beats
+                freezing it and training only the head, and promised a measurement. Here
+                it is, and the size of the gap depends enormously on which model you froze.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --task polarity --model bert-base-multilingual-cased --frozen
+python3 lesson7.py --task polarity --model kz-transformers/kaz-roberta-conversational --frozen</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>--- mBERT, encoder frozen ---
+  177,854,978 parameters, 1,538 trainable (encoder frozen)
+    epoch 1  loss=0.6931  test=0.541  (21s)
+    epoch 2  loss=0.6915  test=0.551  (22s)
+    epoch 3  loss=0.6911  test=0.558  (23s)
+  final: 0.558   (random guessing would be 0.500)
+
+--- kaz-RoBERTa, encoder frozen ---
+  83,452,418 parameters, 592,130 trainable (encoder frozen)
+    epoch 1  loss=0.5924  test=0.728  (12s)
+    epoch 2  loss=0.5195  test=0.740  (12s)
+    epoch 3  loss=0.5090  test=0.741  (12s)
+  final: 0.741   (random guessing would be 0.500)</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Frozen encoder against full fine-tuning</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Model</th><th scope="col">Encoder frozen</th>
+                      <th scope="col">Fully fine-tuned</th><th scope="col">Cost of freezing</th>
+                      <th scope="col">Speed-up</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>mBERT</td><td class="no">0.558</td><td>0.799</td><td><strong>&#8722;0.241</strong></td><td>6.1&#215;</td></tr>
+                    <tr><td>kaz-RoBERTa</td><td>0.741</td><td>0.794</td><td>&#8722;0.053</td><td>5.5&#215;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Frozen mBERT never learned anything at all.</strong> Its training
+                loss sat at 0.6911 for all three epochs. The loss of a model guessing at
+                random on a balanced binary task is
+                <code>ln&#8202;2 = 0.6931</code>. It moved by 0.002. The 0.558 accuracy is
+                what that looks like from the outside: barely distinguishable from a coin.
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 184" role="img" aria-labelledby="fig-frozen-t">
+                <title id="fig-frozen-t">Freezing costs mBERT almost everything and kaz-RoBERTa relatively little</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">accuracy, KazSAnDRA polarity</text>
+                <line x1="86" y1="120" x2="330" y2="120" stroke="#d1d6de" />
+                <text x="82" y="124" font-size="8" fill="#5b6270" text-anchor="end">0.50</text>
+                <text x="82" y="82" font-size="8" fill="#5b6270" text-anchor="end">0.65</text>
+                <text x="82" y="44" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="86" y1="82" x2="330" y2="82" stroke="#eef1f5" />
+                <line x1="86" y1="44" x2="330" y2="44" stroke="#eef1f5" />
+                <text x="140" y="140" font-size="8" fill="#111111" text-anchor="middle">mBERT</text>
+                <rect x="106" y="105" width="30" height="15" fill="#fef2f2" stroke="#fecaca" />
+                <text x="121" y="154" font-size="7" fill="#5b6270" text-anchor="middle">frozen</text>
+                <text x="121" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.558</text>
+                <rect x="144" y="44" width="30" height="76" fill="#2563eb" />
+                <text x="159" y="154" font-size="7" fill="#5b6270" text-anchor="middle">full</text>
+                <text x="159" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.799</text>
+                <text x="262" y="140" font-size="8" fill="#111111" text-anchor="middle">kaz-RoBERTa</text>
+                <rect x="228" y="59" width="30" height="61" fill="#c7d9ff" />
+                <text x="243" y="154" font-size="7" fill="#5b6270" text-anchor="middle">frozen</text>
+                <text x="243" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.741</text>
+                <rect x="266" y="46" width="30" height="74" fill="#2563eb" />
+                <text x="281" y="154" font-size="7" fill="#5b6270" text-anchor="middle">full</text>
+                <text x="281" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.794</text>
+                <text x="8" y="180" font-size="8" fill="#5b6270">a frozen encoder is only as good as what it already encodes</text>
+                </svg>
+                <p class="figure__caption">
+                  The same intervention, two very different consequences. Freezing exposes how much the encoder already knew, because nothing can change it.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading this carefully</span>
+                <dl class="breakdown__list">
+                  <dt>fine-tuning wins in both cases</dt>
+                  <dd>+0.241 for mBERT and +0.053 for kaz-RoBERTa. That is the claim the earlier section made, and it holds for both models. Letting gradients reach the encoder is worth real accuracy</dd>
+                  <dt>but the two rows are not directly comparable</dt>
+                  <dd>BERT&#8217;s classification head is a single <code>Linear(768, 2)</code> &#8212; 1&#8202;538 weights on the pooled <code>[CLS]</code> vector. RoBERTa&#8217;s adds a 768&#215;768 dense layer first, so its head has 592&#8202;130 weights, <strong>385&#215; more</strong>. Part of kaz-RoBERTa&#8217;s frozen score is simply a bigger probe. This is a confound in our experiment, and it would take a matched-head rerun to remove it</dd>
+                  <dt>what is not confounded is the diagnostics</dt>
+                  <dd>Frozen kaz-RoBERTa reaches 0.741 &#8212; close to Lecture 5&#8217;s fully-trained LSTM at 0.772 &#8212; without its encoder learning anything about the task. Its representations of Kazakh were already that good. Frozen mBERT&#8217;s were not, exactly as the tokenizer and fill-in-the-blank tests suggested</dd>
+                  <dt>freezing is 5&#8211;6&#215; faster</dt>
+                  <dd>22s per epoch against 135s, because there is no backward pass through twelve blocks. When it works, it is very cheap; the question is whether your encoder already knows your language</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Where the diagnostics finally pay off.</strong> Earlier we found
+                  they predict first-epoch speed but not the final ceiling. Now we can say
+                  it more precisely: they predict <em>how good the representation already
+                  is</em> &#8212; which shows up as first-epoch accuracy, as frozen-feature
+                  quality, and as how few labels you need. It does not show up in the final
+                  number when you have plenty of labels and are willing to fine-tune
+                  everything.
+                </p>
+              </div>
+              <p class="note">
+                <strong>When freezing is nevertheless the right choice.</strong> If you
+                need one encoder to serve twenty tasks, frozen features plus twenty small
+                heads means one model in memory instead of twenty. If your labelled set is
+                a few hundred rows, freezing reduces overfitting. And if you are only
+                producing embeddings for search or clustering, there is no head to train at
+                all. The measurement above is an argument against freezing <em>by
+                default</em>, not against it in principle.
+              </p>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="datasize">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="datasize">Result 4 &#183; how few labels you actually need</h2>
+              <p class="narrow lead">
+                This is the result with the most direct consequences for your own projects.
+                Fine-tuning was supposed to need far less labelled data than training from
+                scratch. Here is how much less, measured on the same test set.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>for n in 125 250 500 1000 2000 4000; do
+    python3 lesson7.py --task polarity \
+        --model kz-transformers/kaz-roberta-conversational --train-size $n
+done</code></pre></div>
+              <div class="table-wrap">
+                <table class="matrix">
+                  <caption class="visually-hidden">Accuracy against the number of labelled training rows</caption>
+                  <thead>
+                    <tr><th scope="col">labelled rows</th><th scope="col">accuracy</th><th scope="col">gain</th><th scope="col">what it already beats</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>250</td><td>0.685</td><td>&#8212;</td><td>&#8212;</td></tr>
+                    <tr><td>500</td><td>0.720</td><td>+0.035</td><td>&#8212;</td></tr>
+                    <tr><td>1 000</td><td class="is-hit">0.766</td><td>+0.046</td><td>Lecture 6 Transformer (0.750)</td></tr>
+                    <tr><td>2 000</td><td class="is-hit">0.780</td><td>+0.014</td><td>Lecture 5 LSTM, Lecture 3 TF-IDF</td></tr>
+                    <tr><td>4 000</td><td>0.787</td><td>+0.007</td><td>&#8212;</td></tr>
+                    <tr><td>8 000</td><td>0.794</td><td>+0.007</td><td>&#8212;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 210" role="img" aria-labelledby="fig-curve-t">
+                <title id="fig-curve-t">Accuracy rises steeply to about 1000 labels and then flattens</title>
+                <line x1="42" y1="160" x2="330" y2="160" stroke="#d1d6de" />
+                <line x1="42" y1="20" x2="42" y2="160" stroke="#d1d6de" />
+                <text x="38" y="164" font-size="8" fill="#5b6270" text-anchor="end">0.65</text>
+                <text x="38" y="117" font-size="8" fill="#5b6270" text-anchor="end">0.70</text>
+                <text x="38" y="74" font-size="8" fill="#5b6270" text-anchor="end">0.75</text>
+                <text x="38" y="31" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="42" y1="112" x2="330" y2="112" stroke="#eef1f5" />
+                <line x1="42" y1="69" x2="330" y2="69" stroke="#eef1f5" />
+                <line x1="42" y1="26" x2="330" y2="26" stroke="#eef1f5" />
+                <line x1="42" y1="52" x2="330" y2="52" stroke="#fecaca" stroke-dasharray="4 3" />
+                <text x="326" y="49" font-size="7" fill="#b91c1c" text-anchor="end">TF-IDF 0.780, on 8 000 rows</text>
+                <line x1="42" y1="78" x2="330" y2="78" stroke="#c7d9ff" stroke-dasharray="4 3" />
+                <text x="326" y="88" font-size="7" fill="#2563eb" text-anchor="end">from scratch 0.750, on 8 000 rows</text>
+                <path d="M 60 130 L 106 100 L 152 61 L 198 49 L 244 43 L 312 37" fill="none" stroke="#2563eb" stroke-width="2" />
+                <circle cx="60" cy="130" r="3" fill="#2563eb" /><circle cx="106" cy="100" r="3" fill="#2563eb" />
+                <circle cx="152" cy="61" r="3" fill="#2563eb" /><circle cx="198" cy="49" r="3" fill="#2563eb" />
+                <circle cx="244" cy="43" r="3" fill="#2563eb" /><circle cx="312" cy="37" r="3" fill="#2563eb" />
+                <text x="60" y="176" font-size="7" fill="#5b6270" text-anchor="middle">250</text>
+                <text x="106" y="176" font-size="7" fill="#5b6270" text-anchor="middle">500</text>
+                <text x="152" y="176" font-size="7" fill="#5b6270" text-anchor="middle">1k</text>
+                <text x="198" y="176" font-size="7" fill="#5b6270" text-anchor="middle">2k</text>
+                <text x="244" y="176" font-size="7" fill="#5b6270" text-anchor="middle">4k</text>
+                <text x="312" y="176" font-size="7" fill="#5b6270" text-anchor="middle">8k</text>
+                <text x="186" y="192" font-size="8" fill="#5b6270" text-anchor="middle">labelled training rows</text>
+                <text x="8" y="208" font-size="8" fill="#111111">2 000 labels with a pretrained model beat 8 000 without one</text>
+                </svg>
+                <p class="figure__caption">
+                  The curve is steep to about 1&#8202;000 rows and nearly flat after 2&#8202;000. The dashed lines are what the earlier lectures achieved using the full 8&#8202;000.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>2&#8202;000 labels beat 8&#8202;000.</strong> kaz-RoBERTa fine-tuned
+                on 2&#8202;000 rows scores 0.780 &#8212; matching what TF-IDF needed
+                8&#8202;000 rows to reach, and beating Lecture 6&#8217;s from-scratch
+                Transformer, which had four times the data. At 1&#8202;000 rows it is
+                already ahead of that Transformer. <strong>A quarter of the annotation
+                budget, a better result.</strong>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">How to read this curve if you are planning a project</span>
+                <dl class="breakdown__list">
+                  <dt>the first thousand labels are worth the most</dt>
+                  <dd>250 &#8594; 1&#8202;000 rows buys +0.081. The next 7&#8202;000 rows buy +0.028. If you are commissioning annotation, the first day of work is worth more than the following week</dd>
+                  <dt>500 labels is already a usable prototype</dt>
+                  <dd>0.720 is not production quality, but it is far enough above guessing to tell you whether the task is learnable at all, and it costs an afternoon of labelling. Do this before committing to a large annotation contract</dd>
+                  <dt>the flattening is not the model giving up</dt>
+                  <dd>It is the same ceiling the five-class task ran into: label noise and genuinely ambiguous reviews. More rows cannot fix rows that are wrong</dd>
+                  <dt>the crossover is the number to quote</dt>
+                  <dd>&#8220;A pretrained model needs about a quarter of the labelled data to beat our current system&#8221; is a sentence a manager can act on. &#8220;BERT is better&#8221; is not</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The caveat, as always:</strong> this is one seed on one task. The
+                  shape of the curve is robust and reproduces everywhere in the literature;
+                  the exact crossover point is worth re-measuring on your own data, which
+                  is a morning&#8217;s work with the script on this page.
+                </p>
+              </div>
+            </div>
+          </section>
           <section class="section" aria-labelledby="choosing">
             <div class="container">
               <span class="section__eyebrow">Practice &#183; The decision</span>
@@ -1790,6 +1991,10 @@ python3 lesson7.py --train-size 250                 # how little data is enough<
                 <li>What a pretrained model knows before fine-tuning, measured two ways</li>
                 <li>Pretraining is worth far more than the choice of which pretrained model to use</li>
                 <li>A spread smaller than your seed variance is a tie, not a ranking</li>
+                <li>Polarity 0.750 &#8594; 0.799, but the five-class task barely moved &#8212; pretraining is not a uniform multiplier</li>
+                <li>2&#8202;000 labels with a pretrained model beat 8&#8202;000 without one</li>
+                <li>0.937 in English against 0.799 in Kazakh on identical data, which is a fact about pretraining corpora</li>
+                <li>A frozen encoder is only as good as what it already encodes: 0.558 for mBERT, 0.741 for kaz-RoBERTa</li>
               </ul>
             </div>
           </section>

@@ -1239,6 +1239,179 @@ SUMMARY
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="frozen">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="frozen">5-нәтиже &#183; неге мұздатудың орнына дәлдеп оқытамыз</h2>
+              <p class="narrow lead">
+                Fine-tuning бөлімі бүкіл энкодерді оқыту оны мұздатып, тек басты оқытудан жақсы деп мәлімдеді және өлшеуге уәде берді. Міне ол &#8212; әрі айырманың мөлшері қай модельді мұздатқаныңызға орасан тәуелді.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --task polarity --model bert-base-multilingual-cased --frozen
+python3 lesson7.py --task polarity --model kz-transformers/kaz-roberta-conversational --frozen</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>--- mBERT, encoder frozen ---
+  177,854,978 parameters, 1,538 trainable (encoder frozen)
+    epoch 1  loss=0.6931  test=0.541  (21s)
+    epoch 2  loss=0.6915  test=0.551  (22s)
+    epoch 3  loss=0.6911  test=0.558  (23s)
+  final: 0.558   (random guessing would be 0.500)
+
+--- kaz-RoBERTa, encoder frozen ---
+  83,452,418 parameters, 592,130 trainable (encoder frozen)
+    epoch 1  loss=0.5924  test=0.728  (12s)
+    epoch 2  loss=0.5195  test=0.740  (12s)
+    epoch 3  loss=0.5090  test=0.741  (12s)
+  final: 0.741   (random guessing would be 0.500)</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Мұздатылған энкодер толық дәлдеп оқытуға қарсы</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Модель</th><th scope="col">Энкодер мұздатылған</th>
+                      <th scope="col">Толық дәлдеп оқытылған</th><th scope="col">Мұздатудың бағасы</th>
+                      <th scope="col">Жылдамдау</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>mBERT</td><td class="no">0.558</td><td>0.799</td><td><strong>&#8722;0.241</strong></td><td>6.1&#215;</td></tr>
+                    <tr><td>kaz-RoBERTa</td><td>0.741</td><td>0.794</td><td>&#8722;0.053</td><td>5.5&#215;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Мұздатылған mBERT мүлде ештеңе үйренген жоқ.</strong> Оның оқыту қатесі үш эпоха бойы 0.6911-де тұрды. Теңгерілген бинарлық тапсырмада кездейсоқ таңдайтын модельдің қатесі <code>ln&#8202;2 = 0.6931</code>-ге тең. Ол 0.002-ге жылжыды. 0.558 дәлдігі &#8212; мұның сырттан қалай көрінетіні: тиын лақтырудан әрең ажыратылады.
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 184" role="img" aria-labelledby="fig-frozen-t">
+                <title id="fig-frozen-t">Мұздату mBERT-ке бәрін дерлік, ал kaz-RoBERTa-ға салыстырмалы түрде аз нәрсеге түседі</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">дәлдік, KazSAnDRA polarity</text>
+                <line x1="86" y1="120" x2="330" y2="120" stroke="#d1d6de" />
+                <text x="82" y="124" font-size="8" fill="#5b6270" text-anchor="end">0.50</text>
+                <text x="82" y="82" font-size="8" fill="#5b6270" text-anchor="end">0.65</text>
+                <text x="82" y="44" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="86" y1="82" x2="330" y2="82" stroke="#eef1f5" />
+                <line x1="86" y1="44" x2="330" y2="44" stroke="#eef1f5" />
+                <text x="140" y="140" font-size="8" fill="#111111" text-anchor="middle">mBERT</text>
+                <rect x="106" y="105" width="30" height="15" fill="#fef2f2" stroke="#fecaca" />
+                <text x="121" y="154" font-size="7" fill="#5b6270" text-anchor="middle">мұздат.</text>
+                <text x="121" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.558</text>
+                <rect x="144" y="44" width="30" height="76" fill="#2563eb" />
+                <text x="159" y="154" font-size="7" fill="#5b6270" text-anchor="middle">толық</text>
+                <text x="159" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.799</text>
+                <text x="262" y="140" font-size="8" fill="#111111" text-anchor="middle">kaz-RoBERTa</text>
+                <rect x="228" y="59" width="30" height="61" fill="#c7d9ff" />
+                <text x="243" y="154" font-size="7" fill="#5b6270" text-anchor="middle">мұздат.</text>
+                <text x="243" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.741</text>
+                <rect x="266" y="46" width="30" height="74" fill="#2563eb" />
+                <text x="281" y="154" font-size="7" fill="#5b6270" text-anchor="middle">толық</text>
+                <text x="281" y="164" font-size="7" fill="#5b6270" text-anchor="middle">0.794</text>
+                <text x="8" y="180" font-size="8" fill="#5b6270">мұздатылған энкодер өзі кодтап қойғанынан артық емес</text>
+                </svg>
+                <p class="figure__caption">
+                  Сол бір араласу, екі мүлде бөлек салдар. Мұздату энкодердің қанша біліп қойғанын жалаңаштайды, себебі оны ештеңе өзгерте алмайды.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Мұны мұқият оқимыз</span>
+                <dl class="breakdown__list">
+                  <dt>дәлдеп оқыту екі жағдайда да жеңеді</dt>
+                  <dd>mBERT-те +0.241, kaz-RoBERTa-да +0.053. Алдыңғы бөлім дәл осыны мәлімдеді, әрі бұл екі модельге де дұрыс. Градиенттерді энкодерге жіберу нағыз дәлдікке тұрады</dd>
+                  <dt>бірақ бұл екі жол тікелей салыстыруға келмейді</dt>
+                  <dd>BERT-тің жіктеу басы &#8212; пулингтелген <code>[CLS]</code> векторының үстіндегі жалғыз <code>Linear(768, 2)</code>, яғни 1&#8202;538 салмақ. RoBERTa оның алдына 768&#215;768 тығыз қабат қосады, сондықтан оның басында 592&#8202;130 салмақ бар &#8212; <strong>385&#215; көп</strong>. kaz-RoBERTa-ның мұздатылған нәтижесінің бір бөлігі жай ғана үлкенірек зонд. Бұл &#8212; біздің тәжірибеміздегі шатастырушы фактор, әрі оны жою үшін бастары теңестірілген қайта жүріс керек</dd>
+                  <dt>шатаспағаны &#8212; диагностикалар</dt>
+                  <dd>Мұздатылған kaz-RoBERTa 0.741-ге жетеді &#8212; 5-дәрістегі толық оқытылған LSTM-нің 0.772-сіне жақын &#8212; әрі бұл оның энкодері тапсырма туралы ештеңе білмей тұрып. Оның қазақ тілі туралы кескіндемелері әлдеқашан сондай жақсы болған. Мұздатылған mBERT-тікі олай емес, дәл токенизатор мен бос орынды толтыру тесттері болжағандай</dd>
+                  <dt>мұздату 5&#8211;6&#215; жылдам</dt>
+                  <dd>Эпохасына 135 с-қа қарсы 22 с, себебі он екі блок арқылы кері өту жоқ. Ол жұмыс істегенде өте арзан; мәселе тек сіздің энкодеріңіз сіздің тіліңізді біле ме дегенде</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Диагностикалар ақыры қай жерде ақталады.</strong> Бұрын біз олар бірінші эпоханың жылдамдығын болжайтынын, бірақ түпкі төбені болжамайтынын анықтадық. Енді дәлірек айтуға болады: олар <em>кескіндеменің әлдеқашан қаншалықты жақсы екенін</em> болжайды &#8212; ал бұл бірінші эпохадан кейінгі дәлдік, мұздатылған белгілердің сапасы және сізге қанша аз таңба керегі түрінде көрінеді. Таңба көп болып, бәрін дәлдеп оқытуға дайын болсаңыз, бұл түпкі санда көрінбейді.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Мұздату дегенмен дұрыс таңдау болатын кезде.</strong> Егер сізге жиырма тапсырмаға бір энкодер керек болса, мұздатылған белгілер мен жиырма кішкентай бас жадыда жиырманың орнына бір модель дегенді білдіреді. Егер таңбаланған жиыныңыз бірнеше жүз жол болса, мұздату қайта оқытылуды азайтады. Ал іздеу не кластерлеу үшін тек embeddings шығарып жатсаңыз, оқытатын бас мүлде жоқ. Жоғарыдағы өлшеу &#8212; мұздатуға <em>әдепкі бойынша</em> қарсы дәлел, оған түбегейлі қарсы емес.
+              </p>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="datasize">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="datasize">4-нәтиже &#183; шын мәнінде қанша таңба керек</h2>
+              <p class="narrow lead">
+                Бұл &#8212; өз жобаларыңызға ең тікелей әсері бар нәтиже. Дәлдеп оқытуға нөлден оқытуға қарағанда әлдеқайда аз таңбаланған дерек керек деп жорамалданған. Міне, қаншалықты аз екені, сол тест жиынында өлшенген.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>for n in 125 250 500 1000 2000 4000; do
+    python3 lesson7.py --task polarity \
+        --model kz-transformers/kaz-roberta-conversational --train-size $n
+done</code></pre></div>
+              <div class="table-wrap">
+                <table class="matrix">
+                  <caption class="visually-hidden">Таңбаланған оқыту жолдарының санына қатысты дәлдік</caption>
+                  <thead>
+                    <tr><th scope="col">таңбаланған жол</th><th scope="col">дәлдік</th><th scope="col">өсім</th><th scope="col">ол нені басып озып қойды</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>250</td><td>0.685</td><td>&#8212;</td><td>&#8212;</td></tr>
+                    <tr><td>500</td><td>0.720</td><td>+0.035</td><td>&#8212;</td></tr>
+                    <tr><td>1 000</td><td class="is-hit">0.766</td><td>+0.046</td><td>6-дәрістегі Transformer (0.750)</td></tr>
+                    <tr><td>2 000</td><td class="is-hit">0.780</td><td>+0.014</td><td>5-дәрістегі LSTM, 3-дәрістегі TF-IDF</td></tr>
+                    <tr><td>4 000</td><td>0.787</td><td>+0.007</td><td>&#8212;</td></tr>
+                    <tr><td>8 000</td><td>0.794</td><td>+0.007</td><td>&#8212;</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 210" role="img" aria-labelledby="fig-curve-t">
+                <title id="fig-curve-t">Дәлдік шамамен 1000 таңбаға дейін тік өседі, содан кейін тегістеледі</title>
+                <line x1="42" y1="160" x2="330" y2="160" stroke="#d1d6de" />
+                <line x1="42" y1="20" x2="42" y2="160" stroke="#d1d6de" />
+                <text x="38" y="164" font-size="8" fill="#5b6270" text-anchor="end">0.65</text>
+                <text x="38" y="117" font-size="8" fill="#5b6270" text-anchor="end">0.70</text>
+                <text x="38" y="74" font-size="8" fill="#5b6270" text-anchor="end">0.75</text>
+                <text x="38" y="31" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="42" y1="112" x2="330" y2="112" stroke="#eef1f5" />
+                <line x1="42" y1="69" x2="330" y2="69" stroke="#eef1f5" />
+                <line x1="42" y1="26" x2="330" y2="26" stroke="#eef1f5" />
+                <line x1="42" y1="52" x2="330" y2="52" stroke="#fecaca" stroke-dasharray="4 3" />
+                <text x="326" y="49" font-size="7" fill="#b91c1c" text-anchor="end">TF-IDF 0.780, 8 000 жолда</text>
+                <line x1="42" y1="78" x2="330" y2="78" stroke="#c7d9ff" stroke-dasharray="4 3" />
+                <text x="326" y="88" font-size="7" fill="#2563eb" text-anchor="end">нөлден 0.750, 8 000 жолда</text>
+                <path d="M 60 130 L 106 100 L 152 61 L 198 49 L 244 43 L 312 37" fill="none" stroke="#2563eb" stroke-width="2" />
+                <circle cx="60" cy="130" r="3" fill="#2563eb" /><circle cx="106" cy="100" r="3" fill="#2563eb" />
+                <circle cx="152" cy="61" r="3" fill="#2563eb" /><circle cx="198" cy="49" r="3" fill="#2563eb" />
+                <circle cx="244" cy="43" r="3" fill="#2563eb" /><circle cx="312" cy="37" r="3" fill="#2563eb" />
+                <text x="60" y="176" font-size="7" fill="#5b6270" text-anchor="middle">250</text>
+                <text x="106" y="176" font-size="7" fill="#5b6270" text-anchor="middle">500</text>
+                <text x="152" y="176" font-size="7" fill="#5b6270" text-anchor="middle">1k</text>
+                <text x="198" y="176" font-size="7" fill="#5b6270" text-anchor="middle">2k</text>
+                <text x="244" y="176" font-size="7" fill="#5b6270" text-anchor="middle">4k</text>
+                <text x="312" y="176" font-size="7" fill="#5b6270" text-anchor="middle">8k</text>
+                <text x="186" y="192" font-size="8" fill="#5b6270" text-anchor="middle">таңбаланған оқыту жолдары</text>
+                <text x="8" y="208" font-size="8" fill="#111111">алдын ала оқытылған модельмен 2 000 таңба онсыз 8 000-нан асып түседі</text>
+                </svg>
+                <p class="figure__caption">
+                  Қисық шамамен 1&#8202;000 жолға дейін тік, ал 2&#8202;000-нан кейін тегіс дерлік. Нүктелі сызықтар &#8212; алдыңғы дәрістердің толық 8&#8202;000-ды пайдаланып жеткен деңгейі.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>2&#8202;000 таңба 8&#8202;000-ды басып озады.</strong> 2&#8202;000 жолда дәлдеп оқытылған kaz-RoBERTa 0.780 жинайды &#8212; TF-IDF-ке 8&#8202;000 жол керек болған дәл сол нәтиже, әрі бұл деректері төрт есе көп болған 6-дәрістегі нөлден оқытылған Transformer-ден жоғары. 1&#8202;000 жолда ол сол Transformer-ден әлдеқашан алда. <strong>Таңбалау бюджетінің төрттен бірі, ал нәтиже жақсырақ.</strong>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Жоба жоспарлап жүрсеңіз, бұл қисықты қалай оқу керек</span>
+                <dl class="breakdown__list">
+                  <dt>алғашқы мың таңба ең қымбат тұрады</dt>
+                  <dd>250 &#8594; 1&#8202;000 жол +0.081 береді. Келесі 7&#8202;000 жол +0.028 береді. Егер таңбалауға тапсырыс беріп жатсаңыз, бірінші күндік жұмыс келесі аптадан да қымбат</dd>
+                  <dt>500 таңба &#8212; бұл қазірдің өзінде жұмыс істейтін прототип</dt>
+                  <dd>0.720 &#8212; өнеркәсіптік сапа емес, бірақ бұл тапсырманың мүлде үйренуге келетін-келмейтінін білуге кездейсоқ таңдаудан жеткілікті жоғары, әрі жарты күндік таңбалауға тұрады. Аннотациялауға үлкен келісімшарт жасар алдында осыны істеңіз</dd>
+                  <dt>тегістелу &#8212; модельдің берілгені емес</dt>
+                  <dd>Бұл &#8212; бес класты тапсырма тіреген сол төбе: таңбалардағы шу және шынымен бұлыңғыр пікірлер. Қосымша жолдар қате жолдарды түзетпейді</dd>
+                  <dt>қиылысу нүктесі &#8212; атауға тұрарлық сан</dt>
+                  <dd>&#171;Алдын ала оқытылған модельге қазіргі жүйемізді басып озу үшін шамамен төрт есе аз таңбаланған дерек керек&#187; &#8212; басшы соның негізінде әрекет ете алатын сөйлем. &#171;BERT жақсырақ&#187; &#8212; әрекет ете алмайды</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Ескертпе, әрқашандағыдай:</strong> бұл &#8212; бір тапсырмадағы бір seed. Қисықтың пішіні орнықты әрі әдебиетте бәрінде қайталанады; ал дәл қиылысу нүктесін өз деректеріңізде қайта өлшеген жөн, ол &#8212; осы беттегі скриптпен бір таңғы жұмыс.
+                </p>
+              </div>
+            </div>
+          </section>
           <section class="section" aria-labelledby="choosing">
             <div class="container">
               <span class="section__eyebrow">Практика &#183; Шешім</span>
@@ -1622,6 +1795,10 @@ python3 lesson7.py --train-size 250                 # how little data is enough<
                 <li>Fine-tuning-ке дейін алдын ала оқытылған модель нені біледі, екі тәсілмен өлшенген</li>
                 <li>Pretraining қай алдын ала оқытылған модельді алу таңдауынан әлдеқайда көп тұрады</li>
                 <li>Seed бойынша шашыраудан кіші айырма &#8212; бұл саралау емес, тең нәтиже</li>
+                <li>Polarity 0.750 &#8594; 0.799, бірақ бес класты тапсырма қозғалмады дерлік &#8212; алдын ала оқыту біркелкі көбейткіш емес</li>
+                <li>Алдын ала оқытылған модельмен 2&#8202;000 таңба онсыз 8&#8202;000-нан асып түседі</li>
+                <li>Бірдей деректе ағылшынша 0.937, қазақша 0.799 &#8212; бұл алдын ала оқыту корпустары туралы факт</li>
+                <li>Мұздатылған энкодер өзі кодтап қойғанынан артық емес: mBERT-те 0.558, kaz-RoBERTa-да 0.741</li>
               </ul>
             </div>
           </section>

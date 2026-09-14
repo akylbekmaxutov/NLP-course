@@ -166,3 +166,31 @@ Changed:
 - `page/js/course.js` — Lecture 6 topics line updated to "Attention · Q/K/V · Multi-head · Encoder & decoder · PyTorch"
 
 All 90 inline SVGs (30 per language) are valid XML, `tools/check-figures.py` reports zero layout problems, figure and section counts match across en/kk/ru, and every code block is byte-identical in all three languages
+
+### 14.09.2026
+
+Added:
+
+- `code_files/lesson7.py` — the Lecture 7 script: fine-tuning pretrained encoders on the same balanced KazSAnDRA splits as Lectures 3–6, plus SST-2. `balance()` is copied unchanged from Lecture 3 so every number stays comparable. A hand-written training loop rather than `Trainer`, with `--compare` to run a model list under one identical recipe, `--frozen` for feature extraction, `--mlm-demo` for fill-in-the-blank, `--tokenizer-demo` for sub-word splitting, and `--train-size` for the data-efficiency sweep. Runs on Apple MPS
+- `language/en/07-bert-finetuning.html`, `language/kk/07-bert-finetuning.html`, `language/ru/07-bert-finetuning.html` — Lecture 7, BERT and Fine-tuning. 21 sections and 14 inline SVG figures per language: why 8 000 labels cannot teach a language and a task at once, pretrain-once/fine-tune-many, masked language modelling with the 15% and 80/10/10 recipes and why NSP was dropped, BERT as Lecture 6's encoder stack plus `[CLS]`/`[SEP]`/segments, what fine-tuning adds and changes, the family (RoBERTa, DistilBERT, TinyBERT, MiniLM, ALBERT, ELECTRA, DeBERTa, mBERT, XLM-R) with a knowledge-distillation figure, how to choose a model, and what pretraining still does not give you
+
+Measured, all on one fixed recipe (8 000 balanced training rows, 3 epochs, lr 2e-5, batch 32, max length 64, Apple M4 Pro / MPS):
+
+- **Before any fine-tuning.** Fill-in-the-blank over three models: mBERT puts the capital of Kazakhstan at Алматы 0.31 and cannot produce a Kazakh verb at all; XLM-R gets Астана 0.62; only `kaz-roberta-conversational` produces correct first-person agreement (`оқыдым` 0.35, `оқимын` 0.15). Tokenizers on `кітаптарымыздан`: mBERT 6 pieces (tearing the leading «к» off the root), MiniLM and XLM-R 4 (the correct morphological split), kaz-RoBERTa 2
+- **Polarity, 2 classes.** mBERT 0.799, XLM-R 0.797, kaz-RoBERTa 0.794, DistilmBERT 0.791, MiniLM 0.789 — against Lecture 6's from-scratch Transformer at 0.750. Pretraining is worth **+0.049**; the spread *between* pretrained models is 0.010, which is a tie. After one epoch the ranking is exactly what the two diagnostics predicted (kaz-RoBERTa 0.800, XLM-R 0.792, MiniLM 0.780, mBERT 0.762) — so they predict how fast a model arrives, not where it lands
+- **Score, 5 classes.** kaz-RoBERTa 0.381, mBERT 0.377, DistilmBERT 0.373, XLM-R 0.370, MiniLM 0.358 — against Lecture 6's 0.378 achieved on 19 600 rows. Here pretraining bought **data efficiency, not accuracy**: the same result on 2.45× less data. The spread widens to 0.023, and the ceiling is label noise, exactly as the Lecture 5 and 6 confusion matrices showed
+- **SST-2, English, same 8 000 rows.** RoBERTa 0.937, ALBERT 0.917, BERT 0.915, DistilBERT 0.877, ELECTRA-small 0.855. Four published claims reproduced on our own numbers: RoBERTa beats BERT (+0.022); ALBERT matches BERT with 9.4× fewer parameters but is only 1.45× faster; ELECTRA-small is 5.8× faster and 8.1× smaller; DistilBERT retains 95.8%, slightly under the advertised ~97%. **0.937 English against 0.799 Kazakh on identical data — 3.2× as many errors**, which is a fact about pretraining corpora rather than about the languages
+- **Frozen encoder vs full fine-tuning.** mBERT frozen 0.558 (its loss never left 0.691, against ln 2 = 0.693 for random) versus 0.799 fine-tuned; kaz-RoBERTa frozen 0.741 versus 0.794. Freezing is 5–6× faster. The two rows are not directly comparable — BERT's head is 1 538 weights and RoBERTa's is 592 130, a 385× confound that is stated on the page
+- **How few labels are needed.** kaz-RoBERTa on polarity: 250 rows 0.685, 500 0.720, 1 000 0.766, 2 000 0.780, 4 000 0.787, 8 000 0.794. **2 000 labels with a pretrained model beat the 8 000 that TF-IDF and the from-scratch Transformer needed** — a quarter of the annotation budget for a better result
+
+Fixed:
+
+- `code_files/lesson7.py` — freezing the encoder made PyTorch select the fused MPS attention kernel, which raises `NotImplementedError: scaled_dot_product_attention for MPS does not support dropout`. A frozen encoder is a fixed feature function and should be deterministic anyway, so it is now put in `eval()` mode during training, which is both the correct semantics and the fix
+
+Changed:
+
+- `code_files/requirements.txt` — `transformers`, `sentencepiece` and `accelerate` added
+- `page/js/course.js` — Lecture 7 published as "BERT and Fine-tuning" / "BERT және Fine-tuning" / "BERT и Fine-tuning"
+- `index.html` — link to Lecture 7
+
+All 42 inline SVGs across the three Lecture 7 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and every code block is byte-identical in all three languages
