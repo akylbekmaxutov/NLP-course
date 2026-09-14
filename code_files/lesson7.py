@@ -239,6 +239,11 @@ def fine_tune(name, train_batches, test_batches, classes, args, frozen=False):
 
     for epoch in range(1, args.epochs + 1):
         model.train()
+        if frozen:
+            # A frozen encoder is a fixed feature function, so it should behave
+            # deterministically: no dropout. (It also avoids a fused-kernel
+            # limitation on MPS, where attention dropout is unimplemented.)
+            model.base_model.eval()
         started, running, seen = time.time(), 0.0, 0
         for ids, mask, labels in train_batches:
             ids, mask, labels = ids.to(DEVICE), mask.to(DEVICE), labels.to(DEVICE)

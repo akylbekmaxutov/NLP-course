@@ -1111,6 +1111,271 @@ SUMMARY
               </div>
             </div>
           </section>
+          <section class="section section--surface" aria-labelledby="score">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="score">Result 2 &#183; KazSAnDRA score, five classes</h2>
+              <p class="narrow lead">
+                The same five models, the same recipe, the harder task: predict the star
+                rating from 1 to 5. This is where the story stops being flattering.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --compare --task score --train-size 1600</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>==========================================================================
+COMPARING 5 PRETRAINED MODELS  ·  KazSAnDRA score (Kazakh)
+==========================================================================
+  train 8000  test 2450  3 epochs  lr 2e-05  device mps
+
+— mBERT           epoch 1  0.355   epoch 2  0.366   epoch 3  0.377   (138s/epoch)
+— DistilmBERT     epoch 1  0.349   epoch 2  0.377   epoch 3  0.373   (89s/epoch)
+— MiniLM          epoch 1  0.324   epoch 2  0.352   epoch 3  0.358   (73s/epoch)
+— XLM-R           epoch 1  0.275   epoch 2  0.362   epoch 3  0.370   (180s/epoch)
+— kaz-RoBERTa     epoch 1  0.367   epoch 2  0.374   epoch 3  0.381   (66s/epoch)
+
+==========================================================================
+SUMMARY
+==========================================================================
+  model            parameters   minutes   accuracy
+  mBERT           177,857,285       7.0      0.377
+  DistilmBERT     135,328,517       4.5      0.373
+  MiniLM          117,655,685       3.7      0.358
+  XLM-R           278,047,493       9.1      0.370
+  kaz-RoBERTa      83,454,725       3.4      0.381</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Five-class results against Lectures 5 and 6</caption>
+                  <thead>
+                    <tr><th scope="col">Lecture</th><th scope="col">Model</th><th scope="col">Train rows</th><th scope="col">Accuracy</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>&#8212;</td><td>random guessing</td><td>&#8212;</td><td>0.200</td></tr>
+                    <tr><td>5</td><td>LSTM</td><td>19 600</td><td>0.374</td></tr>
+                    <tr><td>6</td><td>Transformer, from scratch</td><td>19 600</td><td>0.378</td></tr>
+                    <tr><td>7</td><td>MiniLM, fine-tuned</td><td class="yes">8 000</td><td class="no">0.358</td></tr>
+                    <tr><td>7</td><td>XLM-R, fine-tuned</td><td class="yes">8 000</td><td>0.370</td></tr>
+                    <tr><td>7</td><td>DistilmBERT, fine-tuned</td><td class="yes">8 000</td><td>0.373</td></tr>
+                    <tr><td>7</td><td>mBERT, fine-tuned</td><td class="yes">8 000</td><td>0.377</td></tr>
+                    <tr><td>7</td><td><strong>kaz-RoBERTa, fine-tuned</strong></td><td class="yes">8 000</td><td><strong>0.381</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>On polarity pretraining bought accuracy. Here it bought data.</strong>
+                The best pretrained model reaches 0.381 against the from-scratch
+                Transformer&#8217;s 0.378 &#8212; a difference of 0.003, which is nothing.
+                But it got there on <strong>8&#8202;000 training rows instead of
+                19&#8202;600</strong>. The benefit is real and it is entirely in the
+                denominator.
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 206" role="img" aria-labelledby="fig-twotasks-t">
+                <title id="fig-twotasks-t">Pretraining helps enormously on the two-class task and barely at all on the five-class one</title>
+                <text x="8" y="12" font-size="9" fill="#111111">polarity, 2 classes &#8212; headroom above guessing: 0.500</text>
+                <line x1="8" y1="46" x2="332" y2="46" stroke="#d1d6de" />
+                <rect x="8" y="22" width="132" height="20" fill="#fef2f2" stroke="#fecaca" />
+                <text x="146" y="36" font-size="8" fill="#111111">from scratch 0.750</text>
+                <rect x="8" y="52" width="164" height="20" fill="#2563eb" />
+                <text x="178" y="66" font-size="8" fill="#111111">pretrained 0.799</text>
+                <text x="8" y="88" font-size="8" fill="#2563eb">+0.049 &#8212; a large, obvious win</text>
+                <line x1="8" y1="100" x2="332" y2="100" stroke="#e8ecf2" />
+                <text x="8" y="118" font-size="9" fill="#111111">score, 5 classes &#8212; headroom above guessing: 0.800</text>
+                <rect x="8" y="128" width="120" height="20" fill="#fef2f2" stroke="#fecaca" />
+                <text x="134" y="142" font-size="8" fill="#111111">from scratch 0.378</text>
+                <rect x="8" y="158" width="121" height="20" fill="#2563eb" />
+                <text x="135" y="172" font-size="8" fill="#111111">pretrained 0.381</text>
+                <text x="8" y="194" font-size="8" fill="#b91c1c">+0.003 &#8212; nothing, except it used 2.45&#215; less data</text>
+                </svg>
+                <p class="figure__caption">
+                  The same intervention on two tasks from the same dataset, in the same language, with the same models. One result is dramatic; the other is a rounding error.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why the five-class task refuses to move</span>
+                <dl class="breakdown__list">
+                  <dt>the ceiling is in the labels, not the model</dt>
+                  <dd>Lectures 5 and 6 both printed the confusion matrix, and both showed the same shape: the ends of the scale are found, the middle is not, and most errors are off by exactly one star. A 4-star and a 5-star review are often the same sentence written by two different people. No encoder can recover a distinction the data does not contain</dd>
+                  <dt>every model converges to the same place</dt>
+                  <dd>0.358 to 0.381 across five very different models, and 0.374 to 0.378 for the two from-scratch models of Lectures 5 and 6. Seven models across two training regimes, all landing in the same narrow band, is what an intrinsic ceiling looks like</dd>
+                  <dt>1 600 examples per class, not 4 000</dt>
+                  <dd>Holding the training set at 8&#8202;000 rows means 1&#8202;600 examples per class instead of the 4&#8202;000 that polarity got. Some of the flatness is simply that</dd>
+                  <dt>but the spread more than doubled</dt>
+                  <dd>0.023 here against 0.010 on polarity. On the harder task the models stop being interchangeable, and MiniLM &#8212; the one that was tied on polarity &#8212; falls clearly to last</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>This is the prediction from the previous section, confirmed.</strong>
+                  We said the diagnostics would matter more on a harder task or with fewer
+                  labels. Both conditions hold here, and the model that the tokenizer and
+                  fill-in-the-blank tests liked best &#8212; kaz-RoBERTa &#8212; now finishes
+                  first outright, in a third of XLM-R&#8217;s time and a third of its size.
+                </p>
+              </div>
+              <p class="note">
+                <strong>The honest summary of two results.</strong> Pretraining is not a
+                uniform multiplier. On a task with real signal that a model has to learn
+                the language to extract, it is transformative. On a task whose difficulty
+                is irreducible ambiguity in the labels, it moves almost nothing &#8212; and
+                a careful practitioner reports the second result as loudly as the first,
+                because the alternative is promising a stakeholder an improvement that the
+                data cannot deliver.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sst2">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="sst2">Result 3 &#183; the same recipe, in English</h2>
+              <p class="narrow lead">
+                Everything so far has been Kazakh. To see what the pretrained models are
+                capable of when the language is the one they were mostly trained on, we
+                run the identical recipe on SST-2 &#8212; the sentiment benchmark BERT was
+                originally measured against.
+              </p>
+              <div class="breakdown">
+                <span class="breakdown__label">Why SST-2 is an unusually clean comparison</span>
+                <dl class="breakdown__list">
+                  <dt>the same amount of data</dt>
+                  <dd>We take 8&#8202;000 balanced training rows, exactly as for KazSAnDRA polarity. SST-2 has 67&#8202;349 available; we deliberately use 12% of them so the comparison is not about data volume</dd>
+                  <dt>the same sentence length</dt>
+                  <dd>SST-2 averages 9.5 words per row, KazSAnDRA polarity 8.7. Almost nothing is truncated in either</dd>
+                  <dt>the same task shape</dt>
+                  <dd>Binary sentiment, balanced classes, accuracy as the metric</dd>
+                  <dt>the same recipe</dt>
+                  <dd>3 epochs, lr 2e-5, batch 32, max length 64. Not one number changes</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>What is not controlled:</strong> the test set is 856 rows rather
+                  than 2&#8202;000, so it is noisier; and movie-review snippets are not
+                  app-store reviews, so the two tasks are not equally hard in a way anyone
+                  can quantify. This is a strong indication, not a controlled experiment.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --compare --dataset sst2</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>==========================================================================
+COMPARING 5 PRETRAINED MODELS  ·  SST-2 (English)
+==========================================================================
+  train 8000  test 856  3 epochs  lr 2e-05  device mps
+
+— BERT            epoch 1  0.905   epoch 2  0.918   epoch 3  0.915   (103s/epoch)
+— DistilBERT      epoch 1  0.881   epoch 2  0.875   epoch 3  0.877   (57s/epoch)
+— RoBERTa         epoch 1  0.916   epoch 2  0.924   epoch 3  0.937   (109s/epoch)
+— ALBERT          epoch 1  0.893   epoch 2  0.917   epoch 3  0.917   (73s/epoch)
+— ELECTRA-small   epoch 1  0.820   epoch 2  0.820   epoch 3  0.855   (17s/epoch)
+
+==========================================================================
+SUMMARY
+==========================================================================
+  model            parameters   minutes   accuracy
+  BERT            109,483,778       5.8      0.915
+  DistilBERT       66,955,010       3.3      0.877
+  RoBERTa         124,647,170       6.0      0.937
+  ALBERT           11,685,122       4.0      0.917
+  ELECTRA-small    13,549,314       1.0      0.855</code></pre></div>
+
+              <h3 style="margin-top: 44px">Every claim from the theory section, tested</h3>
+              <p class="narrow">
+                This table is worth reading against the family section above: five of its
+                assertions are checkable on our own numbers, four hold cleanly, and the
+                fifth comes out slightly below what was claimed.
+              </p>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Theory claims against measured SST-2 results</caption>
+                  <thead>
+                    <tr><th scope="col">What the papers claim</th><th scope="col">What we measured</th><th scope="col">Held?</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>RoBERTa beats BERT with the same architecture</td>
+                      <td>0.937 vs 0.915, <strong>+0.022</strong></td>
+                      <td class="yes">yes</td>
+                    </tr>
+                    <tr>
+                      <td>ALBERT matches BERT with far fewer parameters</td>
+                      <td>0.917 vs 0.915, with <strong>9.4&#215; fewer</strong></td>
+                      <td class="yes">yes</td>
+                    </tr>
+                    <tr>
+                      <td>&#8230; but ALBERT is not proportionally faster</td>
+                      <td>only <strong>1.45&#215;</strong> faster, not 9.4&#215;</td>
+                      <td class="yes">yes</td>
+                    </tr>
+                    <tr>
+                      <td>DistilBERT keeps ~97% of BERT</td>
+                      <td><strong>95.8%</strong> here (0.877 / 0.915)</td>
+                      <td>close</td>
+                    </tr>
+                    <tr>
+                      <td>ELECTRA-small is extremely cheap</td>
+                      <td>0.855 at <strong>5.8&#215; faster, 8.1&#215; smaller</strong></td>
+                      <td class="yes">yes</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>ALBERT is the row to dwell on.</strong> 11.7 M parameters against
+                BERT&#8217;s 109.5 M &#8212; a checkpoint you could email &#8212; and it is
+                <em>ahead</em> on accuracy. But it takes 4.0 minutes against BERT&#8217;s
+                5.8, not one ninth of the time, because sharing weights across layers makes
+                the file small without removing any of the twelve blocks that have to run.
+                This is exactly the misreading the family section warned about, and here it
+                is in our own measurements.
+              </p>
+
+              <h3 style="margin-top: 44px">And now the comparison that matters</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-lang-t">
+                <title id="fig-lang-t">The same recipe on the same amount of data reaches much higher accuracy in English</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">binary sentiment, 8 000 training rows, identical recipe</text>
+                <text x="8" y="34" font-size="9" fill="#111111">English</text>
+                <rect x="70" y="22" width="262" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <rect x="70" y="22" width="229" height="18" rx="3" fill="#2563eb" />
+                <text x="303" y="35" font-size="8" fill="#111111">0.937</text>
+                <text x="8" y="62" font-size="9" fill="#111111">Kazakh</text>
+                <rect x="70" y="50" width="262" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <rect x="70" y="50" width="157" height="18" rx="3" fill="#2563eb" />
+                <text x="231" y="63" font-size="8" fill="#111111">0.799</text>
+                <text x="70" y="84" font-size="8" fill="#5b6270">0.5 = guessing</text>
+                <text x="290" y="84" font-size="8" fill="#5b6270">1.0</text>
+                <line x1="8" y1="96" x2="332" y2="96" stroke="#e8ecf2" />
+                <text x="8" y="114" font-size="9" fill="#111111">read as errors instead</text>
+                <rect x="70" y="122" width="26" height="18" rx="3" fill="#2563eb" />
+                <text x="102" y="135" font-size="8" fill="#111111">English: 6.3% wrong</text>
+                <rect x="70" y="146" width="83" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="159" y="159" font-size="8" fill="#111111">Kazakh: 20.1% wrong</text>
+                <text x="8" y="184" font-size="9" fill="#b91c1c">3.2&#215; as many mistakes, for the same work on the same amount of data</text>
+                </svg>
+                <p class="figure__caption">
+                  Not a statement about the languages. A statement about how much of each one was in the pretraining corpora.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>0.937 against 0.799.</strong> Same recipe, same 8&#8202;000 rows,
+                same task, sentences of the same length. The English model gets 87% of the
+                way from guessing to perfect; the Kazakh model gets 60%. Expressed as
+                errors, which is the more honest framing, the Kazakh system makes
+                <strong>3.2&#215; as many mistakes</strong>.
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">What that gap is and is not</span>
+                <dl class="breakdown__list">
+                  <dt>it is not about the languages</dt>
+                  <dd>Nothing about Kazakh makes sentiment intrinsically harder to detect than in English. Both tasks are &#8220;did this person like the thing&#8221;</dd>
+                  <dt>it is about the pretraining corpus</dt>
+                  <dd>RoBERTa read 160 GB of English. XLM-R read 2.5 TB across 100 languages, of which Kazakh is a small share; mBERT read Wikipedia, where Kazakh is smaller still. The diagnostics at the start of this lecture showed the consequence directly &#8212; mBERT could not produce a Kazakh verb</dd>
+                  <dt>it is partly about the tokenizer</dt>
+                  <dd>English words are mostly one token. Kazakh words cost two to six, so the same 64-token budget holds far less meaning, and the evidence for each root is scattered</dd>
+                  <dt>it is the argument for language-specific models</dt>
+                  <dd>kaz-RoBERTa &#8212; 83 M parameters trained on Kazakh alone &#8212; was first on the harder Kazakh task and fastest on both. That is where the gap gets closed</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The practical lesson for anyone building NLP for Kazakhstan:</strong>
+                  the published numbers you read in papers are English numbers. Budget for
+                  the gap, measure on your own language, and treat a Kazakh-specific
+                  pretrained model as a first-class option rather than a curiosity.
+                </p>
+              </div>
+            </div>
+          </section>
           <section class="section" aria-labelledby="choosing">
             <div class="container">
               <span class="section__eyebrow">Practice &#183; The decision</span>
