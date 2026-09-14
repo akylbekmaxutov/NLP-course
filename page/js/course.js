@@ -177,21 +177,21 @@ window.NLP_COURSE = {
     {
       id: "language-models-1",
       num: 7,
-      file: null,
+      file: "07-bert-finetuning.html",
       date: {
         en: "14 Sep 2026",
         kk: "14 қыркүйек 2026",
         ru: "14 сентября 2026"
       },
       title: {
-        en: "Language Models I",
-        kk: "Language Models I",
-        ru: "Language Models I"
+        en: "BERT and Fine-tuning",
+        kk: "BERT және Fine-tuning",
+        ru: "BERT и Fine-tuning"
       },
       topics: {
-        en: "BERT · RoBERTa · Fine-tuning pretrained models",
-        kk: "BERT · RoBERTa · Pretrained модельдерді Fine-tuning",
-        ru: "BERT · RoBERTa · Fine-tuning предобученных моделей"
+        en: "Pretraining · BERT · RoBERTa · DistilBERT · Fine-tuning",
+        kk: "Pretraining · BERT · RoBERTa · DistilBERT · Fine-tuning",
+        ru: "Pretraining · BERT · RoBERTa · DistilBERT · Fine-tuning"
       }
     },
     {

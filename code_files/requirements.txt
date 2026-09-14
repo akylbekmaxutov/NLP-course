@@ -5,3 +5,6 @@ python-dotenv>=1.0
 matplotlib>=3.7   # only for --figure
 gensim>=4.3            # lesson4: word2vec and fastText
 torch>=2.2             # lesson5 and lesson6: RNN, LSTM and Transformers
+transformers>=4.40      # lesson7: pretrained encoders and their tokenizers
+sentencepiece>=0.2      # lesson7: the tokenizer XLM-R and MiniLM use
+accelerate>=0.30        # lesson7: device placement helpers
