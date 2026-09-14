@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BERT and Fine-tuning | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 7: pretrained language models — masked language modelling, BERT and its family (RoBERTa, DistilBERT, TinyBERT, ALBERT, ELECTRA, DeBERTa, XLM-R), what distillation does, and measured fine-tuning results on KazSAnDRA polarity, KazSAnDRA score and SST-2."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/07-bert-finetuning.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/07-bert-finetuning.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/07-bert-finetuning.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/07-bert-finetuning.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/07-bert-finetuning.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/07-bert-finetuning.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 7</span>
+              <h1>BERT and Fine-tuning</h1>
+              <p class="hero__subtitle">
+                Lecture 6 built a Transformer from scratch and it lost to a word
+                counter. The architecture was not the problem &#8212; the starting point
+                was. This lecture changes one thing: the encoder now begins already
+                knowing the language.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Explain pretraining</h3>
+                  <p>Say what masked language modelling is, what it costs, and why it is done on unlabelled text.</p>
+                </div>
+                <div class="card">
+                  <h3>Explain fine-tuning</h3>
+                  <p>Describe what is added, what is changed, and why the learning rate is fifteen times smaller.</p>
+                </div>
+                <div class="card">
+                  <h3>Tell the family apart</h3>
+                  <p>RoBERTa, DistilBERT, TinyBERT, ALBERT, ELECTRA, DeBERTa, XLM-R &#8212; what each one changed and why.</p>
+                </div>
+                <div class="card">
+                  <h3>Choose a model</h3>
+                  <p>Trade accuracy against size and latency, and know when a smaller model is the right answer.</p>
+                </div>
+                <div class="card">
+                  <h3>Fine-tune one yourself</h3>
+                  <p>Forty lines of PyTorch, on the same two KazSAnDRA tasks the whole course has used.</p>
+                </div>
+                <div class="card">
+                  <h3>Read the result honestly</h3>
+                  <p>Compare against Lectures 3&#8211;6 and say precisely what the pretraining bought.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>One variable changes.</strong> Same balanced
+                8&#8202;000&#8202;/&#8202;2&#8202;000 split, same test set, same metric as
+                Lectures 3, 4, 5 and 6. The only difference is that the encoder&#8217;s
+                weights no longer start random. Every number on this page can therefore
+                be attributed to that one change.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="problem">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The problem</span>
+              <h2 id="problem">What 8&#8202;000 labelled reviews cannot buy</h2>
+              <p class="narrow lead">
+                Lecture 6 ended with an uncomfortable table. It is worth putting back on
+                the screen, because this whole lecture is a response to it.
+              </p>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Results from Lectures 3 to 6 on KazSAnDRA polarity</caption>
+                  <thead>
+                    <tr><th scope="col">Lecture</th><th scope="col">Model</th><th scope="col">Accuracy</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>3</td><td>TF-IDF + Logistic Regression</td><td>0.780</td></tr>
+                    <tr><td>4</td><td>fastText vectors, averaged</td><td>0.792</td></tr>
+                    <tr><td>5</td><td>LSTM</td><td>0.772</td></tr>
+                    <tr><td>6</td><td>Transformer, from scratch</td><td class="no">0.750</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="narrow">
+                The newest architecture came last. We ruled out the obvious explanations by
+                measurement: more epochs gave 0.749, a smaller model gave 0.750, a larger
+                learning rate made it worse. Five times the data gave 0.787. The lever that
+                worked was data, and only data.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-two-jobs-t">
+                <title id="fig-two-jobs-t">A from-scratch model must learn the language and the task from the same labels</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">what 8 000 labelled reviews have to teach, all at once</text>
+                <rect x="8" y="22" width="150" height="66" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="83" y="40" font-size="9" fill="#111111" text-anchor="middle">the Kazakh language</text>
+                <text x="83" y="55" font-size="8" fill="#5b6270" text-anchor="middle">morphology, word order,</text>
+                <text x="83" y="66" font-size="8" fill="#5b6270" text-anchor="middle">what words mean,</text>
+                <text x="83" y="77" font-size="8" fill="#5b6270" text-anchor="middle">how negation works</text>
+                <rect x="182" y="22" width="150" height="66" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="257" y="40" font-size="9" fill="#111111" text-anchor="middle">the sentiment task</text>
+                <text x="257" y="55" font-size="8" fill="#5b6270" text-anchor="middle">which words are praise,</text>
+                <text x="257" y="66" font-size="8" fill="#5b6270" text-anchor="middle">which are complaint,</text>
+                <text x="257" y="77" font-size="8" fill="#5b6270" text-anchor="middle">how they combine</text>
+                <line x1="83" y1="88" x2="83" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="257" y1="88" x2="257" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="83" y1="104" x2="257" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="104" x2="170" y2="118" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="86" y="118" width="168" height="24" rx="5" fill="#2563eb" />
+                <text x="170" y="134" font-size="9" fill="#ffffff" text-anchor="middle">8 000 labels, 9 words each</text>
+                <text x="8" y="164" font-size="8" fill="#b91c1c">the left box is the expensive one, and it is not what we are paid for</text>
+                <text x="8" y="182" font-size="8" fill="#2563eb">unlabelled Kazakh text, meanwhile, is essentially free and unlimited</text>
+                </svg>
+                <p class="figure__caption">
+                  The from-scratch model spends most of its 8&#8202;000 examples learning what Kazakh is, and only what is left over on the task we actually care about.
+                </p>
+              </div>
+              <div class="definition">
+                <p>
+                  <strong>The observation that fixes it.</strong> Learning the language and
+                  learning the task are two different jobs. The first needs enormous
+                  amounts of text but <em>no labels at all</em>. The second needs labels
+                  but, if the first job is already done, not very many. So do them
+                  separately.
+                </p>
+              </div>
+              <p class="note">
+                <strong>You have already seen this argument win once.</strong> Lecture 4
+                trained word2vec on all 134&#8202;368 unlabelled reviews and then handed the
+                vectors to the Lecture 3 classifier, which improved. Lecture 5 initialised
+                an LSTM&#8217;s embedding layer from those vectors and went from 0.772 to
+                0.787. Both are the same move as this lecture, applied to one layer.
+                BERT applies it to the whole encoder.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="transfer">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The core idea</span>
+              <h2 id="transfer">Pretrain once, fine-tune many times</h2>
+              <p class="narrow lead">
+                Transfer learning splits training into two stages with completely different
+                economics. Understanding that asymmetry is most of understanding why the
+                field reorganised itself around it.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 250" role="img" aria-labelledby="fig-transfer-t">
+                <title id="fig-transfer-t">Pretraining happens once and is shared, fine-tuning happens many times and is cheap</title>
+                <text x="8" y="12" font-size="10" fill="#111111">stage 1 &#183; pretraining</text>
+                <rect x="8" y="20" width="96" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="56" y="34" font-size="8" fill="#111111" text-anchor="middle">raw text, no labels</text>
+                <line x1="104" y1="31" x2="122" y2="31" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="122" y="20" width="96" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="34" font-size="8" fill="#ffffff" text-anchor="middle">fill in the blanks</text>
+                <line x1="218" y1="31" x2="236" y2="31" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="236" y="20" width="96" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="284" y="34" font-size="8" fill="#111111" text-anchor="middle">a trained encoder</text>
+                <text x="8" y="56" font-size="8" fill="#5b6270">billions of words &#183; weeks on many GPUs &#183; done once, by someone else</text>
+                <line x1="8" y1="68" x2="332" y2="68" stroke="#e8ecf2" />
+                <text x="8" y="86" font-size="10" fill="#111111">stage 2 &#183; fine-tuning</text>
+                <rect x="122" y="94" width="96" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="108" font-size="8" fill="#111111" text-anchor="middle">the same encoder</text>
+                <line x1="170" y1="42" x2="170" y2="52" stroke="#5b6270" stroke-width="1.3" />
+                <path d="M 284 42 L 284 80 L 170 80 L 170 94" fill="none" stroke="#2563eb" stroke-width="1.5" />
+                <line x1="90" y1="122" x2="250" y2="122" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="116" x2="170" y2="122" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="90" y1="122" x2="90" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="122" x2="170" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="250" y1="122" x2="250" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="48" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="90" y="146" font-size="8" fill="#ffffff" text-anchor="middle">sentiment</text>
+                <text x="90" y="158" font-size="7" fill="#ffffff" text-anchor="middle">8 000 labels</text>
+                <rect x="128" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="170" y="146" font-size="8" fill="#ffffff" text-anchor="middle">NER</text>
+                <text x="170" y="158" font-size="7" fill="#ffffff" text-anchor="middle">2 000 labels</text>
+                <rect x="208" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="250" y="146" font-size="8" fill="#ffffff" text-anchor="middle">intent</text>
+                <text x="250" y="158" font-size="7" fill="#ffffff" text-anchor="middle">900 labels</text>
+                <text x="8" y="182" font-size="8" fill="#5b6270">minutes on one laptop &#183; done many times &#183; a separate copy per task</text>
+                <line x1="8" y1="194" x2="332" y2="194" stroke="#e8ecf2" />
+                <text x="8" y="212" font-size="9" fill="#111111">the asymmetry is the whole point</text>
+                <text x="8" y="228" font-size="8" fill="#5b6270">the expensive half is paid once and shared by everyone</text>
+                <text x="8" y="242" font-size="8" fill="#5b6270">the cheap half is all you and your 8 000 labels ever have to do</text>
+                </svg>
+                <p class="figure__caption">
+                  Pretraining is a public good: somebody spends weeks of GPU time, uploads the result, and every downstream task starts from it.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The two stages, side by side</span>
+                <dl class="breakdown__list">
+                  <dt>what the data looks like</dt>
+                  <dd>Pretraining: raw text, scraped, unlabelled, as much as you can find. Fine-tuning: your task&#8217;s labelled examples, however few you have</dd>
+                  <dt>what the objective is</dt>
+                  <dd>Pretraining: predict hidden words from their context. Fine-tuning: predict the label. The first is a proxy task nobody wants the answer to &#8212; it exists purely to force the model to learn the language</dd>
+                  <dt>what it costs</dt>
+                  <dd>Pretraining BERT-base in 2018 took 4 days on 16 TPUs. Fine-tuning it on our 8&#8202;000 reviews takes a few minutes on a laptop. The ratio is roughly four orders of magnitude</dd>
+                  <dt>who does it</dt>
+                  <dd>Pretraining: a research lab, once, and the weights are published. Fine-tuning: you, as often as you like</dd>
+                  <dt>what changes in the weights</dt>
+                  <dd>Pretraining: everything, from random. Fine-tuning: everything again, but gently &#8212; small steps from an already-good point rather than a search from nowhere</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The name for the proxy task is self-supervision.</strong> The
+                  labels are manufactured from the text itself by hiding part of it, so an
+                  unlimited supply of supervised examples comes from data nobody had to
+                  annotate. That single trick is what makes modern NLP possible.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="mlm">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The pretraining task</span>
+              <h2 id="mlm">Masked language modelling</h2>
+              <p class="narrow lead">
+                To learn a language from raw text you need a question whose answer is
+                already in the text. BERT&#8217;s question is: <em>I have hidden some
+                words &#8212; which words were they?</em>
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 210" role="img" aria-labelledby="fig-mlm-t">
+                <title id="fig-mlm-t">A word is replaced by MASK and the model must recover it from both sides</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">1. take any sentence from the raw corpus</text>
+                <rect x="8" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="30" y="34" font-size="8" fill="#111111" text-anchor="middle">Бұл</text>
+                <rect x="54" y="20" width="64" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="86" y="34" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="120" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="142" y="34" font-size="8" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="166" y="20" width="56" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="194" y="34" font-size="8" fill="#111111" text-anchor="middle">пайдалы</text>
+                <rect x="224" y="20" width="40" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="244" y="34" font-size="8" fill="#111111" text-anchor="middle">екен</text>
+                <text x="8" y="58" font-size="9" fill="#5b6270">2. hide about 15% of the tokens</text>
+                <rect x="8" y="66" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="30" y="80" font-size="8" fill="#111111" text-anchor="middle">Бұл</text>
+                <rect x="54" y="66" width="64" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="86" y="80" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="120" y="66" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="142" y="80" font-size="8" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="166" y="66" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="194" y="80" font-size="8" fill="#ffffff" text-anchor="middle">[MASK]</text>
+                <rect x="224" y="66" width="40" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="244" y="80" font-size="8" fill="#111111" text-anchor="middle">екен</text>
+                <text x="8" y="104" font-size="9" fill="#5b6270">3. every other token attends to the gap, from both sides</text>
+                <path d="M 30 86 C 60 108 170 108 190 92" fill="none" stroke="#c7d9ff" stroke-width="1.4" />
+                <path d="M 86 86 C 110 106 170 106 192 92" fill="none" stroke="#c7d9ff" stroke-width="1.4" />
+                <path d="M 142 86 C 155 100 175 100 193 92" fill="none" stroke="#2563eb" stroke-width="2" />
+                <path d="M 244 86 C 235 102 210 102 198 92" fill="none" stroke="#2563eb" stroke-width="2" />
+                <text x="8" y="130" font-size="9" fill="#5b6270">4. predict the hidden word over the whole vocabulary</text>
+                <rect x="8" y="138" width="120" height="16" rx="3" fill="#2563eb" />
+                <text x="14" y="150" font-size="8" fill="#ffffff">пайдалы</text>
+                <text x="134" y="150" font-size="8" fill="#111111">0.41</text>
+                <rect x="8" y="158" width="56" height="16" rx="3" fill="#c7d9ff" />
+                <text x="14" y="170" font-size="8" fill="#111111">жақсы</text>
+                <text x="134" y="170" font-size="8" fill="#111111">0.19</text>
+                <rect x="8" y="178" width="24" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="38" y="190" font-size="8" fill="#111111">керемет</text>
+                <text x="134" y="190" font-size="8" fill="#111111">0.08</text>
+                <text x="176" y="150" font-size="8" fill="#5b6270">the correct answer was</text>
+                <text x="176" y="162" font-size="8" fill="#5b6270">in the text all along, so</text>
+                <text x="176" y="174" font-size="8" fill="#5b6270">no annotation was needed</text>
+                </svg>
+                <p class="figure__caption">
+                  Masked language modelling. The label is the word that was removed, which makes every sentence in existence a free training example.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why this particular task</span>
+                <dl class="breakdown__list">
+                  <dt>it forces real understanding</dt>
+                  <dd>To fill the gap in <span class="token">Бұл қосымша өте [MASK] екен</span> the model must know what kind of word follows <span class="token">өте</span>, that the sentence is about an app, and which adjectives Kazakh speakers use about apps. There is no shortcut</dd>
+                  <dt>it can look both ways</dt>
+                  <dd>This is the point of the name: <strong>B</strong>idirectional <strong>E</strong>ncoder <strong>R</strong>epresentations from <strong>T</strong>ransformers. The word <span class="token">екен</span> after the gap is as useful as the words before it, and BERT is allowed to use it</dd>
+                  <dt>the labels are free</dt>
+                  <dd>Nobody annotated anything. The corpus is the label, hidden from itself</dd>
+                  <dt>it is not next-token prediction</dt>
+                  <dd>A causal language model (Lecture 6, and Lecture 8) predicts the next token and may never look right. BERT gives up the ability to generate in exchange for seeing both sides &#8212; the trade-off from the previous lecture, made deliberately</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Why 15%?</strong> Mask too little and each sentence teaches
+                  almost nothing per forward pass, so pretraining takes forever. Mask too
+                  much and too little context survives to make the gaps recoverable. 15% is
+                  an empirical compromise from the original paper; later work found the
+                  optimum is fairly flat and depends on model size.
+                </p>
+              </div>
+              <h3 style="margin-top: 44px">The 80&#8202;/&#8202;10&#8202;/&#8202;10 detail</h3>
+              <p class="narrow">
+                Of the tokens chosen for masking, BERT replaces only 80% with
+                <code>[MASK]</code>. 10% are replaced by a random word, and 10% are left
+                alone. This looks fussy and has a clear reason.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-8010-t">
+                <title id="fig-8010-t">Of the 15% chosen tokens, 80 percent become MASK, 10 percent random, 10 percent unchanged</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">of the 15% of tokens selected for masking</text>
+                <rect x="8" y="22" width="240" height="24" rx="4" fill="#2563eb" />
+                <text x="128" y="38" font-size="9" fill="#ffffff" text-anchor="middle">80% &#8594; [MASK]</text>
+                <rect x="250" y="22" width="38" height="24" rx="4" fill="#c7d9ff" />
+                <text x="269" y="38" font-size="8" fill="#111111" text-anchor="middle">10%</text>
+                <rect x="290" y="22" width="42" height="24" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="311" y="38" font-size="8" fill="#111111" text-anchor="middle">10%</text>
+                <text x="250" y="58" font-size="7" fill="#5b6270">random word</text>
+                <text x="292" y="58" font-size="7" fill="#5b6270">unchanged</text>
+                <line x1="8" y1="72" x2="332" y2="72" stroke="#e8ecf2" />
+                <text x="8" y="90" font-size="9" fill="#111111">the problem it solves</text>
+                <text x="8" y="106" font-size="8" fill="#5b6270">[MASK] never appears at fine-tuning time, so a model that only ever</text>
+                <text x="8" y="118" font-size="8" fill="#5b6270">reasons about [MASK] would face a mismatch when deployed</text>
+                <text x="8" y="136" font-size="8" fill="#2563eb">forcing it to also correct random words, and to leave correct ones alone,</text>
+                <text x="8" y="146" font-size="8" fill="#2563eb">makes it build a real representation at every position</text>
+                </svg>
+                <p class="figure__caption">
+                  The model can never be sure whether the token it is looking at is right, so it has to form an opinion about every position rather than only the masked ones.
+                </p>
+              </div>
+              <p class="note">
+                <strong>And the part that was dropped.</strong> The original BERT had a
+                second objective, Next Sentence Prediction: given two segments, are they
+                consecutive? It was meant to help question answering and inference. RoBERTa
+                later removed it and scored <em>better</em>, and essentially nothing since
+                has used it. This is a useful lesson about published recipes &#8212; parts of
+                them are guesses, and only later measurement separates the load-bearing
+                ideas from the decoration.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="architecture">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; What BERT is</span>
+              <h2 id="architecture">BERT is the encoder half of Lecture 6</h2>
+              <p class="narrow lead">
+                There is no new architecture in this lecture. BERT is a stack of the
+                encoder blocks you built last time, plus three input conventions and a
+                pretraining objective.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 244" role="img" aria-labelledby="fig-bertarch-t">
+                <title id="fig-bertarch-t">BERT input conventions and the encoder stack</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">the input, with BERT&#8217;s two special tokens</text>
+                <rect x="8" y="20" width="42" height="20" rx="4" fill="#2563eb" />
+                <text x="29" y="34" font-size="8" fill="#ffffff" text-anchor="middle">[CLS]</text>
+                <rect x="52" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="74" y="34" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="98" y="20" width="38" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="117" y="34" font-size="8" fill="#111111" text-anchor="middle">жақсы</text>
+                <rect x="138" y="20" width="34" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="155" y="34" font-size="8" fill="#111111" text-anchor="middle">емес</text>
+                <rect x="174" y="20" width="42" height="20" rx="4" fill="#2563eb" />
+                <text x="195" y="34" font-size="8" fill="#ffffff" text-anchor="middle">[SEP]</text>
+                <text x="224" y="34" font-size="8" fill="#5b6270">one row of ids</text>
+                <text x="8" y="58" font-size="9" fill="#5b6270">three embeddings are added, not one</text>
+                <rect x="8" y="66" width="102" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="59" y="80" font-size="8" fill="#111111" text-anchor="middle">token embedding</text>
+                <text x="116" y="80" font-size="10" fill="#111111">+</text>
+                <rect x="128" y="66" width="94" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="175" y="80" font-size="8" fill="#111111" text-anchor="middle">position (learned)</text>
+                <text x="228" y="80" font-size="10" fill="#111111">+</text>
+                <rect x="240" y="66" width="92" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="286" y="80" font-size="8" fill="#111111" text-anchor="middle">segment A or B</text>
+                <line x1="170" y1="90" x2="170" y2="102" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="102" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="117" font-size="9" fill="#ffffff" text-anchor="middle">encoder block 1</text>
+                <line x1="170" y1="124" x2="170" y2="132" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="132" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="147" font-size="9" fill="#ffffff" text-anchor="middle">&#8230; 12 blocks in total</text>
+                <line x1="170" y1="154" x2="170" y2="162" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="162" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="177" font-size="9" fill="#ffffff" text-anchor="middle">encoder block 12</text>
+                <text x="262" y="147" font-size="8" fill="#5b6270">bidirectional,</text>
+                <text x="262" y="158" font-size="8" fill="#5b6270">no causal mask</text>
+                <line x1="170" y1="184" x2="170" y2="196" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="8" y="196" width="150" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="211" font-size="8" fill="#111111" text-anchor="middle">[CLS] vector: the sentence</text>
+                <rect x="182" y="196" width="150" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="257" y="211" font-size="8" fill="#111111" text-anchor="middle">token vectors: each word</text>
+                <text x="8" y="236" font-size="8" fill="#5b6270">classification reads the left box; tagging and QA read the right one</text>
+                </svg>
+                <p class="figure__caption">
+                  Everything inside the dashed ENCODER box of Lecture 6&#8217;s full-architecture diagram, with <code>[CLS]</code> and <code>[SEP]</code> added and positions learned rather than sinusoidal.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The conventions worth knowing</span>
+                <dl class="breakdown__list">
+                  <dt><code>[CLS]</code></dt>
+                  <dd>A token prepended to every input whose only job is to accumulate a summary of the whole sequence. It has no meaning of its own; it is a place for the model to put an answer. Lecture 6 used mean pooling instead &#8212; both work, and <code>[CLS]</code> is the convention here because the pretrained weights were trained with it</dd>
+                  <dt><code>[SEP]</code></dt>
+                  <dd>A separator, so that two sentences can be fed as one input. This is what makes BERT usable for pair tasks: entailment, similarity, question answering over a passage</dd>
+                  <dt>segment embeddings</dt>
+                  <dd>A third embedding table with exactly two rows, marking &#8220;this token belongs to sentence A&#8221; or &#8220;to sentence B&#8221;</dd>
+                  <dt>learned positions</dt>
+                  <dd>Not the sine table of Lecture 6 but a plain embedding table indexed by position, with 512 rows. Simpler, and the reason BERT cannot read anything longer than 512 tokens</dd>
+                  <dt>WordPiece</dt>
+                  <dd>A sub-word vocabulary of 30&#8202;000 entries, or 119&#8202;547 for the multilingual version. The next section shows what it does to Kazakh</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The two sizes from the paper:</strong> BERT-base is 12 blocks,
+                  12 heads, <code>d_model = 768</code>, 110 M parameters &#8212; deliberately
+                  matched to GPT-1 so the comparison was fair. BERT-large is 24 blocks,
+                  16 heads, <code>d_model = 1024</code>, 340 M parameters.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="knows">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="knows">What a pretrained model already knows</h2>
+              <p class="narrow lead">
+                Before any fine-tuning, before it has seen a single label, a pretrained
+                model can already fill in blanks. This is the most direct way to see what
+                the expensive stage bought &#8212; and to see that not all models bought the
+                same thing.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --mlm-demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  bert-base-multilingual-cased
+    Қазақстанның астанасы [MASK] қаласы.
+      → Алматы 0.31, Астана 0.19, - 0.04, Новосибирск 0.03, Павлодар 0.03
+    Бұл қосымша маған қатты [MASK].
+      → болады 0.16, ##қ 0.06, қосымша 0.05, қолданылады 0.04, емес 0.04
+    Мен кітап [MASK].
+      → . 0.04, ##ы 0.03, ##а 0.02, ##у 0.02, ##ты 0.02
+
+  xlm-roberta-base
+    Қазақстанның астанасы [MASK] қаласы.
+      → Астана 0.62, Алматы 0.26, Семей 0.03, Қызылорда 0.01, Шымкент 0.01
+    Бұл қосымша маған қатты [MASK].
+      → әсер 0.15, пайдалы 0.12, қажет 0.09, болды 0.07, қызықты 0.06
+    Мен кітап [MASK].
+      → жазды 0.10, ... 0.05, . 0.04, мын 0.04, пын 0.03
+
+  kz-transformers/kaz-roberta-conversational
+    Қазақстанның астанасы [MASK] қаласы.
+      → Алматы 0.22, Астана 0.20, Алматы 0.04, Верный 0.03, Орынбор 0.03
+    Бұл қосымша маған қатты [MASK].
+      → ілікті 0.88, ілді 0.03, іледі 0.02, ілген 0.01, ілетін 0.01
+    Мен кітап [MASK].
+      → оқыдым 0.35, оқимын 0.15, бердім 0.07, ымын 0.05, жаздым 0.03</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading three models&#8217; Kazakh</span>
+                <dl class="breakdown__list">
+                  <dt>mBERT barely speaks it</dt>
+                  <dd>For <span class="token">Мен кітап [MASK]</span> &#8212; &#8220;I &#8230; a book&#8221; &#8212; its five best guesses are a full stop and four suffix fragments. It has not produced a verb at all. Kazakh was a small slice of the 104-language Wikipedia dump it was trained on, and it shows</dd>
+                  <dt>XLM-R knows the facts</dt>
+                  <dd>It is the only one that gets the capital right with confidence, 0.62 for <span class="token">Астана</span>, and its guesses for the app sentence &#8212; <span class="token">әсер</span>, <span class="token">пайдалы</span>, <span class="token">қажет</span> &#8212; are all words a person might write. It was trained on 2.5 TB of CommonCrawl, which contains far more Kazakh than Wikipedia does</dd>
+                  <dt>kaz-RoBERTa knows the grammar</dt>
+                  <dd>Only the Kazakh-specific model produces <span class="token">оқыдым</span> (I read) and <span class="token">оқимын</span> (I read / will read) &#8212; correct verbs with correct first-person agreement, matching <span class="token">Мен</span>. Neither multilingual model manages the agreement</dd>
+                  <dt>and none of them is simply best</dt>
+                  <dd>The Kazakh-specific model gets the capital wrong. Its training corpus is conversational, so it is fluent and not especially well informed. &#8220;Which model knows more&#8221; is not a single question</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Nothing here has been fine-tuned.</strong> These are the raw
+                  pretrained weights answering a question nobody trained them to answer on
+                  our data. Everything they know came from reading text with words hidden.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Write down a prediction now.</strong> Rank these three models by
+                how well you expect them to do once fine-tuned on Kazakh sentiment. Almost
+                everyone ranks them kaz-RoBERTa and XLM-R first, mBERT last. Keep that
+                prediction &#8212; the measured table below is more interesting than it,
+                and the way it is wrong is the most useful thing in this lecture.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="tokenizer">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="tokenizer">The tokenizer is part of the model</h2>
+              <p class="narrow lead">
+                A pretrained model arrives with its own fixed vocabulary, and you cannot
+                change it. For an agglutinative language that vocabulary decides a great
+                deal.
+              </p>
+              <p class="narrow">
+                Lecture 0 opened the course with the word
+                <span class="token">кітаптарымыздан</span> &#8212; &#8220;from our books&#8221;
+                &#8212; as the example of Kazakh morphology. Here is what each pretrained
+                tokenizer does with it.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --tokenizer-demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  bert-base-multilingual-cased   vocabulary 119,547
+    «кітаптарымыздан»
+       6 pieces: к · ##ітап · ##тары · ##мы · ##зда · ##н
+    «Астана қаласы әдемі»
+       5 pieces: Астана · қаласы · ә · ##дем · ##і
+
+  distilbert-base-multilingual-cased   vocabulary 119,547
+    «кітаптарымыздан»
+       6 pieces: к · ##ітап · ##тары · ##мы · ##зда · ##н
+
+  microsoft/Multilingual-MiniLM-L12-H384   vocabulary 250,002
+    «кітаптарымыздан»
+       4 pieces: кітап · тар · ымыз · дан
+
+  xlm-roberta-base   vocabulary 250,002
+    «кітаптарымыздан»
+       4 pieces: кітап · тар · ымыз · дан
+    «Астана қаласы әдемі»
+       3 pieces: Астана · қаласы · әдемі
+
+  kz-transformers/kaz-roberta-conversational   vocabulary 52,000
+    «кітаптарымыздан»
+       2 pieces: кітаптар · ымыздан
+    «Астана қаласы әдемі»
+       3 pieces: Астана · қаласы · әдемі</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 180" role="img" aria-labelledby="fig-tok-t">
+                <title id="fig-tok-t">Three tokenizers splitting the same Kazakh word</title>
+                <text x="8" y="12" font-size="8" fill="#5b6270">«кітаптарымыздан» = кітап + тар + ымыз + дан  (book + plural + our + from)</text>
+                <text x="8" y="34" font-size="8" fill="#111111">mBERT</text>
+                <rect x="62" y="22" width="24" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="74" y="35" font-size="7" fill="#111111" text-anchor="middle">к</text>
+                <rect x="88" y="22" width="42" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="109" y="35" font-size="7" fill="#111111" text-anchor="middle">##ітап</text>
+                <rect x="132" y="22" width="42" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="153" y="35" font-size="7" fill="#111111" text-anchor="middle">##тары</text>
+                <rect x="176" y="22" width="34" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="193" y="35" font-size="7" fill="#111111" text-anchor="middle">##мы</text>
+                <rect x="212" y="22" width="38" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="231" y="35" font-size="7" fill="#111111" text-anchor="middle">##зда</text>
+                <rect x="252" y="22" width="28" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="266" y="35" font-size="7" fill="#111111" text-anchor="middle">##н</text>
+                <text x="286" y="35" font-size="8" fill="#b91c1c">6</text>
+                <text x="8" y="66" font-size="8" fill="#111111">XLM-R</text>
+                <rect x="62" y="54" width="48" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="86" y="67" font-size="7" fill="#111111" text-anchor="middle">кітап</text>
+                <rect x="112" y="54" width="36" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="130" y="67" font-size="7" fill="#111111" text-anchor="middle">тар</text>
+                <rect x="150" y="54" width="44" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="172" y="67" font-size="7" fill="#111111" text-anchor="middle">ымыз</text>
+                <rect x="196" y="54" width="36" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="214" y="67" font-size="7" fill="#111111" text-anchor="middle">дан</text>
+                <text x="286" y="67" font-size="8" fill="#2563eb">4</text>
+                <text x="8" y="98" font-size="8" fill="#111111">kaz-RoBERTa</text>
+                <rect x="62" y="86" width="74" height="18" rx="3" fill="#2563eb" />
+                <text x="99" y="99" font-size="7" fill="#ffffff" text-anchor="middle">кітаптар</text>
+                <rect x="138" y="86" width="66" height="18" rx="3" fill="#2563eb" />
+                <text x="171" y="99" font-size="7" fill="#ffffff" text-anchor="middle">ымыздан</text>
+                <text x="286" y="99" font-size="8" fill="#2563eb">2</text>
+                <line x1="8" y1="116" x2="332" y2="116" stroke="#e8ecf2" />
+                <text x="8" y="134" font-size="8" fill="#5b6270">XLM-R&#8217;s split is the correct morphological one; mBERT&#8217;s is not even close</text>
+                <text x="8" y="150" font-size="8" fill="#5b6270">more pieces = shorter context, more positions, fewer examples each</text>
+                <text x="8" y="168" font-size="8" fill="#5b6270">and mBERT tears the leading «к» off the root of the word</text>
+                </svg>
+                <p class="figure__caption">
+                  The same word, three vocabularies. A tokenizer that fits the language turns one word into its actual morphemes; one that does not turns it into debris.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why the split matters</span>
+                <dl class="breakdown__list">
+                  <dt>fragments are harder to learn from</dt>
+                  <dd>If <span class="token">кітап</span> is a single token, every sentence containing any form of &#8220;book&#8221; contributes to the same embedding. If the root is split differently depending on the suffix, that evidence is scattered across unrelated pieces</dd>
+                  <dt>more pieces means less context</dt>
+                  <dd>BERT&#8217;s limit is 512 positions. A tokenizer that needs six pieces per word fits a third as much text as one that needs two &#8212; and attention cost grows with the square of the length</dd>
+                  <dt>the vocabulary is frozen</dt>
+                  <dd>You inherit whatever the pretraining team chose. This is the one part of a pretrained model you genuinely cannot fix by fine-tuning</dd>
+                  <dt>bigger is not automatically better</dt>
+                  <dd>kaz-RoBERTa has a 52&#8202;000-entry vocabulary against XLM-R&#8217;s 250&#8202;002 and still splits Kazakh better, because all 52&#8202;000 entries are spent on one language instead of a hundred</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>A practical rule:</strong> before choosing a pretrained model for
+                  a low-resource language, tokenize a few hundred words of your own data and
+                  count the pieces per word. It takes two minutes and predicts a surprising
+                  amount of what the fine-tuning results will look like.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="finetuning">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The second stage</span>
+              <h2 id="finetuning">What fine-tuning actually does</h2>
+              <p class="narrow lead">
+                Fine-tuning is a small idea with a few counter-intuitive details. The idea:
+                throw away the pretraining head, bolt on a new one, and keep training
+                &#8212; gently.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 224" role="img" aria-labelledby="fig-ft-t">
+                <title id="fig-ft-t">The pretraining head is discarded and a task head replaces it</title>
+                <text x="8" y="12" font-size="9" fill="#111111">after pretraining</text>
+                <rect x="8" y="20" width="140" height="20" rx="4" fill="#fef2f2" stroke="#fecaca" />
+                <text x="78" y="34" font-size="8" fill="#111111" text-anchor="middle">MLM head &#8594; 119 547</text>
+                <text x="152" y="34" font-size="8" fill="#b91c1c">discarded</text>
+                <line x1="78" y1="40" x2="78" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="8" y="50" width="140" height="58" rx="4" fill="#2563eb" />
+                <text x="78" y="72" font-size="9" fill="#ffffff" text-anchor="middle">12 encoder blocks</text>
+                <text x="78" y="88" font-size="8" fill="#ffffff" text-anchor="middle">177 M weights,</text>
+                <text x="78" y="100" font-size="8" fill="#ffffff" text-anchor="middle">already trained</text>
+                <line x1="152" y1="79" x2="186" y2="79" stroke="#2563eb" stroke-width="2" />
+                <text x="169" y="72" font-size="8" fill="#2563eb" text-anchor="middle">kept</text>
+                <text x="192" y="12" font-size="9" fill="#111111">after fine-tuning starts</text>
+                <rect x="192" y="20" width="140" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="262" y="34" font-size="8" fill="#111111" text-anchor="middle">Linear 768 &#8594; 2</text>
+                <text x="192" y="52" font-size="7" fill="#5b6270">new, random, 1 538 weights</text>
+                <line x1="262" y1="56" x2="262" y2="64" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="192" y="64" width="140" height="44" rx="4" fill="#2563eb" />
+                <text x="262" y="80" font-size="9" fill="#ffffff" text-anchor="middle">the same 12 blocks</text>
+                <text x="262" y="96" font-size="8" fill="#ffffff" text-anchor="middle">still trainable</text>
+                <line x1="8" y1="124" x2="332" y2="124" stroke="#e8ecf2" />
+                <text x="8" y="142" font-size="9" fill="#5b6270">the head is 0.001% of the parameters and it is the only new thing</text>
+                <rect x="8" y="152" width="324" height="18" rx="3" fill="#2563eb" />
+                <rect x="330" y="152" width="2" height="18" rx="1" fill="#c7d9ff" />
+                <text x="8" y="184" font-size="8" fill="#5b6270">177 853 440 pretrained weights</text>
+                <text x="240" y="184" font-size="8" fill="#5b6270">1 538 new</text>
+                <text x="8" y="206" font-size="9" fill="#111111">so almost everything the model will know, it already knows</text>
+                <text x="8" y="220" font-size="8" fill="#5b6270">fine-tuning nudges it; it does not teach it the language again</text>
+                </svg>
+                <p class="figure__caption">
+                  Two numbers worth holding together: 177 million weights arrive already trained, and 1&#8202;538 arrive random.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The details that are not obvious</span>
+                <dl class="breakdown__list">
+                  <dt>everything trains, not just the head</dt>
+                  <dd>The natural guess is to freeze the encoder and train only the new layer. It works, but not nearly as well &#8212; we measure the gap below. Letting the gradient reach all twelve blocks lets the representation itself adapt to the task</dd>
+                  <dt>the learning rate is tiny</dt>
+                  <dd><code>2e-5</code> here, against <code>3e-4</code> for the from-scratch model in Lecture 6 &#8212; about fifteen times smaller. You are starting from a good point and must not blow it away. Learning rates above about <code>1e-4</code> routinely destroy a pretrained model in the first few hundred steps</dd>
+                  <dt>two to four epochs, not fifty</dt>
+                  <dd>The original paper recommends 2&#8211;4 and that advice has held up. More epochs on a small dataset overfit quickly, because a 177 M-parameter model can memorise 8&#8202;000 short reviews without difficulty</dd>
+                  <dt>warm-up and decay</dt>
+                  <dd>The learning rate rises from zero over the first ~10% of steps and then decays linearly. The warm-up protects the pretrained weights while the random head is still producing nonsense gradients</dd>
+                  <dt>the result is a separate model per task</dt>
+                  <dd>Fine-tuning produces a new 177 M-parameter checkpoint. Three tasks means three copies. This is the cost that later methods &#8212; adapters, LoRA, prompting &#8212; exist to avoid, and Lecture 10 returns to it</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Catastrophic forgetting is the thing to fear.</strong> Too large a
+                  learning rate, or too many epochs on too little data, and the model
+                  overwrites the general language knowledge that made it valuable. The
+                  symptom is training loss near zero and test accuracy worse than a linear
+                  model. The defences are all conservative: small steps, few epochs,
+                  warm-up.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>from transformers import AutoModelForSequenceClassification
+
+for name in ("bert-base-multilingual-cased", "xlm-roberta-base"):
+    # The encoder arrives pretrained; the classification head is new and random.
+    model = AutoModelForSequenceClassification.from_pretrained(name, num_labels=2)
+    total = sum(p.numel() for p in model.parameters())
+    head = sum(p.numel() for p in model.classifier.parameters())
+    print(f"{name}")
+    print(f"   {total:,} parameters, {head:,} of them the new head"
+          f"  ({100 * head / total:.4f}%)")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>bert-base-multilingual-cased
+   177,854,978 parameters, 1,538 of them the new head  (0.0009%)
+xlm-roberta-base
+   278,045,186 parameters, 592,130 of them the new head  (0.2130%)</code></pre></div>
+              <p class="narrow">
+                The two heads differ because BERT&#8217;s classifier is a single
+                <code>Linear(768, 2)</code> sitting on top of the pooled
+                <code>[CLS]</code> vector, while RoBERTa&#8217;s adds a
+                <code>768&#215;768</code> dense layer first. Both are still a rounding error
+                next to the encoder.
+              </p>
+              <p class="note">
+                <strong>That warning you will see in the terminal is expected.</strong>
+                <code>Some weights were not initialized &#8230; you should probably TRAIN
+                this model on a down-stream task</code> is the library telling you exactly
+                what the diagram shows: the head is random, and fine-tuning is what fixes
+                it. If you ever <em>do not</em> see it, you have loaded a model that was
+                already fine-tuned for something.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="family">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The family</span>
+              <h2 id="family">BERT&#8217;s descendants, and what each one changed</h2>
+              <p class="narrow lead">
+                BERT was published in 2018 and immediately became a platform. Everything
+                below keeps the encoder stack and changes one thing: the data, the
+                objective, the parameter budget, or the size.
+              </p>
+
+              <h3 style="margin-top: 40px">RoBERTa &#8212; the same model, trained properly</h3>
+              <div class="grid grid--2" style="margin-top: 20px">
+                <div class="card">
+                  <h3>What changed</h3>
+                  <p>
+                    Ten times the data (160 GB against 16 GB), much longer training,
+                    larger batches, dynamic masking &#8212; a fresh mask every epoch instead
+                    of one fixed at preprocessing &#8212; byte-level BPE with 50&#8202;000
+                    entries, and <strong>no Next Sentence Prediction</strong>.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>What it showed</h3>
+                  <p>
+                    The architecture was never the bottleneck: BERT had simply been
+                    undertrained. RoBERTa-base beats BERT-large on several GLUE tasks with
+                    fewer parameters. &#8220;Robustly optimised&#8221; is the whole
+                    contribution, and it was a large one.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 44px">DistilBERT and TinyBERT &#8212; the same knowledge, smaller</h3>
+              <p class="narrow">
+                A 110 M-parameter model is awkward to serve: it is slow on CPU, too big for
+                a phone, and expensive at scale. Distillation trains a small
+                <em>student</em> to imitate a large <em>teacher</em>.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-distil-t">
+                <title id="fig-distil-t">A small student model is trained to reproduce the teacher's full output distribution</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">the same input goes to both models</text>
+                <rect x="118" y="20" width="104" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="33" font-size="8" fill="#111111" text-anchor="middle">Бұл қосымша өте [MASK]</text>
+                <line x1="146" y1="38" x2="76" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="194" y1="38" x2="264" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="20" y="50" width="112" height="34" rx="4" fill="#2563eb" />
+                <text x="76" y="64" font-size="8" fill="#ffffff" text-anchor="middle">teacher: BERT</text>
+                <text x="76" y="77" font-size="8" fill="#ffffff" text-anchor="middle">12 blocks, frozen</text>
+                <rect x="208" y="50" width="112" height="34" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="264" y="64" font-size="8" fill="#111111" text-anchor="middle">student: 6 blocks</text>
+                <text x="264" y="77" font-size="8" fill="#111111" text-anchor="middle">learning</text>
+                <text x="8" y="102" font-size="8" fill="#5b6270">the teacher&#8217;s whole distribution is the target, not just its top answer</text>
+                <rect x="20" y="112" width="80" height="12" rx="2" fill="#2563eb" />
+                <text x="104" y="122" font-size="7" fill="#111111">пайдалы .41</text>
+                <rect x="20" y="128" width="38" height="12" rx="2" fill="#c7d9ff" />
+                <text x="104" y="138" font-size="7" fill="#111111">жақсы .19</text>
+                <rect x="20" y="144" width="16" height="12" rx="2" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="104" y="154" font-size="7" fill="#111111">керемет .08</text>
+                <line x1="160" y1="134" x2="188" y2="134" stroke="#2563eb" stroke-width="2" />
+                <text x="174" y="128" font-size="7" fill="#2563eb" text-anchor="middle">copy</text>
+                <rect x="196" y="112" width="76" height="12" rx="2" fill="#2563eb" />
+                <text x="276" y="122" font-size="7" fill="#111111">.38</text>
+                <rect x="196" y="128" width="40" height="12" rx="2" fill="#c7d9ff" />
+                <text x="276" y="138" font-size="7" fill="#111111">.21</text>
+                <rect x="196" y="144" width="18" height="12" rx="2" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="276" y="154" font-size="7" fill="#111111">.09</text>
+                <line x1="8" y1="168" x2="332" y2="168" stroke="#e8ecf2" />
+                <text x="8" y="186" font-size="8" fill="#111111">why the whole distribution: «жақсы 0.19» tells the student that жақсы is</text>
+                <text x="8" y="198" font-size="8" fill="#111111">also a reasonable answer &#8212; information a one-hot label throws away</text>
+                <text x="8" y="216" font-size="8" fill="#2563eb">this is why a student can be half the size and lose almost nothing</text>
+                </svg>
+                <p class="figure__caption">
+                  Knowledge distillation. The teacher&#8217;s soft probabilities carry more information per example than the correct answer alone, which is why the student learns so efficiently.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The two distilled models by name</span>
+                <dl class="breakdown__list">
+                  <dt>DistilBERT</dt>
+                  <dd>Six blocks instead of twelve, each initialised from every second block of the teacher. 66 M parameters, about 40% smaller and 60% faster, and it keeps roughly 97% of BERT&#8217;s GLUE score. Trained with three losses at once: ordinary MLM, the distillation loss against the teacher&#8217;s distribution, and a cosine loss pulling the student&#8217;s hidden states towards the teacher&#8217;s</dd>
+                  <dt>TinyBERT</dt>
+                  <dd>Goes considerably further. It distils not only the output distribution but the <em>attention matrices</em> and <em>hidden states</em> of intermediate layers, and it does so twice: once on general text, then again on the specific task with augmented data. The 4-layer, 312-dimension version is 14.5 M parameters &#8212; about 7.5&#215; smaller and 9.4&#215; faster than BERT-base &#8212; while retaining around 96% of its GLUE score</dd>
+                  <dt>MiniLM</dt>
+                  <dd>Distils the attention distributions themselves, self-attention value-relations included, and is the approach behind the small multilingual models in our comparison table</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The honest caveat on all distillation numbers:</strong>
+                  &#8220;97% of the performance&#8221; is an average over GLUE, which is
+                  English and mostly easy. On a harder or lower-resource task the gap is
+                  usually wider. We measure our own below rather than quoting theirs.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">The rest of the family</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">BERT variants compared</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Model</th><th scope="col">Year</th>
+                      <th scope="col">Params</th><th scope="col">The one idea</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>BERT-base</td><td>2018</td><td>110 M</td><td>masked language modelling on an encoder</td></tr>
+                    <tr><td>BERT-large</td><td>2018</td><td>340 M</td><td>the same, 24 blocks deep</td></tr>
+                    <tr><td>RoBERTa</td><td>2019</td><td>125 M</td><td>more data, longer, no NSP, dynamic masking</td></tr>
+                    <tr><td>DistilBERT</td><td>2019</td><td>66 M</td><td>distil the teacher&#8217;s output distribution</td></tr>
+                    <tr><td>ALBERT</td><td>2019</td><td>12 M</td><td>share weights across layers, factorise the embedding</td></tr>
+                    <tr><td>TinyBERT</td><td>2020</td><td>14.5 M</td><td>distil attention and hidden states too</td></tr>
+                    <tr><td>ELECTRA</td><td>2020</td><td>110 M</td><td>detect replaced tokens, learn from all of them</td></tr>
+                    <tr><td>DeBERTa</td><td>2021</td><td>140 M</td><td>disentangle content from position in attention</td></tr>
+                    <tr><td>mBERT</td><td>2018</td><td>178 M</td><td>104 languages, one shared vocabulary</td></tr>
+                    <tr><td>XLM-R</td><td>2019</td><td>278 M</td><td>RoBERTa&#8217;s recipe on 2.5 TB of 100 languages</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Three of those deserve a sentence more</span>
+                <dl class="breakdown__list">
+                  <dt>ALBERT &#8212; small in storage, not in time</dt>
+                  <dd>It shares one set of block weights across all twelve layers and splits the embedding matrix into two smaller ones. 12 M parameters against 110 M sounds dramatic, and the file really is that small &#8212; but it still runs twelve blocks at inference, so it is <em>not</em> faster. It is the one model in this table whose headline number is routinely misread</dd>
+                  <dt>ELECTRA &#8212; a better use of every example</dt>
+                  <dd>Instead of masking, a small generator substitutes plausible words and the main model decides, <em>for every token</em>, whether it was replaced. BERT learns from 15% of positions; ELECTRA learns from 100%. ELECTRA-small reaches GPT-level GLUE scores with roughly 1/30 of the compute, which makes it the strongest choice when the pretraining budget is small</dd>
+                  <dt>DeBERTa &#8212; content and position, separately</dt>
+                  <dd>Each token carries two vectors, one for what it is and one for where it is, and attention is computed from content-to-content and content-to-position terms separately rather than from one summed vector. It was the first model to pass the human baseline on SuperGLUE, and DeBERTa-v3 &#8212; which adds ELECTRA-style pretraining &#8212; is still a very strong encoder today</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Where the specialised models fit.</strong> Beyond the general
+                  family there are domain models (BioBERT, SciBERT, FinBERT) and
+                  language models (RuBERT, and for us
+                  <code>kaz-roberta-conversational</code>), all built by continuing
+                  pretraining on text from one field or one language. When your data looks
+                  like theirs, they usually win.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="recipe">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The setup</span>
+              <h2 id="recipe">The recipe, held fixed for every model</h2>
+              <p class="narrow lead">
+                Comparisons are only worth reading if one thing varies. Everything below is
+                identical across every row of every table on this page; only the name of
+                the pretrained model changes.
+              </p>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">The fine-tuning configuration</caption>
+                  <thead>
+                    <tr><th scope="col">Setting</th><th scope="col">Value</th><th scope="col">Why</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>train rows</td><td>8 000, balanced</td><td>the split of Lectures 3&#8211;6, seed 42; test 2 000 / 2 450 / 856</td></tr>
+                    <tr><td>epochs</td><td>3</td><td>the 2&#8211;4 the BERT paper recommends</td></tr>
+                    <tr><td>learning rate</td><td>2e-5</td><td>small, so the pretrained weights survive</td></tr>
+                    <tr><td>schedule</td><td>10% warm-up, then linear decay</td><td>protects the encoder while the head is random</td></tr>
+                    <tr><td>batch size</td><td>32</td><td>fits comfortably in memory</td></tr>
+                    <tr><td>max length</td><td>64 tokens</td><td>KazSAnDRA reviews average 9 words</td></tr>
+                    <tr><td>optimiser</td><td>AdamW, weight decay 0.01</td><td>the standard for Transformers</td></tr>
+                    <tr><td>device</td><td>Apple M4 Pro, MPS</td><td>a laptop, deliberately</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>No hyperparameter search anywhere on this page.</strong> Every model
+                gets the same defaults, which is both the fair comparison and the honest
+                one &#8212; it is what you would get on your first attempt. A tuned run
+                would be a little higher for all of them, and the ranking would probably
+                not change.
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          get_linear_schedule_with_warmup)
+
+name = "xlm-roberta-base"
+tokenizer = AutoTokenizer.from_pretrained(name)
+model = AutoModelForSequenceClassification.from_pretrained(name, num_labels=2).to(device)
+
+# 1. the tokenizer that came with the model turns text into ids and a mask
+batch = tokenizer(list(texts), truncation=True, max_length=64,
+                  padding="max_length", return_tensors="pt")
+data = TensorDataset(batch["input_ids"], batch["attention_mask"], labels)
+batches = DataLoader(data, batch_size=32, shuffle=True)
+
+# 2. a small learning rate, warm-up, and only three passes over the data
+optimiser = torch.optim.AdamW(model.parameters(), lr=2e-5, weight_decay=0.01)
+steps = len(batches) * 3
+schedule = get_linear_schedule_with_warmup(optimiser, int(0.1 * steps), steps)
+
+# 3. an ordinary training loop — nothing about it is specific to BERT
+for epoch in range(3):
+    model.train()
+    for ids, mask, labels in batches:
+        optimiser.zero_grad()
+        loss = torch.nn.functional.cross_entropy(
+            model(input_ids=ids, attention_mask=mask).logits, labels)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimiser.step()
+        schedule.step()</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What is different from Lecture 6&#8217;s loop</span>
+                <dl class="breakdown__list">
+                  <dt>three lines instead of a model class</dt>
+                  <dd>Lecture 6 wrote <code>MultiHeadAttention</code>, <code>Block</code> and <code>Transformer</code> by hand. Here <code>from_pretrained</code> replaces all of it &#8212; and it is worth remembering, while typing that one line, that it is loading exactly the architecture you built</dd>
+                  <dt>the tokenizer is not ours</dt>
+                  <dd>No <code>build_vocab</code>, no <code>min_count</code>. The vocabulary ships with the weights and must not be changed</dd>
+                  <dt>an attention mask, not a padding mask</dt>
+                  <dd>Same idea, opposite polarity: <code>attention_mask</code> is 1 for real tokens, where our <code>pad_mask</code> was <code>True</code> for padding. A very common source of silently inverted masks</dd>
+                  <dt>a learning-rate schedule</dt>
+                  <dd>Lecture 6 used a constant rate. Fine-tuning is sensitive enough that warm-up and decay are worth the two extra lines</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The loop itself is unchanged.</strong> Forward, loss, backward,
+                  clip, step &#8212; the same five operations as Lecture 5&#8217;s LSTM.
+                  Nothing about fine-tuning a 278 M-parameter model requires new machinery.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="polarity">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="polarity">Result 1 &#183; KazSAnDRA polarity</h2>
+              <p class="narrow lead">
+                Five pretrained models, one identical recipe, the same 2&#8202;000-review
+                test set every lecture since Lecture 3 has used.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --compare --task polarity</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>==========================================================================
+COMPARING 5 PRETRAINED MODELS  ·  KazSAnDRA polarity (Kazakh)
+==========================================================================
+  train 8000  test 2000  3 epochs  lr 2e-05  device mps
+
+— mBERT  (bert-base-multilingual-cased)
+  177,854,978 parameters
+    epoch 1  loss=0.5528  test=0.762  (135s)
+    epoch 2  loss=0.4312  test=0.794  (135s)
+    epoch 3  loss=0.3622  test=0.799  (135s)
+— DistilmBERT  (distilbert-base-multilingual-cased)
+  135,326,210 parameters
+    epoch 1  loss=0.5572  test=0.763  (88s)
+    epoch 2  loss=0.4268  test=0.789  (88s)
+    epoch 3  loss=0.3628  test=0.791  (88s)
+— MiniLM  (microsoft/Multilingual-MiniLM-L12-H384)
+  117,654,530 parameters
+    epoch 1  loss=0.5692  test=0.780  (72s)
+    epoch 2  loss=0.4598  test=0.791  (72s)
+    epoch 3  loss=0.4316  test=0.789  (72s)
+— XLM-R  (xlm-roberta-base)
+  278,045,186 parameters
+    epoch 1  loss=0.5878  test=0.792  (179s)
+    epoch 2  loss=0.4682  test=0.795  (179s)
+    epoch 3  loss=0.4228  test=0.797  (179s)
+— kaz-RoBERTa  (kz-transformers/kaz-roberta-conversational)
+  83,452,418 parameters
+    epoch 1  loss=0.5139  test=0.800  (66s)
+    epoch 2  loss=0.3905  test=0.793  (66s)
+    epoch 3  loss=0.3224  test=0.794  (66s)
+
+==========================================================================
+SUMMARY
+==========================================================================
+  model            parameters   minutes   accuracy
+  mBERT           177,854,978       6.8      0.799
+  DistilmBERT     135,326,210       5.2      0.791
+  MiniLM          117,654,530       4.2      0.789
+  XLM-R           278,045,186       9.0      0.797
+  kaz-RoBERTa      83,452,418       3.3      0.794</code></pre></div>
+
+              <h3 style="margin-top: 44px">Against everything the course has built</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">All models from Lectures 3 to 7 on the same test set</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Lecture</th><th scope="col">Model</th>
+                      <th scope="col">Parameters</th><th scope="col">Accuracy</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>3</td><td>TF-IDF + Logistic Regression</td><td>~75 k</td><td>0.780</td></tr>
+                    <tr><td>4</td><td>fastText vectors, averaged</td><td>&#8212;</td><td>0.792</td></tr>
+                    <tr><td>5</td><td>LSTM</td><td>0.7 M</td><td>0.772</td></tr>
+                    <tr><td>6</td><td>Transformer, from scratch</td><td>1.0 M</td><td class="no">0.750</td></tr>
+                    <tr><td>7</td><td>MiniLM, fine-tuned</td><td>118 M</td><td>0.789</td></tr>
+                    <tr><td>7</td><td>DistilmBERT, fine-tuned</td><td>135 M</td><td>0.791</td></tr>
+                    <tr><td>7</td><td>kaz-RoBERTa, fine-tuned</td><td>83 M</td><td>0.794</td></tr>
+                    <tr><td>7</td><td>XLM-R, fine-tuned</td><td>278 M</td><td>0.797</td></tr>
+                    <tr><td>7</td><td><strong>mBERT, fine-tuned</strong></td><td>178 M</td><td class="yes"><strong>0.799</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>The headline: 0.750 &#8594; 0.799.</strong> The same architecture
+                family, the same 8&#8202;000 labels, the same test set. The only change is
+                that the encoder started from weights that had already read a lot of text.
+                That is worth <strong>+0.049</strong> &#8212; and it converts the worst
+                model in the course into the best one.
+              </div>
+
+              <h3 style="margin-top: 44px">Now the uncomfortable part</h3>
+              <p class="narrow">
+                Look at the spread <em>within</em> Lecture 7. Best 0.799, worst 0.789: a
+                range of <strong>0.010</strong> across models that differ by 3.3&#215; in
+                size, by a factor of three in speed, and enormously in how well they
+                handled Kazakh in the two diagnostics above.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-gap-t">
+                <title id="fig-gap-t">The gap from pretraining is five times the gap between pretrained models</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">accuracy on the same 2 000-review test set</text>
+                <line x1="40" y1="150" x2="330" y2="150" stroke="#d1d6de" />
+                <text x="36" y="154" font-size="8" fill="#5b6270" text-anchor="end">0.74</text>
+                <text x="36" y="104" font-size="8" fill="#5b6270" text-anchor="end">0.76</text>
+                <text x="36" y="58" font-size="8" fill="#5b6270" text-anchor="end">0.78</text>
+                <text x="36" y="28" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="40" y1="100" x2="330" y2="100" stroke="#eef1f5" />
+                <line x1="40" y1="54" x2="330" y2="54" stroke="#eef1f5" />
+                <line x1="40" y1="24" x2="330" y2="24" stroke="#eef1f5" />
+                <rect x="52" y="127" width="30" height="23" fill="#fef2f2" stroke="#fecaca" />
+                <text x="67" y="164" font-size="7" fill="#5b6270" text-anchor="middle">scratch</text>
+                <text x="67" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.750</text>
+                <rect x="106" y="58" width="30" height="92" fill="#2563eb" />
+                <text x="121" y="164" font-size="7" fill="#5b6270" text-anchor="middle">MiniLM</text>
+                <text x="121" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.789</text>
+                <rect x="146" y="53" width="30" height="97" fill="#2563eb" />
+                <text x="161" y="164" font-size="7" fill="#5b6270" text-anchor="middle">Distil</text>
+                <text x="161" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.791</text>
+                <rect x="186" y="46" width="30" height="104" fill="#2563eb" />
+                <text x="201" y="164" font-size="7" fill="#5b6270" text-anchor="middle">kaz-R</text>
+                <text x="201" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.794</text>
+                <rect x="226" y="39" width="30" height="111" fill="#2563eb" />
+                <text x="241" y="164" font-size="7" fill="#5b6270" text-anchor="middle">XLM-R</text>
+                <text x="241" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.797</text>
+                <rect x="266" y="34" width="30" height="116" fill="#2563eb" />
+                <text x="281" y="164" font-size="7" fill="#5b6270" text-anchor="middle">mBERT</text>
+                <text x="281" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.799</text>
+                <path d="M 67 122 L 67 112 L 121 112 L 121 53" fill="none" stroke="#b91c1c" stroke-width="1.4" />
+                <text x="94" y="108" font-size="8" fill="#b91c1c" text-anchor="middle">+0.049</text>
+                <path d="M 296 30 L 310 30 L 310 62 L 296 62" fill="none" stroke="#5b6270" stroke-width="1.2" />
+                <text x="316" y="48" font-size="8" fill="#5b6270">0.010</text>
+                <text x="8" y="192" font-size="8" fill="#111111">the decision that mattered was «use a pretrained model», not «which one»</text>
+                </svg>
+                <p class="figure__caption">
+                  One big step and four small ones. The choice between pretrained encoders is worth about a fifth of the choice to use one at all.
+                </p>
+              </div>
+              <p class="note">
+                <strong>A 0.010 spread on a 2&#8202;000-row test set is not a ranking.</strong>
+                Twenty reviews decide it, and re-running with a different seed moves a
+                fine-tuned model by roughly that much. The honest statement is that these
+                five models are <em>tied</em> on this task, and any claim that mBERT
+                &#8220;beat&#8221; XLM-R here would not survive a second seed.
+              </p>
+
+              <h3 style="margin-top: 44px">What the diagnostics did predict</h3>
+              <p class="narrow">
+                The prediction you wrote down was not wrong &#8212; it was about the wrong
+                column. Read the <em>first epoch</em> instead of the last:
+              </p>
+              <div class="table-wrap">
+                <table class="matrix">
+                  <caption class="visually-hidden">Accuracy after each epoch, by model</caption>
+                  <thead>
+                    <tr><th scope="col">model</th><th scope="col">epoch 1</th><th scope="col">epoch 2</th><th scope="col">epoch 3</th><th scope="col">minutes</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>kaz-RoBERTa</td><td class="is-hit">0.800</td><td>0.793</td><td>0.794</td><td>3.3</td></tr>
+                    <tr><td>XLM-R</td><td class="is-hit">0.792</td><td>0.795</td><td>0.797</td><td>9.0</td></tr>
+                    <tr><td>MiniLM</td><td>0.780</td><td>0.791</td><td>0.789</td><td>4.2</td></tr>
+                    <tr><td>DistilmBERT</td><td>0.763</td><td>0.789</td><td>0.791</td><td>5.2</td></tr>
+                    <tr><td>mBERT</td><td>0.762</td><td>0.794</td><td>0.799</td><td>6.8</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">What this table actually says</span>
+                <dl class="breakdown__list">
+                  <dt>after one epoch the ranking is exactly the diagnostics&#8217; ranking</dt>
+                  <dd>kaz-RoBERTa 0.800, XLM-R 0.792, MiniLM 0.780, then the two mBERT-family models at 0.762 and 0.763. That is precisely the order the tokenizer test and the fill-in-the-blank test put them in</dd>
+                  <dt>kaz-RoBERTa is finished after one epoch</dt>
+                  <dd>It reaches 0.800 in 66 seconds and then gets slightly <em>worse</em> as it overfits, training loss falling to 0.32. Its best result is its first one</dd>
+                  <dt>mBERT needs all three epochs to catch up</dt>
+                  <dd>It starts worst, at 0.762, and climbs to 0.799. A model with a bad tokenizer for Kazakh and almost no Kazakh in its pretraining can still be dragged to the same place &#8212; given enough gradient steps on labelled data</dd>
+                  <dt>so the diagnostics predict speed, not ceiling</dt>
+                  <dd>How much Kazakh a model already knows determines how quickly it gets there. On a task this easy, with this much labelled data, everybody gets there</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The practical consequence is about cost, not accuracy.</strong>
+                  kaz-RoBERTa reaches its best score in 66 seconds with 83 M parameters.
+                  XLM-R needs 179 seconds per epoch and 278 M parameters to land in the same
+                  place. If you are serving this model, that is a 3.3&#215; difference in
+                  size and speed for a difference in accuracy you cannot measure.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="choosing">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The decision</span>
+              <h2 id="choosing">How to choose a model, in practice</h2>
+              <p class="narrow lead">
+                &#8220;Take the biggest one&#8221; is wrong often enough to be worth
+                replacing with a short procedure.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 230" role="img" aria-labelledby="fig-choose-t">
+                <title id="fig-choose-t">A decision path for picking a pretrained encoder</title>
+                <rect x="86" y="8" width="168" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="22" font-size="8" fill="#111111" text-anchor="middle">what language is your text?</text>
+                <line x1="170" y1="28" x2="170" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="70" y1="38" x2="270" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="70" y1="38" x2="70" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="270" y1="38" x2="270" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="48" width="120" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="70" y="62" font-size="8" fill="#111111" text-anchor="middle">English only</text>
+                <rect x="210" y="48" width="120" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="270" y="62" font-size="8" fill="#111111" text-anchor="middle">anything else</text>
+                <line x1="70" y1="68" x2="70" y2="80" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="80" width="120" height="30" rx="4" fill="#2563eb" />
+                <text x="70" y="93" font-size="7" fill="#ffffff" text-anchor="middle">DeBERTa-v3 or RoBERTa</text>
+                <text x="70" y="104" font-size="7" fill="#ffffff" text-anchor="middle">DistilBERT if speed matters</text>
+                <line x1="270" y1="68" x2="270" y2="80" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="210" y="80" width="120" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="270" y="94" font-size="8" fill="#111111" text-anchor="middle">is there a model for it?</text>
+                <line x1="270" y1="100" x2="270" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="212" y1="110" x2="316" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="212" y1="110" x2="212" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="316" y1="110" x2="316" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="168" y="120" width="88" height="30" rx="4" fill="#2563eb" />
+                <text x="212" y="133" font-size="7" fill="#ffffff" text-anchor="middle">try it AND XLM-R</text>
+                <text x="212" y="144" font-size="7" fill="#ffffff" text-anchor="middle">measure both</text>
+                <rect x="272" y="120" width="60" height="30" rx="4" fill="#2563eb" />
+                <text x="302" y="133" font-size="7" fill="#ffffff" text-anchor="middle">XLM-R</text>
+                <text x="302" y="144" font-size="7" fill="#ffffff" text-anchor="middle">start here</text>
+                <line x1="8" y1="164" x2="332" y2="164" stroke="#e8ecf2" />
+                <text x="8" y="182" font-size="9" fill="#111111">then, only if it is too slow or too large</text>
+                <text x="8" y="198" font-size="8" fill="#5b6270">try the distilled version of whatever won, and measure the drop</text>
+                <text x="8" y="216" font-size="8" fill="#2563eb">two minutes of tokenizer inspection first will often predict the answer</text>
+                </svg>
+                <p class="figure__caption">
+                  Language first, then a measured comparison, then compression only if a deployment constraint demands it.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The questions to ask in order</span>
+                <dl class="breakdown__list">
+                  <dt>1. what does the tokenizer do to my text?</dt>
+                  <dd>Tokenize a few hundred of your own sentences and count pieces per word. Two minutes, no training, and it eliminates the obviously wrong candidates before you spend any GPU time</dd>
+                  <dt>2. is there a model for my language or domain?</dt>
+                  <dd>If there is, it is a strong candidate, but not automatically the winner &#8212; a small specialised model may have been trained on far less text than XLM-R was. Measure both rather than assuming</dd>
+                  <dt>3. what is my latency and memory budget?</dt>
+                  <dd>Ask before training, not after. If the answer is &#8220;CPU, 50 ms, on a phone&#8221;, the large models were never candidates and the comparison should have been between distilled ones from the start</dd>
+                  <dt>4. how many labels do I have?</dt>
+                  <dd>With a few hundred, the pretrained model is doing nearly all the work and the choice of model matters more than anything else you can control. With hundreds of thousands, the gaps narrow and a from-scratch model becomes viable again</dd>
+                  <dt>5. only then: which is most accurate?</dt>
+                  <dd>Run the same recipe over three or four candidates. It is an afternoon of laptop time and it replaces an argument with a table</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>And report the spread, not the best run.</strong> Fine-tuning is
+                  noticeably seed-sensitive on small datasets; differences below about
+                  0.01 on a 2&#8202;000-row test set are not differences. Three seeds and a
+                  range is the honest way to report a comparison like this one.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The honest summary</span>
+              <h2 id="limits">What this still does not give you</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>One model per task</h3>
+                  <p>
+                    Every fine-tune produces a full copy of the weights. Ten tasks means
+                    ten checkpoints and ten deployments. Adapters and LoRA exist to fix
+                    exactly this, and Lecture 10 covers them.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It still needs labels</h3>
+                  <p>
+                    Fewer than before &#8212; we measure how many below &#8212; but not zero.
+                    A model that can be told what to do in words, with no labels at all,
+                    is the subject of Lecture 9.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It cannot generate</h3>
+                  <p>
+                    An encoder produces representations, not text. Ask BERT to write a
+                    review and there is no mechanism for it to do so. That is Lecture 8.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>512 tokens, and quadratic</h3>
+                  <p>
+                    The learned position table has 512 rows and attention cost grows with
+                    the square of the length. Long documents need either truncation,
+                    chunking, or a different architecture.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>The tokenizer is frozen</h3>
+                  <p>
+                    We measured what mBERT does to Kazakh morphology. Fine-tuning cannot
+                    repair it; only a different pretrained model can.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It inherits what it read</h3>
+                  <p>
+                    Biases, factual errors and coverage gaps in the pretraining corpus
+                    arrive with the weights. mBERT believing Almaty is the capital is a
+                    harmless example of a general problem.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">word2vec</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">LSTM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">Transformer</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--accent">pretrained encoder</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--soft">generative LLM</span></li>
+              </ul>
+              <p class="narrow">
+                The course has now made the same move twice: Lecture 4 pretrained the
+                embedding layer on unlabelled text, and Lecture 7 pretrained the whole
+                encoder. The next step keeps the pretraining and drops the encoder&#8217;s
+                one restriction &#8212; the inability to produce text. That is a decoder,
+                trained to predict the next token, at a scale where fine-tuning starts to
+                become optional.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="run">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The script</span>
+              <h2 id="run">Running it yourself</h2>
+              <p class="narrow lead">
+                Every measured number on this page comes from
+                <a href="../../code_files/lesson7.py">code_files/lesson7.py</a>. It loads
+                the same balanced splits as Lectures 3&#8211;6 and fine-tunes whatever model
+                you name.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds transformers and accelerate
+
+python3 lesson7.py --task polarity                  # one model, one task
+python3 lesson7.py --task score --model xlm-roberta-base
+python3 lesson7.py --compare --task polarity        # every model in the table
+python3 lesson7.py --compare --task score
+python3 lesson7.py --compare --dataset sst2         # the same recipe, in English
+python3 lesson7.py --mlm-demo                       # fill in the blank, no fine-tuning
+python3 lesson7.py --tokenizer-demo                 # how Kazakh gets split up
+python3 lesson7.py --frozen                         # features only, head trained
+python3 lesson7.py --train-size 250                 # how little data is enough</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What the script does, in six steps</span>
+                <dl class="breakdown__list">
+                  <dt>1. data</dt>
+                  <dd><code>balance()</code> is copied unchanged from Lecture 3 so the split is bit-for-bit the one every previous lecture used. KazSAnDRA is read from the local cache if present, otherwise downloaded</dd>
+                  <dt>2. tokenizer</dt>
+                  <dd><code>AutoTokenizer.from_pretrained</code> &#8212; the vocabulary belongs to the model, so this line changes when the model changes</dd>
+                  <dt>3. model</dt>
+                  <dd><code>AutoModelForSequenceClassification.from_pretrained(name, num_labels=k)</code> downloads the encoder and attaches a fresh head of the right width</dd>
+                  <dt>4. train</dt>
+                  <dd>The hand-written loop from the section above. No <code>Trainer</code>, deliberately &#8212; the whole point is that there is nothing hidden</dd>
+                  <dt>5. compare</dt>
+                  <dd><code>--compare</code> loops the model list under one identical recipe and prints the summary table, so the page and the script cannot disagree</dd>
+                  <dt>6. inspect</dt>
+                  <dd><code>--mlm-demo</code> and <code>--tokenizer-demo</code> need no training at all and are the fastest way to get a feel for a candidate model</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>On reproducibility:</strong> the seed is fixed and the splits are
+                  deterministic, but MPS and CUDA kernels are not bit-exact, so your numbers
+                  may differ in the third decimal. The rankings reproduce; the last digit
+                  may not.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Hardware.</strong> These runs were done on an Apple M4 Pro using
+                the MPS backend &#8212; a laptop, on purpose. On CPU alone expect roughly
+                ten times longer; on a recent NVIDIA GPU, roughly five times shorter. None
+                of it requires a cluster, which is exactly the point of the
+                pretrain-once-fine-tune-many split.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in the folder with <code>lesson7.py</code>. A single fine-tuning run
+                is a few minutes on a laptop, so most of these are one command and a note
+                of what happened.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Task 1 &#8212; Inspect before you train</h3>
+                  <p class="challenge__task">Run --tokenizer-demo on your own sentences. Count pieces per word for each model, then predict the ranking of the accuracy table before looking at it.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The point is that a two-minute check with no GPU predicts a great deal. Write your prediction down first &#8212; a prediction you did not record is not a prediction.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 &#8212; Seeds</h3>
+                  <p class="challenge__task">Fine-tune the same model three times with three different seeds. Report the range, not the best.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      On 8 000 examples expect a spread of roughly &#177;0.01. Any comparison of two models whose gap is smaller than your own seed spread is not a result, and this task is how you find out what your spread is.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 &#8212; Break it with a large learning rate</h3>
+                  <p class="challenge__task">Fine-tune with --lr 1e-3 instead of 2e-5. Watch the training loss and the test accuracy.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      This is catastrophic forgetting, on purpose. The pretrained weights are destroyed in the first few hundred steps and the model ends up worse than the from-scratch Transformer of Lecture 6. It is the fastest way to feel why the recommended rate is so small.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 &#8212; Too many epochs</h3>
+                  <p class="challenge__task">Train for 10 epochs instead of 3 and plot train loss against test accuracy per epoch.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Training loss keeps falling; test accuracy peaks early and then drifts down. A 178 M-parameter model memorises 8 000 short reviews easily. Identify the epoch you should have stopped at.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 &#8212; Which reviews does it still get wrong?</h3>
+                  <p class="challenge__task">Print the misclassified test reviews from the best model. Group them by hand into three or four failure types.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Expect sarcasm, mixed opinions in one review, very short reviews with no sentiment word, and genuinely mislabelled rows. The last group matters: some of the remaining error is in the data, not the model, and it puts a ceiling on the task.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 &#8212; Length</h3>
+                  <p class="challenge__task">Try --max-len 16, 32, 64 and 128. Where does accuracy stop improving, and what does that tell you about the dataset?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      KazSAnDRA reviews average about nine words, so almost nothing is gained past 32 tokens while cost keeps growing with the square of the length. Measure how many reviews are actually truncated at each setting before running anything.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 &#8212; A different head</h3>
+                  <p class="challenge__task">Replace the [CLS] pooling with mean pooling over the real tokens, as Lecture 6 used. Does it matter?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Usually very little for classification. The interesting part is that [CLS] works at all &#8212; it only means something because pretraining taught it to, which is a good illustration of how much convention is baked into the weights.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 &#8212; Domain shift</h3>
+                  <p class="challenge__task">KazSAnDRA has a `domain` column: appstore, market, mapping, bookstore. Train on appstore only and test on bookstore only.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Accuracy will drop, and the size of the drop is the honest answer to &#8220;will this work on my data?&#8221;. A single test set drawn from the training distribution always flatters a model.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 9 &#8212; Distil it yourself</h3>
+                  <p class="challenge__task">Use your best fine-tuned model as a teacher and train a smaller student on its soft probabilities over the unlabelled reviews.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      This is task-specific distillation, and the unlabelled half of KazSAnDRA is ideal for it: you have 126 000 reviews the teacher can label for free. Compare against the same student fine-tuned on the 8 000 real labels alone.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 10 &#8212; The whole course in one table</h3>
+                  <p class="challenge__task">Put every model from Lectures 3 to 7 in one table on the same test set, with parameters and runtime beside accuracy.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Include TF-IDF. It will still not be last on every axis, and the paragraph explaining why a 2 MB model that trains in four seconds is a serious baseline is the most useful thing you will write all course.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Eight questions we answer together before finishing.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">Why can pretraining use billions of words when our labelled dataset has only 8&#8202;000 rows?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because the pretraining labels are manufactured from the text itself by hiding words. No human annotated anything, so any text at all becomes supervised data. That is what &#8220;self-supervised&#8221; means, and it is the entire reason the two-stage recipe is possible.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">Why does BERT use masked language modelling instead of next-token prediction?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because it wants to be bidirectional. Predicting the next token forces a causal mask, so the model may never look right. Masking a word in the middle lets every other position, on both sides, contribute &#8212; which builds a better representation but gives up the ability to generate.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">During fine-tuning, what is new and what is reused? Give rough parameter counts.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      For mBERT: 177&#8202;853&#8202;440 pretrained encoder weights are reused, and a <code>Linear(768, 2)</code> head of 1&#8202;538 weights is new and random. The pretraining head that predicted words over the vocabulary is discarded. Everything then trains together, gently.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">Why is the fine-tuning learning rate about fifteen times smaller than Lecture 6&#8217;s?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because you are starting from a good point rather than searching from nowhere. Large steps overwrite the pretrained knowledge in the first few hundred updates &#8212; catastrophic forgetting &#8212; and the model ends up worse than one trained from scratch. Practice task 3 makes this happen on purpose.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">RoBERTa kept BERT&#8217;s architecture unchanged. What did it change, and what did that prove?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Ten times the data, much longer training, dynamic masking, larger batches, and no Next Sentence Prediction. It proved BERT had been undertrained rather than badly designed &#8212; and, by dropping NSP and improving, that part of the original recipe was decoration.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 6</h3>
+                  <p class="challenge__task">DistilBERT trains on the teacher&#8217;s full probability distribution rather than the correct answer. Why does that help?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because the distribution carries more information per example. &#8220;пайдалы 0.41, жақсы 0.19, керемет 0.08&#8221; tells the student which other answers were also reasonable and how close they were &#8212; a similarity structure that a one-hot label throws away entirely.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 7</h3>
+                  <p class="challenge__task">Our five pretrained models scored between 0.789 and 0.799. What is the correct way to report that?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      As a tie. A 0.010 spread on a 2&#8202;000-row test set is twenty reviews, which is within the seed-to-seed variation of fine-tuning. The defensible claim is &#8220;all five are equivalent on this task&#8221;, and the interesting differences are in size and speed, not accuracy.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 8</h3>
+                  <p class="challenge__task">mBERT has the worst Kazakh tokenizer and the worst fill-in-the-blank predictions, yet finished joint best. Explain.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The diagnostics predict how fast a model reaches its ceiling, not where the ceiling is. After one epoch the ranking matched them exactly &#8212; kaz-RoBERTa 0.800, mBERT 0.762. Given three epochs of 8&#8202;000 labelled examples on a fairly easy binary task, every model catches up. With fewer labels, or a harder task, the gap would have persisted.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Learning a language and learning a task are separate jobs with separate data needs</li>
+                <li>Masked language modelling manufactures labels from raw text, so pretraining needs no annotation</li>
+                <li>BERT is Lecture 6&#8217;s encoder stack plus [CLS], [SEP], segment embeddings and learned positions</li>
+                <li>15% masking, split 80&#8202;/&#8202;10&#8202;/&#8202;10, and why NSP was later dropped</li>
+                <li>Fine-tuning discards the pretraining head, adds a tiny new one, and trains everything gently</li>
+                <li>A learning rate fifteen times smaller, three epochs, warm-up &#8212; all to avoid catastrophic forgetting</li>
+                <li>RoBERTa: same architecture, more data, proving BERT was undertrained</li>
+                <li>DistilBERT and TinyBERT: a student copies the teacher&#8217;s whole distribution, not just its answer</li>
+                <li>ALBERT shares weights, ELECTRA learns from every token, DeBERTa splits content from position</li>
+                <li>The tokenizer ships with the weights and cannot be fixed by fine-tuning</li>
+                <li>What a pretrained model knows before fine-tuning, measured two ways</li>
+                <li>Pretraining is worth far more than the choice of which pretrained model to use</li>
+                <li>A spread smaller than your seed variance is a tie, not a ranking</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Lecture 7 &middot; 14 Sep 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

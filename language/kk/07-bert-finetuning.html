@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BERT және Fine-tuning | NLP Course</title>
+    <meta
+      name="description"
+      content="7-дәріс: алдын ала оқытылған тілдік модельдер — masked language modelling, BERT және оның отбасы (RoBERTa, DistilBERT, TinyBERT, ALBERT, ELECTRA, DeBERTa, XLM-R), дистилляция не істейді, әрі KazSAnDRA polarity, KazSAnDRA score және SST-2 бойынша өлшенген fine-tuning нәтижелері."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Тіл">
+        <a href="../en/07-bert-finetuning.html" data-lang-link="en">EN</a>
+        <a href="../kk/07-bert-finetuning.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/07-bert-finetuning.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">Мәтінді өңдеуден Large Language Models дейін</p>
+        <div class="lang-switch" role="group" aria-label="Тіл">
+          <a href="../en/07-bert-finetuning.html" data-lang-link="en">EN</a>
+          <a href="../kk/07-bert-finetuning.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/07-bert-finetuning.html" data-lang-link="ru">RU</a>
+        </div>
+        <p class="sidebar__mt" role="note">
+          <span aria-hidden="true">⚠</span> Машиналық аударма — сапасы тексерілу
+          үстінде.
+        </p>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс жоспары</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Мазмұнды жабу" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- Машиналық аударма туралы ескерту ------------------------- -->
+          <div class="container">
+            <div class="mt-notice" role="note">
+              <span class="mt-notice__icon" aria-hidden="true">⚠</span>
+              <p>
+                <strong>Машиналық аударма.</strong> Бұл беттің қазақша нұсқасы
+                ағылшын тілінен машиналық аудармамен жасалған, аударма сапасы
+                тексерілу үстінде.
+                <span class="mt-notice__en"
+                  >The Kazakh version was translated from English via machine
+                  translation, and translation quality is under validation.</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">7-дәріс</span>
+              <h1>BERT және Fine-tuning</h1>
+              <p class="hero__subtitle">
+                6-дәрісте біз Transformer-ді нөлден құрдық, ал ол сөз санағышқа ұтылды. Мәселе архитектурада емес, бастау нүктесінде еді. Бұл дәріс бір нәрсені өзгертеді: енді энкодер тілді біліп тұрып бастайды.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістің соңында сіз&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Pretraining-ті түсіндіресіз</h3>
+                  <p>Masked language modelling дегеннің не екенін, оның қанша тұратынын және неге таңбаланбаған мәтінде жасалатынын айтасыз.</p>
+                </div>
+                <div class="card">
+                  <h3>Fine-tuning-ті түсіндіресіз</h3>
+                  <p>Не қосылатынын, не өзгеретінін және learning rate неге он бес есе кіші екенін сипаттайсыз.</p>
+                </div>
+                <div class="card">
+                  <h3>Отбасын ажыратасыз</h3>
+                  <p>RoBERTa, DistilBERT, TinyBERT, ALBERT, ELECTRA, DeBERTa, XLM-R &#8212; әрқайсысы нені өзгертті және неге.</p>
+                </div>
+                <div class="card">
+                  <h3>Модель таңдайсыз</h3>
+                  <p>Дәлдікті көлем мен кідіріске айырбастап, кішірек модель дұрыс жауап болатын сәтті білесіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Модельді өзіңіз дәлдеп оқытасыз</h3>
+                  <p>Қырық жол PyTorch, бүкіл курс қолданған сол екі KazSAnDRA тапсырмасында.</p>
+                </div>
+                <div class="card">
+                  <h3>Нәтижені адал оқисыз</h3>
+                  <p>3&#8211;6-дәрістермен салыстырып, pretraining нақты не бергенін айтасыз.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Бір айнымалы өзгереді.</strong> Сол теңгерілген 8&#8202;000&#8202;/&#8202;2&#8202;000 бөлінісі, сол тест жиыны, 3, 4, 5 және 6-дәрістердегі сол метрика. Жалғыз айырмасы &#8212; энкодер салмақтары енді кездейсоқ басталмайды. Сондықтан осы беттегі әр санды дәл сол өзгеріске жатқызуға болады.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="problem">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Мәселе</span>
+              <h2 id="problem">8&#8202;000 таңбаланған пікірге не сатып алуға болмайды</h2>
+              <p class="narrow lead">
+                6-дәріс қолайсыз кестемен аяқталды. Оны экранға қайта шығарған жөн, себебі бүкіл осы дәріс &#8212; соған берілген жауап.
+              </p>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">3&#8211;6-дәрістердің KazSAnDRA polarity-дегі нәтижелері</caption>
+                  <thead>
+                    <tr><th scope="col">Дәріс</th><th scope="col">Модель</th><th scope="col">Дәлдік</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>3</td><td>TF-IDF + Logistic Regression</td><td>0.780</td></tr>
+                    <tr><td>4</td><td>орташаланған fastText векторлары</td><td>0.792</td></tr>
+                    <tr><td>5</td><td>LSTM</td><td>0.772</td></tr>
+                    <tr><td>6</td><td>Transformer, нөлден</td><td class="no">0.750</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="narrow">
+                Ең жаңа архитектура соңғы орында қалды. Айқын түсіндірмелерді өлшеу арқылы жоққа шығардық: эпохалар көбейгенде 0.749, кішірек модельде 0.750, үлкенірек learning rate нашарлатты. Бес есе көп дерек 0.787 берді. Жұмыс істеген тетік &#8212; дерек, тек қана дерек.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-two-jobs-t">
+                <title id="fig-two-jobs-t">Нөлден оқытылатын модель тілді де, тапсырманы да сол бір таңбалардан үйренуге мәжбүр</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">8 000 таңбаланған пікір нені үйретуге тиіс, әрі бірден</text>
+                <rect x="8" y="22" width="150" height="66" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="83" y="40" font-size="9" fill="#111111" text-anchor="middle">қазақ тілін</text>
+                <text x="83" y="55" font-size="8" fill="#5b6270" text-anchor="middle">морфология, сөз реті,</text>
+                <text x="83" y="66" font-size="8" fill="#5b6270" text-anchor="middle">сөздер нені білдіреді,</text>
+                <text x="83" y="77" font-size="8" fill="#5b6270" text-anchor="middle">болымсыздық қалай жұмыс істейді</text>
+                <rect x="182" y="22" width="150" height="66" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="257" y="40" font-size="9" fill="#111111" text-anchor="middle">көңіл күй тапсырмасын</text>
+                <text x="257" y="55" font-size="8" fill="#5b6270" text-anchor="middle">қай сөздер &#8212; мақтау,</text>
+                <text x="257" y="66" font-size="8" fill="#5b6270" text-anchor="middle">қайсысы &#8212; шағым,</text>
+                <text x="257" y="77" font-size="8" fill="#5b6270" text-anchor="middle">олар қалай үйлеседі</text>
+                <line x1="83" y1="88" x2="83" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="257" y1="88" x2="257" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="83" y1="104" x2="257" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="104" x2="170" y2="118" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="86" y="118" width="168" height="24" rx="5" fill="#2563eb" />
+                <text x="170" y="134" font-size="9" fill="#ffffff" text-anchor="middle">8 000 таңба, 9 сөзден</text>
+                <text x="8" y="164" font-size="8" fill="#b91c1c">сол жақтағы блок қымбат, ал бізге ол үшін төлемейді</text>
+                <text x="8" y="182" font-size="8" fill="#2563eb">ал таңбаланбаған қазақ мәтіні тегін әрі шексіз</text>
+                </svg>
+                <p class="figure__caption">
+                  Нөлден оқытылатын модель өзінің 8&#8202;000 мысалының басым бөлігін қазақ тілінің не екенін анықтауға жұмсайды да, бізге шын керек тапсырмаға тек қалғанын қалдырады.
+                </p>
+              </div>
+              <div class="definition">
+                <p>
+                  <strong>Мұны түзейтін байқау.</strong> Тілді үйрену мен тапсырманы үйрену &#8212; екі бөлек жұмыс. Біріншісіне орасан көп мәтін керек, бірақ <em>таңба мүлде керек емес</em>. Екіншісіне таңба керек, бірақ бірінші жұмыс істеліп қойса, көп емес. Демек оларды бөлек істеу керек.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Бұл дәлелдің жеңгенін сіз бір рет көрдіңіз.</strong> 4-дәріс word2vec-ті барлық 134&#8202;368 таңбаланбаған пікірде оқытып, векторларды 3-дәрістің жіктеуішіне берді, ал ол жақсарды. 5-дәріс сол векторлармен LSTM-нің embedding қабатын инициализациялап, 0.772-ден 0.787-ге көтерілді. Бұл &#8212; осы дәрістегі сол қадам, бір қабатқа қолданылған. BERT оны бүкіл энкодерге қолданады.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="transfer">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Негізгі идея</span>
+              <h2 id="transfer">Бір рет алдын ала оқыту, көп рет дәлдеп оқыту</h2>
+              <p class="narrow lead">
+                Transfer learning оқытуды экономикасы мүлде бөлек екі сатыға бөледі. Осы асимметрияны түсіну &#8212; саланың неге соның айналасына қайта құрылғанын түсінудің дені.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 250" role="img" aria-labelledby="fig-transfer-t">
+                <title id="fig-transfer-t">Pretraining бір рет болады және ортақ, fine-tuning көп рет болады және арзан</title>
+                <text x="8" y="12" font-size="10" fill="#111111">1-саты &#183; pretraining</text>
+                <rect x="8" y="20" width="96" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="56" y="34" font-size="8" fill="#111111" text-anchor="middle">шикі мәтін, таңбасыз</text>
+                <line x1="104" y1="31" x2="122" y2="31" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="122" y="20" width="96" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="34" font-size="8" fill="#ffffff" text-anchor="middle">бос орындарды толтыру</text>
+                <line x1="218" y1="31" x2="236" y2="31" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="236" y="20" width="96" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="284" y="34" font-size="8" fill="#111111" text-anchor="middle">оқытылған энкодер</text>
+                <text x="8" y="56" font-size="8" fill="#5b6270">миллиардтаған сөз &#183; көптеген GPU-да апталап &#183; бір рет, басқа біреу</text>
+                <line x1="8" y1="68" x2="332" y2="68" stroke="#e8ecf2" />
+                <text x="8" y="86" font-size="10" fill="#111111">2-саты &#183; fine-tuning</text>
+                <rect x="122" y="94" width="96" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="108" font-size="8" fill="#111111" text-anchor="middle">сол энкодер</text>
+                <line x1="170" y1="42" x2="170" y2="52" stroke="#5b6270" stroke-width="1.3" />
+                <path d="M 284 42 L 284 80 L 170 80 L 170 94" fill="none" stroke="#2563eb" stroke-width="1.5" />
+                <line x1="90" y1="122" x2="250" y2="122" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="116" x2="170" y2="122" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="90" y1="122" x2="90" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="170" y1="122" x2="170" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="250" y1="122" x2="250" y2="132" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="48" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="90" y="146" font-size="8" fill="#ffffff" text-anchor="middle">көңіл күй</text>
+                <text x="90" y="158" font-size="7" fill="#ffffff" text-anchor="middle">8 000 таңба</text>
+                <rect x="128" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="170" y="146" font-size="8" fill="#ffffff" text-anchor="middle">NER</text>
+                <text x="170" y="158" font-size="7" fill="#ffffff" text-anchor="middle">2 000 таңба</text>
+                <rect x="208" y="132" width="84" height="34" rx="4" fill="#2563eb" />
+                <text x="250" y="146" font-size="8" fill="#ffffff" text-anchor="middle">интент</text>
+                <text x="250" y="158" font-size="7" fill="#ffffff" text-anchor="middle">900 таңба</text>
+                <text x="8" y="182" font-size="8" fill="#5b6270">бір ноутбукте минуттар &#183; көп рет &#183; әр тапсырмаға бөлек көшірме</text>
+                <line x1="8" y1="194" x2="332" y2="194" stroke="#e8ecf2" />
+                <text x="8" y="212" font-size="9" fill="#111111">бүкіл мән дәл осы асимметрияда</text>
+                <text x="8" y="228" font-size="8" fill="#5b6270">қымбат жартысы бір рет төленген және бәріне ортақ</text>
+                <text x="8" y="242" font-size="8" fill="#5b6270">арзан жартысы &#8212; сіздің 8 000 таңбаңызбен істейтін бар нәрсеңіз</text>
+                </svg>
+                <p class="figure__caption">
+                  Pretraining &#8212; қоғамдық игілік: біреу апталап GPU уақытын жұмсайды, нәтижесін жариялайды, ал әр қолданбалы тапсырма содан басталады.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Екі саты қатар</span>
+                <dl class="breakdown__list">
+                  <dt>деректер қандай</dt>
+                  <dd>Pretraining: шикі, краулермен жиналған, таңбасыз мәтін, қанша тапсаңыз сонша. Fine-tuning: тапсырмаңыздың таңбаланған мысалдары, қанша болса да</dd>
+                  <dt>мақсат функциясы қандай</dt>
+                  <dd>Pretraining: жасырылған сөздерді контексі бойынша болжау. Fine-tuning: таңбаны болжау. Біріншісі &#8212; жауабы ешкімге керек емес көмекші тапсырма: ол тек модельді тілді үйренуге мәжбүрлеу үшін бар</dd>
+                  <dt>бұл қанша тұрады</dt>
+                  <dd>BERT-base-ті 2018 жылы алдын ала оқыту 16 TPU-да 4 күн алды. Оны біздің 8&#8202;000 пікірімізде дәлдеп оқыту ноутбукте бірнеше минут алады. Қатынасы &#8212; шамамен төрт реттік айырма</dd>
+                  <dt>мұны кім істейді</dt>
+                  <dd>Pretraining: зерттеу зертханасы, бір рет, әрі салмақтар жарияланады. Fine-tuning: сіз, қалағаныңызша жиі</dd>
+                  <dt>салмақтарда не өзгереді</dt>
+                  <dd>Pretraining: бәрі, кездейсоқтан бастап. Fine-tuning: қайтадан бәрі, бірақ жұмсақ &#8212; жоқ жерден іздеу емес, әлдеқашан жақсы нүктеден кішкене қадамдар</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Көмекші тапсырманың атауы &#8212; self-supervision.</strong> Таңбалар мәтіннің бір бөлігін жасыру арқылы мәтіннің өзінен жасалады, сондықтан ешкім аннотациялауға мәжбүр болмаған деректерден таңбаланған мысалдардың шексіз қоры шығады. Заманауи NLP-ді мүмкін ететін дәл осы жалғыз айла.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="mlm">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Алдын ала оқыту тапсырмасы</span>
+              <h2 id="mlm">Masked language modelling</h2>
+              <p class="narrow lead">
+                Тілді шикі мәтіннен үйрену үшін жауабы сол мәтіннің өзінде тұрған сұрақ керек. BERT-тің сұрағы мынау: <em>мен бірнеше сөзді жасырдым &#8212; олар қандай сөздер еді?</em>
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 210" role="img" aria-labelledby="fig-mlm-t">
+                <title id="fig-mlm-t">Сөз MASK-пен ауыстырылады, ал модель оны екі жағынан қалпына келтіруге тиіс</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">1. шикі корпустан кез келген сөйлемді алу</text>
+                <rect x="8" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="30" y="34" font-size="8" fill="#111111" text-anchor="middle">Бұл</text>
+                <rect x="54" y="20" width="64" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="86" y="34" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="120" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="142" y="34" font-size="8" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="166" y="20" width="56" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="194" y="34" font-size="8" fill="#111111" text-anchor="middle">пайдалы</text>
+                <rect x="224" y="20" width="40" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="244" y="34" font-size="8" fill="#111111" text-anchor="middle">екен</text>
+                <text x="8" y="58" font-size="9" fill="#5b6270">2. токендердің шамамен 15%-ын жасыру</text>
+                <rect x="8" y="66" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="30" y="80" font-size="8" fill="#111111" text-anchor="middle">Бұл</text>
+                <rect x="54" y="66" width="64" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="86" y="80" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="120" y="66" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="142" y="80" font-size="8" fill="#111111" text-anchor="middle">өте</text>
+                <rect x="166" y="66" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="194" y="80" font-size="8" fill="#ffffff" text-anchor="middle">[MASK]</text>
+                <rect x="224" y="66" width="40" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="244" y="80" font-size="8" fill="#111111" text-anchor="middle">екен</text>
+                <text x="8" y="104" font-size="9" fill="#5b6270">3. қалған әр токен бос орынға екі жағынан қарайды</text>
+                <path d="M 30 86 C 60 108 170 108 190 92" fill="none" stroke="#c7d9ff" stroke-width="1.4" />
+                <path d="M 86 86 C 110 106 170 106 192 92" fill="none" stroke="#c7d9ff" stroke-width="1.4" />
+                <path d="M 142 86 C 155 100 175 100 193 92" fill="none" stroke="#2563eb" stroke-width="2" />
+                <path d="M 244 86 C 235 102 210 102 198 92" fill="none" stroke="#2563eb" stroke-width="2" />
+                <text x="8" y="130" font-size="9" fill="#5b6270">4. жасырылған сөзді бүкіл сөздік бойынша болжау</text>
+                <rect x="8" y="138" width="120" height="16" rx="3" fill="#2563eb" />
+                <text x="14" y="150" font-size="8" fill="#ffffff">пайдалы</text>
+                <text x="134" y="150" font-size="8" fill="#111111">0.41</text>
+                <rect x="8" y="158" width="56" height="16" rx="3" fill="#c7d9ff" />
+                <text x="14" y="170" font-size="8" fill="#111111">жақсы</text>
+                <text x="134" y="170" font-size="8" fill="#111111">0.19</text>
+                <rect x="8" y="178" width="24" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="38" y="190" font-size="8" fill="#111111">керемет</text>
+                <text x="134" y="190" font-size="8" fill="#111111">0.08</text>
+                <text x="176" y="150" font-size="8" fill="#5b6270">дұрыс жауап осы уақыт бойы</text>
+                <text x="176" y="162" font-size="8" fill="#5b6270">мәтінде тұрған, сондықтан</text>
+                <text x="176" y="174" font-size="8" fill="#5b6270">аннотация қажет болмады</text>
+                </svg>
+                <p class="figure__caption">
+                  Masked language modelling. Таңба ретінде алынып тасталған сөз қызмет етеді, ал бұл бар сөйлемнің бәрін тегін оқыту мысалына айналдырады.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Неге дәл осындай тапсырма</span>
+                <dl class="breakdown__list">
+                  <dt>ол шынымен түсінуге мәжбүрлейді</dt>
+                  <dd><span class="token">Бұл қосымша өте [MASK] екен</span> дегендегі бос орынды толтыру үшін модель <span class="token">өте</span> сөзінен кейін қандай сөз келетінін, сөйлемнің қосымша туралы екенін және қазақ тілді қолданушылар қосымшаны қандай сын есіммен сипаттайтынын білуге тиіс. Айналып өтер жол жоқ</dd>
+                  <dt>ол екі жаққа да қарай алады</dt>
+                  <dd>Атаудың бүкіл мәні осында: <strong>B</strong>idirectional <strong>E</strong>ncoder <strong>R</strong>epresentations from <strong>T</strong>ransformers. Бос орыннан кейінгі <span class="token">екен</span> сөзі одан бұрынғы сөздер сияқты пайдалы, әрі BERT-ке оны қолдануға рұқсат</dd>
+                  <dt>таңбалар тегін</dt>
+                  <dd>Ешкім ештеңе аннотациялаған жоқ. Корпустың өзі &#8212; өзінен жасырылған таңба</dd>
+                  <dt>бұл келесі токенді болжау емес</dt>
+                  <dd>Causal модель (6-дәріс және 8-дәріс) келесі токенді болжайды және оңға ешқашан қарамауы мүмкін. BERT екі жақты көру мүмкіндігінің орнына генерациялау қабілетінен бас тартады &#8212; өткен дәрістегі сол айырбас, саналы түрде жасалған</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Неге 15%?</strong> Тым аз жасырсаңыз, әр сөйлем бір өтуде дерлік ештеңе үйретпейді, сондықтан алдын ала оқыту мәңгіге созылады. Тым көп жасырсаңыз, бос орындарды қалпына келтіруге жететін контекст қалмайды. 15% &#8212; түпнұсқа мақаладағы эмпирикалық ымыра; кейінгі жұмыстар оптимумның біршама жазық екенін және модель көлеміне тәуелді екенін тапты.
+                </p>
+              </div>
+              <h3 style="margin-top: 44px">80&#8202;/&#8202;10&#8202;/&#8202;10 бөлшегі</h3>
+              <p class="narrow">
+                Маскалауға таңдалған токендердің ішінен BERT тек 80%-ын <code>[MASK]</code>-пен ауыстырады. 10%-ы кездейсоқ сөзбен ауыстырылады, ал 10%-ы тиіспей қалдырылады. Ұсақ-түйекке ұқсайды, әрі анық себебі бар.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-8010-t">
+                <title id="fig-8010-t">Таңдалған 15% токеннің 80 пайызы MASK болады, 10 пайызы кездейсоқ, 10 пайызы өзгеріссіз</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">маскалауға іріктелген 15% токеннің ішінен</text>
+                <rect x="8" y="22" width="240" height="24" rx="4" fill="#2563eb" />
+                <text x="128" y="38" font-size="9" fill="#ffffff" text-anchor="middle">80% &#8594; [MASK]</text>
+                <rect x="250" y="22" width="38" height="24" rx="4" fill="#c7d9ff" />
+                <text x="269" y="38" font-size="8" fill="#111111" text-anchor="middle">10%</text>
+                <rect x="290" y="22" width="42" height="24" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="311" y="38" font-size="8" fill="#111111" text-anchor="middle">10%</text>
+                <text x="250" y="58" font-size="7" fill="#5b6270">кездейсоқ</text>
+                <text x="292" y="58" font-size="7" fill="#5b6270">өзгеріссіз</text>
+                <line x1="8" y1="72" x2="332" y2="72" stroke="#e8ecf2" />
+                <text x="8" y="90" font-size="9" fill="#111111">бұл қандай мәселені шешеді</text>
+                <text x="8" y="106" font-size="8" fill="#5b6270">[MASK] fine-tuning кезінде кездеспейді, сондықтан тек [MASK] туралы</text>
+                <text x="8" y="118" font-size="8" fill="#5b6270">ойлай алатын модель қолданыста сәйкессіздікке тап болар еді</text>
+                <text x="8" y="136" font-size="8" fill="#2563eb">оны кездейсоқ сөздерді түзетуге де, дұрыстарын тиіспеуге де мәжбүрлеу</text>
+                <text x="8" y="146" font-size="8" fill="#2563eb">оған әр орында нағыз кескіндеме құруға мәжбүр етеді</text>
+                </svg>
+                <p class="figure__caption">
+                  Модель алдындағы токеннің дұрыс екеніне ешқашан сенімді бола алмайды, сондықтан оған тек маскаланғандары туралы емес, әр орын туралы пікір құруға тура келеді.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Әрі бас тартылған бөлік.</strong> Түпнұсқа BERT-те екінші мақсат болды, Next Sentence Prediction: екі үзінді берілген &#8212; олар қатар тұр ма? Бұл question answering мен қорытындылауға көмектеседі деп есептелді. Кейін RoBERTa оны алып тастап, <em>жақсырақ</em> нәтиже көрсетті, содан бері оны іс жүзінде ешкім қолданбайды. Бұл &#8212; жарияланған рецепттер туралы пайдалы сабақ: олардың бір бөлігі &#8212; болжам, ал тірек идеяларды әшекейден кейінгі өлшеу ғана ажыратады.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="architecture">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; BERT деген не</span>
+              <h2 id="architecture">BERT &#8212; бұл 6-дәрістің энкодер жартысы</h2>
+              <p class="narrow lead">
+                Бұл дәрісте жаңа архитектура жоқ. BERT &#8212; өткен жолы сіз құрған сол encoder блоктарының стегі, оған қоса кірістің үш келісімі және алдын ала оқыту мақсаты.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 244" role="img" aria-labelledby="fig-bertarch-t">
+                <title id="fig-bertarch-t">BERT кірісінің келісімдері және энкодер стегі</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">кіріс, BERT-тің екі арнайы токенімен</text>
+                <rect x="8" y="20" width="42" height="20" rx="4" fill="#2563eb" />
+                <text x="29" y="34" font-size="8" fill="#ffffff" text-anchor="middle">[CLS]</text>
+                <rect x="52" y="20" width="44" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="74" y="34" font-size="8" fill="#111111" text-anchor="middle">қосымша</text>
+                <rect x="98" y="20" width="38" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="117" y="34" font-size="8" fill="#111111" text-anchor="middle">жақсы</text>
+                <rect x="138" y="20" width="34" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="155" y="34" font-size="8" fill="#111111" text-anchor="middle">емес</text>
+                <rect x="174" y="20" width="42" height="20" rx="4" fill="#2563eb" />
+                <text x="195" y="34" font-size="8" fill="#ffffff" text-anchor="middle">[SEP]</text>
+                <text x="224" y="34" font-size="8" fill="#5b6270">id-лердің бір жолы</text>
+                <text x="8" y="58" font-size="9" fill="#5b6270">бір емес, үш embedding қосылады</text>
+                <rect x="8" y="66" width="102" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="59" y="80" font-size="8" fill="#111111" text-anchor="middle">токен embedding-і</text>
+                <text x="116" y="80" font-size="10" fill="#111111">+</text>
+                <rect x="128" y="66" width="94" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="175" y="80" font-size="8" fill="#111111" text-anchor="middle">позиция (оқытылатын)</text>
+                <text x="228" y="80" font-size="10" fill="#111111">+</text>
+                <rect x="240" y="66" width="92" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="286" y="80" font-size="8" fill="#111111" text-anchor="middle">A немесе B сегменті</text>
+                <line x1="170" y1="90" x2="170" y2="102" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="102" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="117" font-size="9" fill="#ffffff" text-anchor="middle">encoder block 1</text>
+                <line x1="170" y1="124" x2="170" y2="132" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="132" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="147" font-size="9" fill="#ffffff" text-anchor="middle">&#8230; барлығы 12 блок</text>
+                <line x1="170" y1="154" x2="170" y2="162" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="86" y="162" width="168" height="22" rx="4" fill="#2563eb" />
+                <text x="170" y="177" font-size="9" fill="#ffffff" text-anchor="middle">encoder block 12</text>
+                <text x="262" y="147" font-size="8" fill="#5b6270">екібағытты,</text>
+                <text x="262" y="158" font-size="8" fill="#5b6270">causal маска жоқ</text>
+                <line x1="170" y1="184" x2="170" y2="196" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="8" y="196" width="150" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="211" font-size="8" fill="#111111" text-anchor="middle">[CLS] векторы: сөйлем</text>
+                <rect x="182" y="196" width="150" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="257" y="211" font-size="8" fill="#111111" text-anchor="middle">токен векторлары: әр сөз</text>
+                <text x="8" y="236" font-size="8" fill="#5b6270">жіктеу сол жақ блокты оқиды; таңбалау мен QA &#8212; оң жақтағыны</text>
+                </svg>
+                <p class="figure__caption">
+                  6-дәрістегі толық архитектура схемасының нүктелі ENCODER блогының ішіндегінің бәрі, оған қосылған <code>[CLS]</code> және <code>[SEP]</code>, әрі позициялар синустық емес, оқытылатын.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Білуге тұрарлық келісімдер</span>
+                <dl class="breakdown__list">
+                  <dt><code>[CLS]</code></dt>
+                  <dd>Кез келген кірістің басына қосылатын және жалғыз міндеті бүкіл тізбектің түйінін жинау болатын токен. Оның өз мағынасы жоқ; бұл &#8212; модель жауабын қоятын орын. 6-дәріс оның орнына орташалауды пайдаланды &#8212; екеуі де жұмыс істейді, ал мұнда <code>[CLS]</code> қабылданған, себебі алдын ала оқытылған салмақтар дәл соған оқытылған</dd>
+                  <dt><code>[SEP]</code></dt>
+                  <dd>Бөлгіш, сонда екі сөйлемді бір кіріс етіп беруге болады. BERT-ті жұптық тапсырмаларға жарамды ететін дәл осы: ізбе-іздік, ұқсастық, абзац бойынша question answering</dd>
+                  <dt>segment embeddings</dt>
+                  <dd>Дәл екі жолы бар үшінші embedding кестесі, ол &#171;бұл токен A сөйлеміне жатады&#187; не &#171;B сөйлеміне&#187; деп белгілейді</dd>
+                  <dt>оқытылатын позициялар</dt>
+                  <dd>6-дәрістің синус кестесі емес, орын бойынша индекстелетін, 512 жолы бар кәдімгі embedding кестесі. Қарапайымырақ &#8212; әрі BERT 512 токеннен ұзын ештеңені оқи алмайтынының себебі осы</dd>
+                  <dt>WordPiece</dt>
+                  <dd>30&#8202;000 жазбадан тұратын sub-word сөздігі, көптілді нұсқасында 119&#8202;547. Келесі бөлім оның қазақ тілімен не істейтінін көрсетеді</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Мақаладағы екі өлшем:</strong> BERT-base &#8212; 12 блок, 12 бас, <code>d_model = 768</code>, 110 M параметр; салыстыру әділ болсын деп GPT-1-ге әдейі теңестірілген. BERT-large &#8212; 24 блок, 16 бас, <code>d_model = 1024</code>, 340 M параметр.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="knows">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="knows">Алдын ала оқытылған модель нені біліп қойған</h2>
+              <p class="narrow lead">
+                Кез келген fine-tuning-ке дейін, бірде-бір таңбаны көрмей тұрып, алдын ала оқытылған модель бос орындарды толтыра алады. Бұл &#8212; қымбат сатының нені сатып алғанын көрудің ең тікелей тәсілі, әрі әртүрлі модельдің әртүрлі нәрсе сатып алғанын көру жолы.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --mlm-demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  bert-base-multilingual-cased
+    Қазақстанның астанасы [MASK] қаласы.
+      → Алматы 0.31, Астана 0.19, - 0.04, Новосибирск 0.03, Павлодар 0.03
+    Бұл қосымша маған қатты [MASK].
+      → болады 0.16, ##қ 0.06, қосымша 0.05, қолданылады 0.04, емес 0.04
+    Мен кітап [MASK].
+      → . 0.04, ##ы 0.03, ##а 0.02, ##у 0.02, ##ты 0.02
+
+  xlm-roberta-base
+    Қазақстанның астанасы [MASK] қаласы.
+      → Астана 0.62, Алматы 0.26, Семей 0.03, Қызылорда 0.01, Шымкент 0.01
+    Бұл қосымша маған қатты [MASK].
+      → әсер 0.15, пайдалы 0.12, қажет 0.09, болды 0.07, қызықты 0.06
+    Мен кітап [MASK].
+      → жазды 0.10, ... 0.05, . 0.04, мын 0.04, пын 0.03
+
+  kz-transformers/kaz-roberta-conversational
+    Қазақстанның астанасы [MASK] қаласы.
+      → Алматы 0.22, Астана 0.20, Алматы 0.04, Верный 0.03, Орынбор 0.03
+    Бұл қосымша маған қатты [MASK].
+      → ілікті 0.88, ілді 0.03, іледі 0.02, ілген 0.01, ілетін 0.01
+    Мен кітап [MASK].
+      → оқыдым 0.35, оқимын 0.15, бердім 0.07, ымын 0.05, жаздым 0.03</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Үш модельдің қазақшасын оқу</span>
+                <dl class="breakdown__list">
+                  <dt>mBERT оны әрең сөйлейді</dt>
+                  <dd><span class="token">Мен кітап [MASK]</span> &#8212; дегенде оның бес үздік болжамы &#8212; нүкте және төрт жұрнақ сынығы. Ол етістік мүлде шығармады. Қазақ тілі оны оқытқан 104 тілді Wikipedia жинағының шағын үлесі болды, әрі бұл көрініп тұр</dd>
+                  <dt>XLM-R фактілерді біледі</dt>
+                  <dd>Астананы сеніммен дұрыс атайтын жалғыз модель осы, <span class="token">Астана</span> үшін 0.62, ал қосымша туралы сөйлемге берген болжамдары &#8212; <span class="token">әсер</span>, <span class="token">пайдалы</span>, <span class="token">қажет</span> &#8212; бәрі адам жаза алатын сөздер. Оны 2.5 ТБ CommonCrawl-да оқытқан, ал онда қазақ тілі Wikipedia-дағыдан әлдеқайда көп</dd>
+                  <dt>kaz-RoBERTa грамматиканы біледі</dt>
+                  <dd>Тек қазақ тіліне арналған модель ғана <span class="token">оқыдым</span> және <span class="token">оқимын</span> сөздерін береді &#8212; <span class="token">Мен</span> сөзімен үйлескен, жақ бойынша дұрыс қиысқан дұрыс етістіктер. Көптілді модельдердің бірде-бірі бұл қиысуды шығара алмайды</dd>
+                  <dt>әрі олардың бірде-бірі жай ғана ең үздік емес</dt>
+                  <dd>Қазақ тіліне арналған модель астананы қате атайды. Оның оқыту корпусы ауызекі, сондықтан ол жатық сөйлейді, бірақ аса хабардар емес. &#171;Қай модель көбірек біледі&#187; &#8212; бұл бір сұрақ емес</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Мұнда ештеңе дәлдеп оқытылған жоқ.</strong> Бұл &#8212; біздің деректерімізде жауап беруге ешкім үйретпеген сұраққа жауап беріп тұрған шикі алдын ала оқытылған салмақтар. Олар білетіннің бәрі сөздері жасырылған мәтінді оқудан алынған.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Дәл қазір болжам жазып қойыңыз.</strong> Осы үш модельді қазақ көңіл күйінде дәлдеп оқытқаннан кейін қаншалықты жақсы болады деп ойласаңыз, солай саралаңыз. Барлығы дерлік kaz-RoBERTa мен XLM-R-ды алдыңғы, mBERT-ті соңғы орынға қояды. Сол болжамды сақтаңыз &#8212; төмендегі өлшенген кесте одан қызықтырақ, ал оның қалай қателесетіні &#8212; осы дәрістегі ең пайдалы нәрсе.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="tokenizer">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="tokenizer">Токенизатор &#8212; модельдің бір бөлігі</h2>
+              <p class="narrow lead">
+                Алдын ала оқытылған модель өзінің бекітілген сөздігімен келеді, ал оны өзгертуге болмайды. Жалғамалы тіл үшін бұл сөздік өте көп нәрсені шешеді.
+              </p>
+              <p class="narrow">
+                0-дәріс курсты <span class="token">кітаптарымыздан</span> сөзімен ашқан болатын &#8212; қазақ морфологиясының мысалы ретінде. Міне, әр алдын ала оқытылған токенизатор онымен не істейді.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --tokenizer-demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  bert-base-multilingual-cased   vocabulary 119,547
+    «кітаптарымыздан»
+       6 pieces: к · ##ітап · ##тары · ##мы · ##зда · ##н
+    «Астана қаласы әдемі»
+       5 pieces: Астана · қаласы · ә · ##дем · ##і
+
+  distilbert-base-multilingual-cased   vocabulary 119,547
+    «кітаптарымыздан»
+       6 pieces: к · ##ітап · ##тары · ##мы · ##зда · ##н
+
+  microsoft/Multilingual-MiniLM-L12-H384   vocabulary 250,002
+    «кітаптарымыздан»
+       4 pieces: кітап · тар · ымыз · дан
+
+  xlm-roberta-base   vocabulary 250,002
+    «кітаптарымыздан»
+       4 pieces: кітап · тар · ымыз · дан
+    «Астана қаласы әдемі»
+       3 pieces: Астана · қаласы · әдемі
+
+  kz-transformers/kaz-roberta-conversational   vocabulary 52,000
+    «кітаптарымыздан»
+       2 pieces: кітаптар · ымыздан
+    «Астана қаласы әдемі»
+       3 pieces: Астана · қаласы · әдемі</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 180" role="img" aria-labelledby="fig-tok-t">
+                <title id="fig-tok-t">Сол бір қазақ сөзін бөліп жатқан үш токенизатор</title>
+                <text x="8" y="12" font-size="8" fill="#5b6270">«кітаптарымыздан» = кітап + тар + ымыз + дан</text>
+                <text x="8" y="34" font-size="8" fill="#111111">mBERT</text>
+                <rect x="62" y="22" width="24" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="74" y="35" font-size="7" fill="#111111" text-anchor="middle">к</text>
+                <rect x="88" y="22" width="42" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="109" y="35" font-size="7" fill="#111111" text-anchor="middle">##ітап</text>
+                <rect x="132" y="22" width="42" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="153" y="35" font-size="7" fill="#111111" text-anchor="middle">##тары</text>
+                <rect x="176" y="22" width="34" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="193" y="35" font-size="7" fill="#111111" text-anchor="middle">##мы</text>
+                <rect x="212" y="22" width="38" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="231" y="35" font-size="7" fill="#111111" text-anchor="middle">##зда</text>
+                <rect x="252" y="22" width="28" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="266" y="35" font-size="7" fill="#111111" text-anchor="middle">##н</text>
+                <text x="286" y="35" font-size="8" fill="#b91c1c">6</text>
+                <text x="8" y="66" font-size="8" fill="#111111">XLM-R</text>
+                <rect x="62" y="54" width="48" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="86" y="67" font-size="7" fill="#111111" text-anchor="middle">кітап</text>
+                <rect x="112" y="54" width="36" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="130" y="67" font-size="7" fill="#111111" text-anchor="middle">тар</text>
+                <rect x="150" y="54" width="44" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="172" y="67" font-size="7" fill="#111111" text-anchor="middle">ымыз</text>
+                <rect x="196" y="54" width="36" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="214" y="67" font-size="7" fill="#111111" text-anchor="middle">дан</text>
+                <text x="286" y="67" font-size="8" fill="#2563eb">4</text>
+                <text x="8" y="98" font-size="8" fill="#111111">kaz-RoBERTa</text>
+                <rect x="62" y="86" width="74" height="18" rx="3" fill="#2563eb" />
+                <text x="99" y="99" font-size="7" fill="#ffffff" text-anchor="middle">кітаптар</text>
+                <rect x="138" y="86" width="66" height="18" rx="3" fill="#2563eb" />
+                <text x="171" y="99" font-size="7" fill="#ffffff" text-anchor="middle">ымыздан</text>
+                <text x="286" y="99" font-size="8" fill="#2563eb">2</text>
+                <line x1="8" y1="116" x2="332" y2="116" stroke="#e8ecf2" />
+                <text x="8" y="134" font-size="8" fill="#5b6270">XLM-R-дың бөлінісі морфологиялық тұрғыда дұрыс; mBERT-те оған жақын да емес</text>
+                <text x="8" y="150" font-size="8" fill="#5b6270">бөлік көп = контекст қысқа, орын көп, әрқайсысына мысал аз</text>
+                <text x="8" y="168" font-size="8" fill="#5b6270">ал mBERT түбірден бастапқы «к» әрпін жұлып алады</text>
+                </svg>
+                <p class="figure__caption">
+                  Бір сөз, үш сөздік. Тілге сай келетін токенизатор сөзді оның нағыз морфемаларына айналдырады; сай келмейтіні оны қоқысқа айналдырады.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Бөліну неге маңызды</span>
+                <dl class="breakdown__list">
+                  <dt>сынықтардан үйрену қиынырақ</dt>
+                  <dd>Егер <span class="token">кітап</span> жеке токен болса, &#171;кітап&#187; сөзінің кез келген формасы бар әр сөйлем сол бір embedding-ке үлес қосады. Егер түбір жұрнаққа қарай әртүрлі бөлінсе, ол дәлел бір-бірімен байланысы жоқ бөліктерге шашырайды</dd>
+                  <dt>бөлік көп болса, контекст аз болады</dt>
+                  <dd>BERT-тің шегі &#8212; 512 орын. Сөзге алты бөлік керек ететін токенизатор екеу керек ететініне қарағанда үш есе аз мәтін сыйғызады &#8212; ал attention құны ұзындықтың квадратына қарай өседі</dd>
+                  <dt>сөздік мұздатылған</dt>
+                  <dd>Алдын ала оқыту тобы не таңдаса, соны мұра етесіз. Бұл &#8212; алдын ала оқытылған модельдің дәлдеп оқытумен шынымен түзетуге болмайтын жалғыз бөлігі</dd>
+                  <dt>үлкені автоматты түрде жақсы дегенді білдірмейді</dt>
+                  <dd>kaz-RoBERTa сөздігінде XLM-R-дың 250&#8202;002-сіне қарсы 52&#8202;000 жазба бар, әрі ол қазақ тілін бәрібір жақсырақ бөледі, себебі 52&#8202;000 жазбаның бәрі жүз тілге емес, бір тілге жұмсалған</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Практикалық ереже:</strong> ресурсы аз тілге алдын ала оқытылған модель таңдар алдында өз деректеріңіздің бірнеше жүз сөзін токенизациялап, сөзге шаққандағы бөлік санын санаңыз. Бұл екі минут алады және дәлдеп оқыту нәтижелері қандай болатынын таңғаларлықтай дәл болжайды.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="finetuning">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Екінші саты</span>
+              <h2 id="finetuning">Fine-tuning шын мәнінде не істейді</h2>
+              <p class="narrow lead">
+                Fine-tuning &#8212; бірнеше түйсікке қайшы бөлшегі бар шағын идея. Идея: алдын ала оқыту басын алып тастау, жаңасын бұрап қою және оқытуды жалғастыру &#8212; жұмсақ түрде.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 224" role="img" aria-labelledby="fig-ft-t">
+                <title id="fig-ft-t">Алдын ала оқыту басы алынып тасталады, орнын тапсырма басы басады</title>
+                <text x="8" y="12" font-size="9" fill="#111111">алдын ала оқытудан кейін</text>
+                <rect x="8" y="20" width="140" height="20" rx="4" fill="#fef2f2" stroke="#fecaca" />
+                <text x="78" y="34" font-size="8" fill="#111111" text-anchor="middle">MLM басы &#8594; 119 547</text>
+                <text x="152" y="34" font-size="8" fill="#b91c1c">алынып тасталды</text>
+                <line x1="78" y1="40" x2="78" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="8" y="50" width="140" height="58" rx="4" fill="#2563eb" />
+                <text x="78" y="72" font-size="9" fill="#ffffff" text-anchor="middle">12 encoder блогы</text>
+                <text x="78" y="88" font-size="8" fill="#ffffff" text-anchor="middle">177 M салмақ,</text>
+                <text x="78" y="100" font-size="8" fill="#ffffff" text-anchor="middle">әлдеқашан оқытылған</text>
+                <line x1="152" y1="79" x2="186" y2="79" stroke="#2563eb" stroke-width="2" />
+                <text x="169" y="72" font-size="8" fill="#2563eb" text-anchor="middle">сақталды</text>
+                <text x="192" y="12" font-size="9" fill="#111111">дәлдеп оқыту басталғанда</text>
+                <rect x="192" y="20" width="140" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="262" y="34" font-size="8" fill="#111111" text-anchor="middle">Linear 768 &#8594; 2</text>
+                <text x="192" y="52" font-size="7" fill="#5b6270">жаңа, кездейсоқ, 1 538 салмақ</text>
+                <line x1="262" y1="56" x2="262" y2="64" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="192" y="64" width="140" height="44" rx="4" fill="#2563eb" />
+                <text x="262" y="80" font-size="9" fill="#ffffff" text-anchor="middle">сол 12 блок</text>
+                <text x="262" y="96" font-size="8" fill="#ffffff" text-anchor="middle">әлі де оқытылатын</text>
+                <line x1="8" y1="124" x2="332" y2="124" stroke="#e8ecf2" />
+                <text x="8" y="142" font-size="9" fill="#5b6270">бас &#8212; параметрлердің 0.001%-ы, әрі жалғыз жаңа нәрсе</text>
+                <rect x="8" y="152" width="324" height="18" rx="3" fill="#2563eb" />
+                <rect x="330" y="152" width="2" height="18" rx="1" fill="#c7d9ff" />
+                <text x="8" y="184" font-size="8" fill="#5b6270">177 853 440 алдын ала оқытылған салмақ</text>
+                <text x="240" y="184" font-size="8" fill="#5b6270">1 538 жаңа</text>
+                <text x="8" y="206" font-size="9" fill="#111111">яғни модель білетін боладының бәрін дерлік ол біліп қойған</text>
+                <text x="8" y="220" font-size="8" fill="#5b6270">fine-tuning оны түртеді; ол оған тілді қайта үйретпейді</text>
+                </svg>
+                <p class="figure__caption">
+                  Қатар ұстауға тұрарлық екі сан: 177 миллион салмақ әлдеқашан оқытылған күйде келеді, ал 1&#8202;538-і кездейсоқ келеді.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Айқын емес бөлшектер</span>
+                <dl class="breakdown__list">
+                  <dt>бәрі оқытылады, тек бас қана емес</dt>
+                  <dd>Табиғи болжам &#8212; энкодерді мұздатып, тек жаңа қабатты оқыту. Ол жұмыс істейді, бірақ едәуір нашар &#8212; айырманы төменде өлшейміз. Градиентке он екі блоктың бәріне жетуге рұқсат етсеңіз, кескіндеменің өзі тапсырмаға бейімделе алады</dd>
+                  <dt>learning rate өте кішкентай</dt>
+                  <dd>Мұнда <code>2e-5</code>, ал 6-дәрістегі нөлден оқытылған модельде <code>3e-4</code> еді &#8212; шамамен он бес есе кіші. Сіз жақсы нүктеден бастап тұрсыз, оны қиратуға болмайды. Шамамен <code>1e-4</code>-тен жоғары learning rate алдын ала оқытылған модельді алғашқы бірнеше жүз қадамда үнемі қиратады</dd>
+                  <dt>екіден төртке дейінгі эпоха, елу емес</dt>
+                  <dd>Түпнұсқа мақала 2&#8211;4 ұсынады, әрі бұл кеңес уақыт сынынан өтті. Шағын деректер жиынында эпоха көп болса, қайта оқыту тез басталады, себебі 177 M параметрлі модель 8&#8202;000 қысқа пікірді қиналмай жаттап алады</dd>
+                  <dt>қыздыру мен басылу</dt>
+                  <dd>Learning rate алғашқы ~10% қадамда нөлден өседі, содан кейін сызықты басылады. Қыздыру кездейсоқ бас әлі мағынасыз градиент беріп тұрғанда алдын ала оқытылған салмақтарды қорғайды</dd>
+                  <dt>нәтижесі &#8212; әр тапсырмаға бөлек модель</dt>
+                  <dd>Fine-tuning 177 M параметрлі жаңа чекпоинт шығарады. Үш тапсырма &#8212; үш көшірме. Кейінгі әдістер &#8212; адаптерлер, LoRA, промптинг &#8212; дәл осы шығыннан құтылу үшін бар, әрі 10-дәріс бұған қайта оралады</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Қорқатын нәрсе &#8212; апатты ұмыту.</strong> Learning rate тым үлкен болса не деректер тым аз кезде эпоха тым көп болса, модель өзін құнды еткен жалпы тіл білімін үстінен жазып тастайды. Симптомы: оқыту қатесі нөлге жуық, ал тесттегі дәлдік сызықтық модельден нашар. Қорғаныс құралдарының бәрі консервативті: кішкене қадам, аз эпоха, қыздыру.
+                </p>
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>from transformers import AutoModelForSequenceClassification
+
+for name in ("bert-base-multilingual-cased", "xlm-roberta-base"):
+    # The encoder arrives pretrained; the classification head is new and random.
+    model = AutoModelForSequenceClassification.from_pretrained(name, num_labels=2)
+    total = sum(p.numel() for p in model.parameters())
+    head = sum(p.numel() for p in model.classifier.parameters())
+    print(f"{name}")
+    print(f"   {total:,} parameters, {head:,} of them the new head"
+          f"  ({100 * head / total:.4f}%)")</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>bert-base-multilingual-cased
+   177,854,978 parameters, 1,538 of them the new head  (0.0009%)
+xlm-roberta-base
+   278,045,186 parameters, 592,130 of them the new head  (0.2130%)</code></pre></div>
+              <p class="narrow">
+                Бастар әртүрлі, себебі BERT-тің жіктеуіші &#8212; пулингтелген <code>[CLS]</code> векторының үстіндегі жалғыз <code>Linear(768, 2)</code>, ал RoBERTa оның алдына <code>768&#215;768</code> тығыз қабат қосады. Екеуі де энкодер фонында дөңгелектеу қатесі ғана.
+              </p>
+              <p class="note">
+                <strong>Терминалда көретін сол ескерту күтілген нәрсе.</strong> <code>Some weights were not initialized &#8230; you should probably TRAIN this model on a down-stream task</code> &#8212; бұл кітапхана схемада көрсетілгеннің дәл өзін хабарлап тұр: бас кездейсоқ, ал оны түзейтін &#8212; fine-tuning. Егер бұл ескертуді <em>көрмесеңіз</em>, сіз бір нәрсеге әлдеқашан дәлдеп оқытылған модельді жүктегенсіз.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="family">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Отбасы</span>
+              <h2 id="family">BERT ұрпақтары және әрқайсысы нені өзгертті</h2>
+              <p class="narrow lead">
+                BERT 2018 жылы жарияланды да, бірден платформаға айналды. Төмендегінің бәрі энкодер стегін сақтап, бір нәрсені өзгертеді: деректерді, мақсат функциясын, параметр бюджетін не көлемді.
+              </p>
+
+              <h3 style="margin-top: 40px">RoBERTa &#8212; сол модель, дұрыстап оқытылған</h3>
+              <div class="grid grid--2" style="margin-top: 20px">
+                <div class="card">
+                  <h3>Не өзгерді</h3>
+                  <p>
+                    Он есе көп дерек (16 ГБ-қа қарсы 160 ГБ), әлдеқайда ұзақ оқыту, үлкен батчтар, динамикалық маскалау &#8212; препроцессингте бекітілген біреуінің орнына әр эпохада жаңа маска &#8212; 50&#8202;000 жазбалы byte-level BPE, әрі <strong>Next Sentence Prediction мүлде жоқ</strong>.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Бұл нені көрсетті</h3>
+                  <p>
+                    Архитектура ешқашан тар жер болған емес: BERT жай ғана жетік оқытылмаған еді. RoBERTa-base параметрі азырақ бола тұра бірнеше GLUE тапсырмасында BERT-large-ты басып озады. &#171;Robustly optimised&#187; &#8212; бүкіл үлес осы, әрі ол үлкен болып шықты.
+                  </p>
+                </div>
+              </div>
+
+              <h3 style="margin-top: 44px">DistilBERT пен TinyBERT &#8212; сол білім, бірақ кішірек</h3>
+              <p class="narrow">
+                110 M параметрлі модельді пайдалану ыңғайсыз: ол CPU-да баяу, телефонға үлкен және ауқымда қымбат. Дистилляция кішкентай <em>шәкіртті</em> үлкен <em>ұстазға</em> еліктеуге оқытады.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-distil-t">
+                <title id="fig-distil-t">Кішкентай шәкірт-модель ұстаздың толық шығыс таралымын қайта шығаруға оқытылады</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">сол бір кіріс екі модельге де барады</text>
+                <rect x="118" y="20" width="104" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="33" font-size="8" fill="#111111" text-anchor="middle">Бұл қосымша өте [MASK]</text>
+                <line x1="146" y1="38" x2="76" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="194" y1="38" x2="264" y2="50" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="20" y="50" width="112" height="34" rx="4" fill="#2563eb" />
+                <text x="76" y="64" font-size="8" fill="#ffffff" text-anchor="middle">ұстаз: BERT</text>
+                <text x="76" y="77" font-size="8" fill="#ffffff" text-anchor="middle">12 блок, мұздатылған</text>
+                <rect x="208" y="50" width="112" height="34" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="264" y="64" font-size="8" fill="#111111" text-anchor="middle">шәкірт: 6 блок</text>
+                <text x="264" y="77" font-size="8" fill="#111111" text-anchor="middle">оқып жатыр</text>
+                <text x="8" y="102" font-size="8" fill="#5b6270">мақсат &#8212; ұстаздың бүкіл таралымы, тек үздік жауабы емес</text>
+                <rect x="20" y="112" width="80" height="12" rx="2" fill="#2563eb" />
+                <text x="104" y="122" font-size="7" fill="#111111">пайдалы .41</text>
+                <rect x="20" y="128" width="38" height="12" rx="2" fill="#c7d9ff" />
+                <text x="104" y="138" font-size="7" fill="#111111">жақсы .19</text>
+                <rect x="20" y="144" width="16" height="12" rx="2" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="104" y="154" font-size="7" fill="#111111">керемет .08</text>
+                <line x1="160" y1="134" x2="188" y2="134" stroke="#2563eb" stroke-width="2" />
+                <text x="174" y="128" font-size="7" fill="#2563eb" text-anchor="middle">көшіру</text>
+                <rect x="196" y="112" width="76" height="12" rx="2" fill="#2563eb" />
+                <text x="276" y="122" font-size="7" fill="#111111">.38</text>
+                <rect x="196" y="128" width="40" height="12" rx="2" fill="#c7d9ff" />
+                <text x="276" y="138" font-size="7" fill="#111111">.21</text>
+                <rect x="196" y="144" width="18" height="12" rx="2" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="276" y="154" font-size="7" fill="#111111">.09</text>
+                <line x1="8" y1="168" x2="332" y2="168" stroke="#e8ecf2" />
+                <text x="8" y="186" font-size="8" fill="#111111">неге бүкіл таралым: «жақсы 0.19» шәкіртке жақсы деген де</text>
+                <text x="8" y="198" font-size="8" fill="#111111">орынды жауап екенін айтады &#8212; one-hot таңба тастап кететін ақпарат</text>
+                <text x="8" y="216" font-size="8" fill="#2563eb">сондықтан шәкірт екі есе кіші болып, ештеңе жоғалтпайды десе де болады</text>
+                </svg>
+                <p class="figure__caption">
+                  Білім дистилляциясы. Ұстаздың жұмсақ ықтималдықтары бір мысалға шаққанда жалғыз дұрыс жауаптан көбірек ақпарат көтереді, сондықтан шәкірт соншалықты тиімді үйренеді.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Екі дистилденген модель, аты-жөнімен</span>
+                <dl class="breakdown__list">
+                  <dt>DistilBERT</dt>
+                  <dd>Он екінің орнына алты блок, әрқайсысы ұстаздың әр екінші блогынан инициализацияланған. 66 M параметр, шамамен 40% кішірек әрі 60% жылдам, әрі ол BERT-тің GLUE нәтижесінің шамамен 97%-ын сақтайды. Бірден үш шығын функциясымен оқытылады: кәдімгі MLM, ұстаз таралымына қарсы дистилляция шығыны және шәкірттің жасырын күйлерін ұстаздікіне тартатын косинустық шығын</dd>
+                  <dt>TinyBERT</dt>
+                  <dd>Едәуір әрі қарай кетеді. Ол шығыс таралымын ғана емес, аралық қабаттардың <em>attention матрицаларын</em> және <em>жасырын күйлерін</em> де дистилдейді, әрі мұны екі рет істейді: алдымен жалпы мәтінде, содан кейін тағы да нақты тапсырмада, аугментацияланған деректермен. 4 қабатты, 312 өлшемді нұсқасы &#8212; 14.5 M параметр, BERT-base-тен шамамен 7.5&#215; кіші әрі 9.4&#215; жылдам, оның GLUE нәтижесінің шамамен 96%-ын сақтай отырып</dd>
+                  <dt>MiniLM</dt>
+                  <dd>Attention таралымдарының өзін, соның ішінде self-attention-ның value-қатынастарын дистилдейді, әрі біздің салыстыру кестеміздегі шағын көптілді модельдердің артында тұрған тәсіл осы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Дистилляция сандарының бәріне қатысты адал ескертпе:</strong> &#171;өнімділіктің 97%-ы&#187; &#8212; бұл ағылшын тілді әрі негізінен қиын емес GLUE бойынша орташа мән. Қиынырақ не ресурсы азырақ тапсырмада айырма әдетте кеңірек. Төменде біз олардың санын келтірмей, өзімізді өлшейміз.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Отбасының қалғаны</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">BERT нұсқаларын салыстыру</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Модель</th><th scope="col">Жыл</th>
+                      <th scope="col">Параметрлер</th><th scope="col">Бір идея</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>BERT-base</td><td>2018</td><td>110 M</td><td>энкодерде masked language modelling</td></tr>
+                    <tr><td>BERT-large</td><td>2018</td><td>340 M</td><td>сол нәрсе, 24 блок тереңдікте</td></tr>
+                    <tr><td>RoBERTa</td><td>2019</td><td>125 M</td><td>көбірек дерек, ұзағырақ, NSP жоқ, динамикалық маскалау</td></tr>
+                    <tr><td>DistilBERT</td><td>2019</td><td>66 M</td><td>ұстаздың шығыс таралымын дистилдеу</td></tr>
+                    <tr><td>ALBERT</td><td>2019</td><td>12 M</td><td>қабаттар арасында салмақ бөлісу, embedding-ті факторлау</td></tr>
+                    <tr><td>TinyBERT</td><td>2020</td><td>14.5 M</td><td>attention мен жасырын күйлерді де дистилдеу</td></tr>
+                    <tr><td>ELECTRA</td><td>2020</td><td>110 M</td><td>ауыстырылған токендерді тану, бәрінен үйрену</td></tr>
+                    <tr><td>DeBERTa</td><td>2021</td><td>140 M</td><td>attention-да мазмұн мен орынды ажырату</td></tr>
+                    <tr><td>mBERT</td><td>2018</td><td>178 M</td><td>104 тіл, бір ортақ сөздік</td></tr>
+                    <tr><td>XLM-R</td><td>2019</td><td>278 M</td><td>100 тілдің 2.5 ТБ-ында RoBERTa рецепті</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Олардың үшеуі тағы бір сөйлемге лайық</span>
+                <dl class="breakdown__list">
+                  <dt>ALBERT &#8212; дискіде кішкентай, бірақ уақыт бойынша емес</dt>
+                  <dd>Ол блок салмақтарының бір жиынын он екі қабаттың бәріне ортақ етеді және embedding матрицасын екі кішісіне бөледі. 110 M-ға қарсы 12 M параметр әсерлі естіледі, әрі файл шынымен сондай кішкентай &#8212; бірақ ол инференсте бәрібір он екі блокты жүргізеді, сондықтан жылдам <em>болмайды</em>. Бұл &#8212; кестедегі басты саны үнемі қате оқылатын жалғыз модель</dd>
+                  <dt>ELECTRA &#8212; әр мысалды тиімдірек пайдалану</dt>
+                  <dd>Маскалаудың орнына кішкентай генератор орынды сөздерді қояды, ал негізгі модель <em>әр токен үшін</em> оның ауыстырылған-ауыстырылмағанын шешеді. BERT орындардың 15%-ынан үйренеді; ELECTRA 100%-ынан үйренеді. ELECTRA-small шамамен 1/30 есептеумен GLUE-де GPT деңгейіндегі нәтижеге жетеді, бұл оны алдын ала оқыту бюджеті аз болғанда ең күшті таңдау етеді</dd>
+                  <dt>DeBERTa &#8212; мазмұн мен орын бөлек</dt>
+                  <dd>Әр токен екі вектор көтереді: бірі оның не екені туралы, екіншісі қайда тұрғаны туралы, ал attention бір қосылған вектордан емес, content-to-content және content-to-position мүшелерінен бөлек есептеледі. Бұл &#8212; SuperGLUE-де адам деңгейінен асқан алғашқы модель, ал ELECTRA стиліндегі алдын ала оқытуды қосатын DeBERTa-v3 бүгін де өте күшті энкодер болып қала береді</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Мамандандырылған модельдер қайда тұрады.</strong> Жалпы отбасынан бөлек доменге арналған модельдер (BioBERT, SciBERT, FinBERT) және тілге арналғандары (RuBERT, ал бізде <code>kaz-roberta-conversational</code>) бар, бәрі бір сала не бір тілдің мәтінінде алдын ала оқытуды жалғастыру арқылы құрылған. Деректеріңіз олардың деректеріне ұқсаса, әдетте олар жеңеді.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="recipe">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Қойылым</span>
+              <h2 id="recipe">Әр модельге бірдей рецепт</h2>
+              <p class="narrow lead">
+                Салыстыруды оқуға тек бір нәрсе өзгергенде ғана тұрарлық. Төмендегінің бәрі осы беттегі әр кестенің әр жолы үшін бірдей; тек алдын ала оқытылған модельдің атауы өзгереді.
+              </p>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Fine-tuning конфигурациясы</caption>
+                  <thead>
+                    <tr><th scope="col">Параметр</th><th scope="col">Мәні</th><th scope="col">Неге</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>оқыту жолдары</td><td>8 000, теңгерілген</td><td>3&#8211;6-дәрістердің бөлінісі, seed 42; тест 2 000 / 2 450 / 856</td></tr>
+                    <tr><td>эпохалар</td><td>3</td><td>BERT мақаласы ұсынатын сол 2&#8211;4</td></tr>
+                    <tr><td>learning rate</td><td>2e-5</td><td>кішкентай, алдын ала оқытылған салмақтар аман қалсын деп</td></tr>
+                    <tr><td>кесте</td><td>10% қыздыру, содан кейін сызықты басылу</td><td>бас кездейсоқ тұрғанда энкодерді қорғайды</td></tr>
+                    <tr><td>батч өлшемі</td><td>32</td><td>жадыға еркін сыяды</td></tr>
+                    <tr><td>ең үлкен ұзындық</td><td>64 токен</td><td>KazSAnDRA пікірлерінде орта есеппен 9 сөз</td></tr>
+                    <tr><td>оптимизатор</td><td>AdamW, weight decay 0.01</td><td>Transformers үшін стандарт</td></tr>
+                    <tr><td>құрылғы</td><td>Apple M4 Pro, MPS</td><td>ноутбук, әрі бұл әдейі</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Осы беттің еш жерінде гиперпараметр іздеу жоқ.</strong> Әр модель сол бір әдепкі мәндерді алады, бұл әрі әділ, әрі адал салыстыру &#8212; бірінші талпыныста сіз дәл осыны аласыз. Бапталған жүріс бәрінде сәл жоғары болар еді, ал саралау, сірә, өзгермес еді.
+              </div>
+              <div class="code-block" data-lang="python"><pre><code>import torch
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          get_linear_schedule_with_warmup)
+
+name = "xlm-roberta-base"
+tokenizer = AutoTokenizer.from_pretrained(name)
+model = AutoModelForSequenceClassification.from_pretrained(name, num_labels=2).to(device)
+
+# 1. the tokenizer that came with the model turns text into ids and a mask
+batch = tokenizer(list(texts), truncation=True, max_length=64,
+                  padding="max_length", return_tensors="pt")
+data = TensorDataset(batch["input_ids"], batch["attention_mask"], labels)
+batches = DataLoader(data, batch_size=32, shuffle=True)
+
+# 2. a small learning rate, warm-up, and only three passes over the data
+optimiser = torch.optim.AdamW(model.parameters(), lr=2e-5, weight_decay=0.01)
+steps = len(batches) * 3
+schedule = get_linear_schedule_with_warmup(optimiser, int(0.1 * steps), steps)
+
+# 3. an ordinary training loop — nothing about it is specific to BERT
+for epoch in range(3):
+    model.train()
+    for ids, mask, labels in batches:
+        optimiser.zero_grad()
+        loss = torch.nn.functional.cross_entropy(
+            model(input_ids=ids, attention_mask=mask).logits, labels)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimiser.step()
+        schedule.step()</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">6-дәрістегі циклден несімен ерекшеленеді</span>
+                <dl class="breakdown__list">
+                  <dt>модель класының орнына үш жол</dt>
+                  <dd>6-дәріс <code>MultiHeadAttention</code>, <code>Block</code> және <code>Transformer</code> кластарын қолмен жазды. Мұнда <code>from_pretrained</code> соның бәрін алмастырады &#8212; әрі сол бір жолды тере отырып, оның сіз құрған дәл сол архитектураны жүктеп жатқанын есте ұстаған жөн</dd>
+                  <dt>токенизатор бізге тиесілі емес</dt>
+                  <dd><code>build_vocab</code> да, <code>min_count</code> та жоқ. Сөздік салмақтармен бірге келеді және оны өзгертуге болмайды</dd>
+                  <dt>padding mask емес, attention mask</dt>
+                  <dd>Сол идея, кері полярлықпен: <code>attention_mask</code> нақты токендер үшін 1-ге тең, ал біздің <code>pad_mask</code> толтырғыш үшін <code>True</code> болатын. Үнсіз төңкерілген маскалардың өте жиі себебі</dd>
+                  <dt>learning rate кестесі</dt>
+                  <dd>6-дәріс тұрақты жылдамдық қолданды. Fine-tuning қыздыру мен басылу қосымша екі жолды ақтайтындай сезімтал</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Циклдің өзі өзгерген жоқ.</strong> Тура өту, шығын, кері өту, қию, қадам &#8212; 5-дәрістегі LSTM-дегі сол бес амал. 278 M параметрлі модельді дәлдеп оқыту ешқандай жаңа механизмді талап етпейді.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="polarity">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="polarity">1-нәтиже &#183; KazSAnDRA polarity</h2>
+              <p class="narrow lead">
+                Бес алдын ала оқытылған модель, бір бірдей рецепт, үшінші дәрістен бергі әр дәріс қолданатын сол 2&#8202;000 пікірлік тест жиыны.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson7.py --compare --task polarity</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>==========================================================================
+COMPARING 5 PRETRAINED MODELS  ·  KazSAnDRA polarity (Kazakh)
+==========================================================================
+  train 8000  test 2000  3 epochs  lr 2e-05  device mps
+
+— mBERT  (bert-base-multilingual-cased)
+  177,854,978 parameters
+    epoch 1  loss=0.5528  test=0.762  (135s)
+    epoch 2  loss=0.4312  test=0.794  (135s)
+    epoch 3  loss=0.3622  test=0.799  (135s)
+— DistilmBERT  (distilbert-base-multilingual-cased)
+  135,326,210 parameters
+    epoch 1  loss=0.5572  test=0.763  (88s)
+    epoch 2  loss=0.4268  test=0.789  (88s)
+    epoch 3  loss=0.3628  test=0.791  (88s)
+— MiniLM  (microsoft/Multilingual-MiniLM-L12-H384)
+  117,654,530 parameters
+    epoch 1  loss=0.5692  test=0.780  (72s)
+    epoch 2  loss=0.4598  test=0.791  (72s)
+    epoch 3  loss=0.4316  test=0.789  (72s)
+— XLM-R  (xlm-roberta-base)
+  278,045,186 parameters
+    epoch 1  loss=0.5878  test=0.792  (179s)
+    epoch 2  loss=0.4682  test=0.795  (179s)
+    epoch 3  loss=0.4228  test=0.797  (179s)
+— kaz-RoBERTa  (kz-transformers/kaz-roberta-conversational)
+  83,452,418 parameters
+    epoch 1  loss=0.5139  test=0.800  (66s)
+    epoch 2  loss=0.3905  test=0.793  (66s)
+    epoch 3  loss=0.3224  test=0.794  (66s)
+
+==========================================================================
+SUMMARY
+==========================================================================
+  model            parameters   minutes   accuracy
+  mBERT           177,854,978       6.8      0.799
+  DistilmBERT     135,326,210       5.2      0.791
+  MiniLM          117,654,530       4.2      0.789
+  XLM-R           278,045,186       9.0      0.797
+  kaz-RoBERTa      83,452,418       3.3      0.794</code></pre></div>
+
+              <h3 style="margin-top: 44px">Курс құрғанның бәріне қарсы</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">3&#8211;7-дәрістердің барлық моделі сол бір тест жиынында</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Дәріс</th><th scope="col">Модель</th>
+                      <th scope="col">Параметрлер</th><th scope="col">Дәлдік</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>3</td><td>TF-IDF + Logistic Regression</td><td>~75 мың</td><td>0.780</td></tr>
+                    <tr><td>4</td><td>орташаланған fastText векторлары</td><td>&#8212;</td><td>0.792</td></tr>
+                    <tr><td>5</td><td>LSTM</td><td>0.7 M</td><td>0.772</td></tr>
+                    <tr><td>6</td><td>Transformer, нөлден</td><td>1.0 M</td><td class="no">0.750</td></tr>
+                    <tr><td>7</td><td>MiniLM, дәлдеп оқытылған</td><td>118 M</td><td>0.789</td></tr>
+                    <tr><td>7</td><td>DistilmBERT, дәлдеп оқытылған</td><td>135 M</td><td>0.791</td></tr>
+                    <tr><td>7</td><td>kaz-RoBERTa, дәлдеп оқытылған</td><td>83 M</td><td>0.794</td></tr>
+                    <tr><td>7</td><td>XLM-R, дәлдеп оқытылған</td><td>278 M</td><td>0.797</td></tr>
+                    <tr><td>7</td><td><strong>mBERT, дәлдеп оқытылған</strong></td><td>178 M</td><td class="yes"><strong>0.799</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="callout">
+                <strong>Ең бастысы: 0.750 &#8594; 0.799.</strong> Сол архитектура отбасы, сол 8&#8202;000 таңба, сол тест жиыны. Өзгергені жалғыз нәрсе: энкодер әлдеқашан көп мәтін оқыған салмақтардан бастады. Бұл <strong>+0.049</strong> тұрады &#8212; әрі курстағы ең нашар модельді ең үздігіне айналдырады.
+              </div>
+
+              <h3 style="margin-top: 44px">Енді қолайсыз бөлігі</h3>
+              <p class="narrow">
+                7-дәрістің <em>ішіндегі</em> шашырауға қараңыз. Ең үздігі 0.799, ең нашары 0.789: көлемі бойынша 3.3&#215;, жылдамдығы бойынша үш есе, ал жоғарыдағы екі диагностикада қазақ тілін игеруі бойынша орасан ерекшеленетін модельдер арасындағы <strong>0.010</strong> ауқым.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-gap-t">
+                <title id="fig-gap-t">Алдын ала оқытудан келген ұтыс алдын ала оқытылған модельдер арасындағы айырмадан бес есе үлкен</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">сол бір 2 000 пікірлік тест жиынындағы дәлдік</text>
+                <line x1="40" y1="150" x2="330" y2="150" stroke="#d1d6de" />
+                <text x="36" y="154" font-size="8" fill="#5b6270" text-anchor="end">0.74</text>
+                <text x="36" y="104" font-size="8" fill="#5b6270" text-anchor="end">0.76</text>
+                <text x="36" y="58" font-size="8" fill="#5b6270" text-anchor="end">0.78</text>
+                <text x="36" y="28" font-size="8" fill="#5b6270" text-anchor="end">0.80</text>
+                <line x1="40" y1="100" x2="330" y2="100" stroke="#eef1f5" />
+                <line x1="40" y1="54" x2="330" y2="54" stroke="#eef1f5" />
+                <line x1="40" y1="24" x2="330" y2="24" stroke="#eef1f5" />
+                <rect x="52" y="127" width="30" height="23" fill="#fef2f2" stroke="#fecaca" />
+                <text x="67" y="164" font-size="7" fill="#5b6270" text-anchor="middle">scratch</text>
+                <text x="67" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.750</text>
+                <rect x="106" y="58" width="30" height="92" fill="#2563eb" />
+                <text x="121" y="164" font-size="7" fill="#5b6270" text-anchor="middle">MiniLM</text>
+                <text x="121" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.789</text>
+                <rect x="146" y="53" width="30" height="97" fill="#2563eb" />
+                <text x="161" y="164" font-size="7" fill="#5b6270" text-anchor="middle">Distil</text>
+                <text x="161" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.791</text>
+                <rect x="186" y="46" width="30" height="104" fill="#2563eb" />
+                <text x="201" y="164" font-size="7" fill="#5b6270" text-anchor="middle">kaz-R</text>
+                <text x="201" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.794</text>
+                <rect x="226" y="39" width="30" height="111" fill="#2563eb" />
+                <text x="241" y="164" font-size="7" fill="#5b6270" text-anchor="middle">XLM-R</text>
+                <text x="241" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.797</text>
+                <rect x="266" y="34" width="30" height="116" fill="#2563eb" />
+                <text x="281" y="164" font-size="7" fill="#5b6270" text-anchor="middle">mBERT</text>
+                <text x="281" y="174" font-size="7" fill="#5b6270" text-anchor="middle">0.799</text>
+                <path d="M 67 122 L 67 112 L 121 112 L 121 53" fill="none" stroke="#b91c1c" stroke-width="1.4" />
+                <text x="94" y="108" font-size="8" fill="#b91c1c" text-anchor="middle">+0.049</text>
+                <path d="M 296 30 L 310 30 L 310 62 L 296 62" fill="none" stroke="#5b6270" stroke-width="1.2" />
+                <text x="316" y="48" font-size="8" fill="#5b6270">0.010</text>
+                <text x="8" y="192" font-size="8" fill="#111111">маңызы болған шешім &#8212; «алдын ала оқытылған модель алу», «қайсысын» емес</text>
+                </svg>
+                <p class="figure__caption">
+                  Бір үлкен қадам және төрт кішкентай. Алдын ала оқытылған энкодерлер арасындағы таңдау олардың біреуін қолдану шешімінің шамамен бестен біріне тұрады.
+                </p>
+              </div>
+              <p class="note">
+                <strong>2&#8202;000 жолдық тест жиынындағы 0.010 шашырау &#8212; саралау емес.</strong> Оны жиырма пікір шешеді, ал басқа seed-пен қайта жүргізу дәлдеп оқытылған модельді шамамен сонша жылжытады. Адал тұжырым: бұл бес модель осы тапсырмада <em>тең</em>, ал mBERT мұнда XLM-R-ды &#171;басып озды&#187; деген кез келген мәлімдеме екінші seed-тен аман шықпас еді.
+              </p>
+
+              <h3 style="margin-top: 44px">Диагностикалар нені дұрыс болжады</h3>
+              <p class="narrow">
+                Сіз жазып қойған болжам қате болған жоқ &#8212; ол басқа бағанға қатысты еді. Соңғы эпоханың орнына <em>бірінші эпоханы</em> оқыңыз:
+              </p>
+              <div class="table-wrap">
+                <table class="matrix">
+                  <caption class="visually-hidden">Әр эпохадан кейінгі дәлдік, модель бойынша</caption>
+                  <thead>
+                    <tr><th scope="col">модель</th><th scope="col">1-эпоха</th><th scope="col">2-эпоха</th><th scope="col">3-эпоха</th><th scope="col">минут</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>kaz-RoBERTa</td><td class="is-hit">0.800</td><td>0.793</td><td>0.794</td><td>3.3</td></tr>
+                    <tr><td>XLM-R</td><td class="is-hit">0.792</td><td>0.795</td><td>0.797</td><td>9.0</td></tr>
+                    <tr><td>MiniLM</td><td>0.780</td><td>0.791</td><td>0.789</td><td>4.2</td></tr>
+                    <tr><td>DistilmBERT</td><td>0.763</td><td>0.789</td><td>0.791</td><td>5.2</td></tr>
+                    <tr><td>mBERT</td><td>0.762</td><td>0.794</td><td>0.799</td><td>6.8</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл кесте шын мәнінде не айтады</span>
+                <dl class="breakdown__list">
+                  <dt>бір эпохадан кейін саралау диагностикалардың саралауымен дәлме-дәл сәйкес келеді</dt>
+                  <dd>kaz-RoBERTa 0.800, XLM-R 0.792, MiniLM 0.780, содан кейін mBERT отбасының екі моделі 0.762 және 0.763. Бұл &#8212; токенизатор тесті мен бос орынды толтыру тесті оларды қойған дәл сол тәртіп</dd>
+                  <dt>kaz-RoBERTa бір эпохадан кейін бітірді</dt>
+                  <dd>Ол 66 секундта 0.800-ге жетеді, содан әрі қайта оқытылып, сәл <em>нашарлайды</em>: оқыту қатесі 0.32-ге түседі. Оның ең жақсы нәтижесі &#8212; ең бірінші нәтижесі</dd>
+                  <dt>mBERT-ке қуып жету үшін үш эпоханың бәрі керек</dt>
+                  <dd>Ол бәрінен нашар, 0.762-ден бастайды да, 0.799-ға көтеріледі. Қазақ тіліне нашар токенизаторы бар және алдын ала оқытуында қазақ тілі жоқтың қасы модельді де сол нүктеге сүйреп апаруға болады &#8212; таңбаланған деректе жеткілікті градиент қадамы берілсе</dd>
+                  <dt>демек, диагностикалар төбені емес, жылдамдықты болжайды</dt>
+                  <dd>Модель қазақ тілін қаншалықты біліп қойғаны оның сол жерге қаншалықты тез жететінін анықтайды. Осындай жеңіл тапсырмада, осынша таңбамен бәрі жетеді</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Практикалық салдар дәлдікке емес, құнға қатысты.</strong> kaz-RoBERTa өзінің ең жақсы нәтижесіне 83 M параметрмен, 66 секундта жетеді. XLM-R сол жерге жету үшін эпохасына 179 секунд пен 278 M параметрді талап етеді. Егер сіз бұл модельді пайдаланып отырсаңыз, бұл &#8212; өлшей алмайтын дәлдік айырмасы үшін көлем мен жылдамдықтағы 3.3&#215; айырма.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="choosing">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Шешім</span>
+              <h2 id="choosing">Тәжірибеде модельді қалай таңдау керек</h2>
+              <p class="narrow lead">
+                &#171;Ең үлкенін алыңыз&#187; деген кеңес қысқа рәсімге ауыстыруға тұрарлықтай жиі қате болады.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 230" role="img" aria-labelledby="fig-choose-t">
+                <title id="fig-choose-t">Алдын ала оқытылған энкодерді таңдау жолы</title>
+                <rect x="86" y="8" width="168" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="22" font-size="8" fill="#111111" text-anchor="middle">мәтініңіз қай тілде?</text>
+                <line x1="170" y1="28" x2="170" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="70" y1="38" x2="270" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="70" y1="38" x2="70" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="270" y1="38" x2="270" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="48" width="120" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="70" y="62" font-size="8" fill="#111111" text-anchor="middle">тек ағылшын</text>
+                <rect x="210" y="48" width="120" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="270" y="62" font-size="8" fill="#111111" text-anchor="middle">кез келген басқа</text>
+                <line x1="70" y1="68" x2="70" y2="80" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="80" width="120" height="30" rx="4" fill="#2563eb" />
+                <text x="70" y="93" font-size="7" fill="#ffffff" text-anchor="middle">DeBERTa-v3 не RoBERTa</text>
+                <text x="70" y="104" font-size="7" fill="#ffffff" text-anchor="middle">жылдамдық маңызды болса, DistilBERT</text>
+                <line x1="270" y1="68" x2="270" y2="80" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="210" y="80" width="120" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="270" y="94" font-size="8" fill="#111111" text-anchor="middle">оған арналған модель бар ма?</text>
+                <line x1="270" y1="100" x2="270" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="212" y1="110" x2="316" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="212" y1="110" x2="212" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="316" y1="110" x2="316" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="168" y="120" width="88" height="30" rx="4" fill="#2563eb" />
+                <text x="212" y="133" font-size="7" fill="#ffffff" text-anchor="middle">оны ДА, XLM-R-ды ДА көріңіз</text>
+                <text x="212" y="144" font-size="7" fill="#ffffff" text-anchor="middle">екеуін де өлшеңіз</text>
+                <rect x="272" y="120" width="60" height="30" rx="4" fill="#2563eb" />
+                <text x="302" y="133" font-size="7" fill="#ffffff" text-anchor="middle">XLM-R</text>
+                <text x="302" y="144" font-size="7" fill="#ffffff" text-anchor="middle">осыдан бастаңыз</text>
+                <line x1="8" y1="164" x2="332" y2="164" stroke="#e8ecf2" />
+                <text x="8" y="182" font-size="9" fill="#111111">содан кейін, тек тым баяу не тым үлкен болса</text>
+                <text x="8" y="198" font-size="8" fill="#5b6270">жеңген модельдің дистилденген нұсқасын көріп, құлдырауын өлшеңіз</text>
+                <text x="8" y="216" font-size="8" fill="#2563eb">алдымен екі минут токенизаторды қарау жауапты жиі болжайды</text>
+                </svg>
+                <p class="figure__caption">
+                  Алдымен тіл, содан кейін өлшенген салыстыру, ал сығу &#8212; тек пайдалану шектеуі талап етсе ғана.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Реті бойынша қоятын сұрақтар</span>
+                <dl class="breakdown__list">
+                  <dt>1. токенизатор менің мәтініммен не істейді?</dt>
+                  <dd>Өз сөйлемдеріңіздің бірнеше жүзін токенизациялап, сөзге шаққандағы бөлікті санаңыз. Екі минут, оқытусыз &#8212; әрі бұл GPU уақытын жұмсамай тұрып, айқын жарамсыз үміткерлерді шығарып тастайды</dd>
+                  <dt>2. менің тіліме не доменіме арналған модель бар ма?</dt>
+                  <dd>Бар болса, ол күшті үміткер, бірақ автоматты жеңімпаз емес: шағын мамандандырылған модель XLM-R-ға қарағанда әлдеқайда аз мәтінде оқытылған болуы мүмкін. Болжамай, екеуін де өлшеңіз</dd>
+                  <dt>3. кідіріс пен жады бюджетім қандай?</dt>
+                  <dd>Оқытқаннан кейін емес, оқыту алдында сұраңыз. Жауап &#171;CPU, 50 мс, телефонда&#187; болса, үлкен модельдер ешқашан үміткер болмаған, ал салыстыруды басынан дистилденгендердің арасында жүргізу керек еді</dd>
+                  <dt>4. менде қанша таңба бар?</dt>
+                  <dd>Бірнеше жүз болса, жұмыстың бәрін дерлік алдын ала оқытылған модель істейді, ал модель таңдауы сіз басқара алатын кез келген нәрседен маңыздырақ. Жүздеген мың болса, айырмалар тарылады, ал нөлден оқытылатын модель қайта тиімді бола бастайды</dd>
+                  <dt>5. тек содан кейін: қайсысы дәлірек?</dt>
+                  <dd>Сол бір рецептті үш-төрт үміткерде жүргізіңіз. Бұл &#8212; жарты күндік ноутбук уақыты, ал ол дауды кестемен алмастырады</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Әрі ең үздік жүрісті емес, шашырауды хабарлаңыз.</strong> Fine-tuning шағын деректер жиынында seed-ке айтарлықтай сезімтал; 2&#8202;000 жолдық тест жиынында шамамен 0.01-ден кіші айырмалар &#8212; айырма емес. Үш seed және ауқым &#8212; осындай салыстыруды хабарлаудың адал тәсілі.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Адал қорытынды</span>
+              <h2 id="limits">Бұл әлі де нені бермейді</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Әр тапсырмаға бір модель</h3>
+                  <p>
+                    Әр дәлдеп оқыту салмақтардың толық көшірмесін шығарады. Он тапсырма &#8212; он чекпоинт және он орналастыру. Адаптерлер мен LoRA дәл осы үшін бар, әрі оларды 10-дәріс қарастырады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Оған әлі де таңба керек</h3>
+                  <p>
+                    Бұрынғыдан аз &#8212; қаншасы екенін төменде өлшейміз &#8212; бірақ нөл емес. Тапсырманы сөзбен түсіндіруге болатын, ал таңба мүлде керек емес модель &#8212; 9-дәрістің тақырыбы.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ол генерациялай алмайды</h3>
+                  <p>
+                    Энкодер мәтін емес, кескіндеме шығарады. BERT-тен пікір жазуды сұраңыз &#8212; оның мұны істейтін механизмі жоқ. Бұл &#8212; 8-дәріс.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>512 токен, әрі квадраттық</h3>
+                  <p>
+                    Оқытылатын позиция кестесінде 512 жол бар, ал attention құны ұзындықтың квадратына қарай өседі. Ұзын құжаттарға не қию, не бөліктерге бөлу, не басқа архитектура керек.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Токенизатор мұздатылған</h3>
+                  <p>
+                    mBERT қазақ морфологиясымен не істейтінін өлшедік. Дәлдеп оқыту мұны түзете алмайды; тек басқа алдын ала оқытылған модель ғана түзетеді.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ол оқығанын мұра етеді</h3>
+                  <p>
+                    Алдын ала оқыту корпусындағы ауытқулар, нақты қателер мен қамту олқылықтары салмақтармен бірге келеді. mBERT-тің астана Алматы деп есептеуі &#8212; жалпы мәселенің зиянсыз мысалы.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">word2vec</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">LSTM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">Transformer</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--accent">алдын ала оқытылған энкодер</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--soft">генеративті LLM</span></li>
+              </ul>
+              <p class="narrow">
+                Курс осы кезге дейін сол бір қадамды екі рет жасады: 4-дәріс embedding қабатын таңбаланбаған мәтінде алдын ала оқытты, ал 7-дәріс бүкіл энкодерді алдын ала оқытты. Келесі қадам алдын ала оқытуды сақтап, энкодердің жалғыз шектеуін &#8212; мәтін шығара алмауын &#8212; алып тастайды. Бұл &#8212; келесі токенді болжауға оқытылған декодер, әрі дәлдеп оқыту міндетті болудан қала бастайтын ауқымда.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="run">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Скрипт</span>
+              <h2 id="run">Өзіңіз іске қосу</h2>
+              <p class="narrow lead">
+                Осы беттегі әр өлшенген сан <a href="../../code_files/lesson7.py">code_files/lesson7.py</a> файлынан алынған. Ол 3&#8211;6-дәрістердегі сол теңгерілген бөліністерді жүктейді және сіз атаған кез келген модельді дәлдеп оқытады.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds transformers and accelerate
+
+python3 lesson7.py --task polarity                  # one model, one task
+python3 lesson7.py --task score --model xlm-roberta-base
+python3 lesson7.py --compare --task polarity        # every model in the table
+python3 lesson7.py --compare --task score
+python3 lesson7.py --compare --dataset sst2         # the same recipe, in English
+python3 lesson7.py --mlm-demo                       # fill in the blank, no fine-tuning
+python3 lesson7.py --tokenizer-demo                 # how Kazakh gets split up
+python3 lesson7.py --frozen                         # features only, head trained
+python3 lesson7.py --train-size 250                 # how little data is enough</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Скрипт не істейді, алты қадамда</span>
+                <dl class="breakdown__list">
+                  <dt>1. деректер</dt>
+                  <dd><code>balance()</code> 3-дәрістен өзгеріссіз көшірілген, сондықтан бөлініс әр алдыңғы дәріс қолданғанмен битке дейін бірдей. KazSAnDRA болса жергілікті кэштен оқылады, болмаса жүктеледі</dd>
+                  <dt>2. токенизатор</dt>
+                  <dd><code>AutoTokenizer.from_pretrained</code> &#8212; сөздік модельге тиесілі, сондықтан бұл жол модельмен бірге өзгереді</dd>
+                  <dt>3. модель</dt>
+                  <dd><code>AutoModelForSequenceClassification.from_pretrained(name, num_labels=k)</code> энкодерді жүктеп, қажет ені бар жаңа бас жалғайды</dd>
+                  <dt>4. оқыту</dt>
+                  <dd>Жоғарыдағы бөлімдегі қолмен жазылған цикл. <code>Trainer</code> жоқ, әрі бұл әдейі &#8212; бүкіл мән ештеңенің жасырылмағанында</dd>
+                  <dt>5. салыстыру</dt>
+                  <dd><code>--compare</code> модельдер тізімін сол бір рецептпен айналдырып, қорытынды кестені басып шығарады, сондықтан бет пен скрипт ажырай алмайды</dd>
+                  <dt>6. қарап шығу</dt>
+                  <dd><code>--mlm-demo</code> мен <code>--tokenizer-demo</code> мүлде оқытуды қажет етпейді және үміткер модель туралы түсінік алудың ең жылдам жолы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Қайталанғыштық туралы:</strong> seed бекітілген, бөліністер детерминды, бірақ MPS пен CUDA ядролары битке дейін дәл емес, сондықтан сіздің сандарыңыз үшінші белгіде өзгеше болуы мүмкін. Саралау қайталанады; соңғы цифр қайталанбауы мүмкін.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Жабдық.</strong> Бұл жүрістер Apple M4 Pro-да MPS бэкенді арқылы жасалды &#8212; ноутбукте, әдейі. Тек CPU-да шамамен он есе ұзақ күтіңіз; заманауи NVIDIA GPU-да шамамен бес есе жылдам. Еш жерде кластер қажет емес, ал &#171;бір рет алдын ала оқыту, көп рет дәлдеп оқыту&#187; схемасының мәні дәл осында.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Дәрістен кейін</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                <code>lesson7.py</code> тұрған қалтада жұмыс істеңіз. Бір дәлдеп оқыту жүрісі ноутбукте бірнеше минут алады, сондықтан мұндағының көбі &#8212; бір команда және не болғанын жазып қою.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-тапсырма &#8212; Оқытпай тұрып қарап шығыңыз</h3>
+                  <p class="challenge__task">Өз сөйлемдеріңізде --tokenizer-demo іске қосыңыз. Әр модельге сөзге шаққандағы бөлікті санап, содан кейін дәлдік кестесінің саралауын оған қарамай болжаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Мәні мынада: GPU-сыз екі минуттық тексеру өте көп нәрсені болжайды. Алдымен болжамыңызды жазып қойыңыз &#8212; жазылмаған болжам болжам емес.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-тапсырма &#8212; Seed</h3>
+                  <p class="challenge__task">Сол бір модельді үш түрлі seed-пен үш рет дәлдеп оқытыңыз. Ең үздігін емес, ауқымды хабарлаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      8 000 мысалда шамамен &#177;0.01 шашырау күтіңіз. Айырмасы сіздің seed бойынша шашырауыңыздан кіші екі модельді салыстыру нәтиже болып саналмайды, ал бұл тапсырма өз шашырауыңыздың қандай екенін білу үшін керек.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-тапсырма &#8212; Үлкен learning rate-пен бұзып көріңіз</h3>
+                  <p class="challenge__task">2e-5 орнына --lr 1e-3 қойып дәлдеп оқытыңыз. Оқыту қатесі мен тесттегі дәлдікті бақылаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бұл &#8212; әдейі жасалған апатты ұмыту. Алдын ала оқытылған салмақтар алғашқы бірнеше жүз қадамда қирайды, ал модель 6-дәрістегі нөлден оқытылған Transformer-ден де нашар болып шығады. Ұсынылған жылдамдықтың неге сонша кіші екенін сезінудің ең жылдам жолы осы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-тапсырма &#8212; Тым көп эпоха</h3>
+                  <p class="challenge__task">3-тің орнына 10 эпоха оқытып, эпоха сайын оқыту қатесін тесттегі дәлдікке қарсы сызып шығыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Оқыту қатесі түсе береді; тесттегі дәлдік ерте шыңға жетіп, содан кейін төмен ығысады. 178 M параметрлі модель 8 000 қысқа пікірді оңай жаттап алады. Қай эпохада тоқтау керек болғанын анықтаңыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-тапсырма &#8212; Ол әлі қай пікірлерді шатастырады?</h3>
+                  <p class="challenge__task">Ең үздік модельдің қате жіктеген тест пікірлерін басып шығарыңыз. Оларды қолмен үш-төрт қате түріне бөліңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Мысқыл, бір пікірдегі аралас пікірлер, көңіл күй сөзі жоқ өте қысқа пікірлер және шынымен қате таңбаланған жолдар күтіңіз. Соңғы топ маңызды: қалған қатенің бір бөлігі модельде емес, деректе жатыр, әрі ол тапсырманың төбесін белгілейді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-тапсырма &#8212; Ұзындық</h3>
+                  <p class="challenge__task">--max-len 16, 32, 64 және 128 байқап көріңіз. Дәлдік қай жерде өсуін тоқтатады және бұл деректер жиыны туралы не айтады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      KazSAnDRA пікірлерінде орта есеппен тоғыз сөз бар, сондықтан 32 токеннен кейін іс жүзінде ештеңе ұтылмайды, ал құн ұзындықтың квадратына қарай өсе береді. Бірдеңе іске қоспай тұрып, әр баптауда қанша пікірдің шынымен қиылатынын өлшеңіз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-тапсырма &#8212; Басқа бас</h3>
+                  <p class="challenge__task">6-дәріс қолданғандай, [CLS] бойынша пулингті нақты токендер бойынша орташалауға ауыстырыңыз. Айырмасы бар ма?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жіктеу үшін әдетте өте аз. Қызығы басқада: [CLS] мүлде жұмыс істейді &#8212; ол бір нәрсені білдіреді, себебі оны алдын ала оқыту солай үйреткен, ал бұл салмақтарға қаншалықты көп келісім сіңіп кеткенінің жақсы мысалы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-тапсырма &#8212; Домен ығысуы</h3>
+                  <p class="challenge__task">KazSAnDRA-да `domain` бағаны бар: appstore, market, mapping, bookstore. Тек appstore-да оқытып, тек bookstore-да тексеріңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Дәлдік түседі, ал құлдырау мөлшері &#8212; &#171;бұл менің деректерімде жұмыс істей ме?&#187; деген сұраққа берілген адал жауап. Оқыту таралымынан алынған жалғыз тест жиыны модельді әрқашан әдемілеп көрсетеді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>9-тапсырма &#8212; Өзіңіз дистилдеңіз</h3>
+                  <p class="challenge__task">Ең үздік дәлдеп оқытылған моделіңізді ұстаз ретінде алып, кішірек шәкіртті оның таңбаланбаған пікірлердегі жұмсақ ықтималдықтарында оқытыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бұл &#8212; нақты тапсырмаға арналған дистилляция, әрі KazSAnDRA-ның таңбаланбаған жартысы оған тамаша келеді: ұстаз тегін таңбалай алатын 126 000 пікіріңіз бар. Оны тек 8 000 нақты таңбада дәлдеп оқытылған сол шәкіртпен салыстырыңыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>10-тапсырма &#8212; Бүкіл курс бір кестеде</h3>
+                  <p class="challenge__task">3&#8211;7-дәрістердің әр моделін сол бір тест жиынында бір кестеге жинап, дәлдіктің қасына параметрлер мен жұмыс уақытын қойыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      TF-IDF-ті де қосыңыз. Ол бәрібір барлық ось бойынша соңғы болмайды, ал төрт секундта оқытылатын 2 МБ модельдің неге сүбелі базалық шешім екенін түсіндіретін абзац &#8212; бүкіл курста жазатын ең пайдалы нәрсеңіз.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Сабақта</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">Аяқтар алдында бірге жауап беретін сегіз сұрақ.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">Таңбаланған деректер жиынымызда бар болғаны 8&#8202;000 жол болғанда, алдын ала оқыту неге миллиардтаған сөзді пайдалана алады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Себебі алдын ала оқытудың таңбалары сөздерді жасыру арқылы мәтіннің өзінен жасалады. Ешкім ештеңе аннотациялаған жоқ, сондықтан кез келген мәтін таңбаланған деректерге айналады. &#171;Self-supervised&#187; дегеннің мәні осы, әрі екі сатылы рецепттің мүмкін болу себебі де осы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">BERT неге келесі токенді болжаудың орнына masked language modelling қолданады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Себебі ол екібағытты болғысы келеді. Келесі токенді болжау causal маскаға мәжбүрлейді, ал модель оңға ешқашан қарамауы мүмкін. Ортадағы сөзді маскалау екі жақтағы әр басқа орынға үлес қосуға мүмкіндік береді &#8212; бұл жақсырақ кескіндеме құрады, бірақ генерациялау қабілетінен айырады.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">Дәлдеп оқыту кезінде не жаңа, не қайта пайдаланылады? Шамамен параметр санын атаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      mBERT үшін: энкодердің 177&#8202;853&#8202;440 алдын ала оқытылған салмағы қайта пайдаланылады, ал 1&#8202;538 салмақтан тұратын <code>Linear(768, 2)</code> басы жаңа әрі кездейсоқ. Сөздік бойынша сөздерді болжаған алдын ала оқыту басы алынып тасталады. Содан кейін бәрі бірге, жұмсақ оқытылады.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Дәлдеп оқытудағы learning rate неге 6-дәрістегіден шамамен он бес есе кіші?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Себебі сіз жоқ жерден іздемей, жақсы нүктеден бастап тұрсыз. Үлкен қадамдар алдын ала оқытылған білімді алғашқы бірнеше жүз жаңартуда үстінен жазып тастайды &#8212; бұл апатты ұмыту &#8212; ал модель нөлден оқытылғаннан да нашар болып шығады. 3-практикалық тапсырма мұны әдейі жасатады.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">RoBERTa BERT архитектурасын өзгеріссіз қалдырды. Ол нені өзгертті және бұл нені дәлелдеді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Он есе көп дерек, әлдеқайда ұзақ оқыту, динамикалық маскалау, үлкен батчтар және Next Sentence Prediction мүлде жоқ. Бұл BERT нашар жобаланбағанын, жай ғана жетік оқытылмағанын дәлелдеді &#8212; әрі NSP-ды алып тастап, жақсырақ болу арқылы түпнұсқа рецепттің сол бөлігі әшекей болғанын көрсетті.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-сұрақ</h3>
+                  <p class="challenge__task">DistilBERT дұрыс жауапқа емес, ұстаздың толық ықтималдық таралымына оқытылады. Бұл неге көмектеседі?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Себебі таралым бір мысалға шаққанда көбірек ақпарат көтереді. &#171;пайдалы 0.41, жақсы 0.19, керемет 0.08&#187; шәкіртке тағы қандай жауаптардың орынды болғанын және олардың қаншалықты жақын екенін айтады &#8212; one-hot таңба түгелдей тастап кететін ұқсастық құрылымын.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-сұрақ</h3>
+                  <p class="challenge__task">Біздің бес алдын ала оқытылған модель 0.789-дан 0.799-ға дейін жинады. Бұл туралы қалай дұрыс хабарлау керек?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Тең нәтиже ретінде. 2&#8202;000 жолдық тест жиынындағы 0.010 шашырау &#8212; жиырма пікір, ал бұл дәлдеп оқытудың seed-тен seed-ке дейінгі ауытқуына сыяды. Қорғауға болатын тұжырым: &#171;бесеуі де осы тапсырмада тең&#187;, ал қызық айырмалар дәлдікте емес, көлем мен жылдамдықта жатыр.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-сұрақ</h3>
+                  <p class="challenge__task">mBERT-те қазақ тіліне ең нашар токенизатор және бос орынды толтырудың ең нашар болжамдары бар, бірақ ол ең үздіктердің қатарында аяқтады. Түсіндіріңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Диагностикалар модельдің төбесі қайда екенін емес, оған қаншалықты тез жететінін болжайды. Бір эпохадан кейін саралау олармен дәлме-дәл сәйкес келді &#8212; kaz-RoBERTa 0.800, mBERT 0.762. Біршама жеңіл бинарлық тапсырмада 8&#8202;000 таңбаланған мысалдан үш эпоха берілсе, бәрі қуып жетеді. Таңба азырақ болса не тапсырма қиынырақ болса, айырма сақталар еді.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Түйін</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Тілді үйрену мен тапсырманы үйрену &#8212; деректерге қажеттілігі бөлек, әртүрлі жұмыс</li>
+                <li>Masked language modelling таңбаларды шикі мәтіннен жасайды, сондықтан алдын ала оқытуға аннотация керек емес</li>
+                <li>BERT &#8212; 6-дәрістің энкодер стегі, оған қоса [CLS], [SEP], segment embeddings және оқытылатын позициялар</li>
+                <li>15% маскалау, 80&#8202;/&#8202;10&#8202;/&#8202;10 болып бөлінген, әрі NSP-дан кейін неге бас тартқаны</li>
+                <li>Fine-tuning алдын ала оқыту басын тастайды, кішкентай жаңасын қосады және бәрін жұмсақ оқытады</li>
+                <li>Learning rate он бес есе кіші, үш эпоха, қыздыру &#8212; бәрі апатты ұмытудан қорғану үшін</li>
+                <li>RoBERTa: сол архитектура, көбірек дерек, BERT жетік оқытылмағанының дәлелі</li>
+                <li>DistilBERT пен TinyBERT: шәкірт ұстаздың жауабын ғана емес, бүкіл таралымын көшіреді</li>
+                <li>ALBERT салмақ бөліседі, ELECTRA әр токеннен үйренеді, DeBERTa мазмұн мен орынды ажыратады</li>
+                <li>Токенизатор салмақтармен бірге келеді, әрі оны дәлдеп оқытумен түзетуге болмайды</li>
+                <li>Fine-tuning-ке дейін алдын ала оқытылған модель нені біледі, екі тәсілмен өлшенген</li>
+                <li>Pretraining қай алдын ала оқытылған модельді алу таңдауынан әлдеқайда көп тұрады</li>
+                <li>Seed бойынша шашыраудан кіші айырма &#8212; бұл саралау емес, тең нәтиже</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; 7-дәріс &middot; 2026 ж. 14 қыркүйек</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>
