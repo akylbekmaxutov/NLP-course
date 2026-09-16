@@ -194,3 +194,28 @@ Changed:
 - `index.html` — link to Lecture 7
 
 All 42 inline SVGs across the three Lecture 7 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and every code block is byte-identical in all three languages
+
+### 16.09.2026
+
+Added:
+
+- `code_files/lesson8.py` — the Lecture 8 script: every number on the page measured on a laptop, with **no training anywhere**. `--tokens` (tiktoken and Qwen tokenizers over one parallel en/ru/kk message, plus an API bill), `--memory` (parameters → gigabytes, and KV-cache arithmetic), `--sampling` (greedy, temperature, top-k, top-p and the entropy of the distribution behind them, on `Qwen/Qwen2.5-0.5B-Instruct`), `--lora` (counts LoRA's trainable parameters with `peft`, does not train them), `--quantize` (round real weights to int8 and compare the generation). CPU/MPS, fixed seeds
+- `language/en/08-large-language-models.html`, `language/kk/08-large-language-models.html`, `language/ru/08-large-language-models.html` — Lecture 8, Large Language Models. 16 sections and 11 inline SVG figures per language: the inference loop as Lecture 6's decoder repeated, the three training stages (pretraining / instruction tuning / preference tuning) and what each one buys, parameter counts, open-weight vs open-source vs closed API, tokenizer economics, how to choose a model, sampling, reasoning models, RLHF/DPO/RLVR and reward hacking, LoRA and quantization
+
+Measured (Apple M4 Pro, 24 GB unified memory, `Qwen/Qwen2.5-0.5B-Instruct` where a model is needed):
+
+- **Tokens are not words, and a language has a price.** One message, same meaning, three languages. Under `o200k_base`: en 19, ru 25, kk 38 tokens — **Kazakh costs 2.0× English**. Under the older `cl100k_base` it is 4.53×, and under Qwen2.5 3.79×. Per word: 1.19 tokens for English against 3.17 for Kazakh on the best tokenizer tested. The choice of tokenizer changes a Kazakh product's bill by more than a factor of two
+- **An API bill, computed rather than guessed.** 100 000 calls a month, both token counts scaled by the measured per-language multiplier. A chat-shaped workload (20 words in, 100 out) on `claude-sonnet-5`: **\$130 English, \$193 Russian, \$336 Kazakh**. A classification-shaped workload (2 000 words in, 5 out) on the same model: \$488 / \$730 / \$1 289. The Kazakh penalty is ~2.6× in both shapes, and the workload shape moves the absolute bill by 3.8×. Anthropic's rates are current as of this date; other vendors' are labelled as an example of the method, not a quote
+- **Parameters to gigabytes.** 7 B needs 28 GB in fp32, 14 GB in bf16, 3.5 GB in int4; 70 B needs 140 GB in bf16 and does not fit on this machine at any precision. **The KV cache is the constraint people miss**: an 8 B model with 32 layers and 8 KV heads spends 128 KB per token per sequence, so one 128 000-token conversation needs 16.78 GB — more than the weights — and 100 concurrent users at that length need 1.68 TB
+- **Sampling, on a real model.** Greedy is bit-identical across seeds; at `temperature=0.7` two seeds give two different sentences; at 1.5 the output degenerates into cross-lingual noise. The distribution behind it, printed: entropy 0.00 at T=0.1, 0.14 at T=1.0, 8.31 at T=2.0, with the top token falling from 1.000 to 0.188. Temperature adds no knowledge — it only reshapes one distribution
+- **LoRA, counted and not trained** (the user has no GPU, so the fine-tuning sections show code and arithmetic only). On a 494 M-parameter model, LoRA trains **540 672 parameters at rank 4 (0.109%)** and 8 650 752 at rank 64 (1.751%); the adapter is 2.2–34.6 MB against ~1 GB for the base model. The maths spelled out: at d = k = 896 and r = 8 you train 14 336 numbers instead of 802 816, and `B·A` folds back into `W` so inference costs nothing extra
+- **Quantization, with the error measured.** int8 on one real (896, 896) weight matrix: mean absolute error 0.000484, worst single error 0.004829, **1.15% relative error**, 4 209 distinct values collapsed to 255. Rounding all 169 linear layers to int8 and back left the generation **byte-identical** to fp32, at a quarter of the memory
+- **What a small model gets wrong about Kazakhstan.** The 0.5 B model repeatedly placed Almaty "near the Caspian Sea" and called it the capital. The lecture keeps this rather than hiding it: it is the section on why anything specific, recent or thinly represented has to be supplied to a model rather than recalled from it
+
+Changed:
+
+- `code_files/requirements.txt` — `tiktoken` and `peft` added
+- `page/js/course.js` — Lecture 8 published as "Large Language Models"
+- `index.html` — link to Lecture 8
+
+All 33 inline SVGs across the three Lecture 8 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and all 18 code blocks are byte-identical in all three languages

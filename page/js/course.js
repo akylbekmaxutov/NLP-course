@@ -197,21 +197,21 @@ window.NLP_COURSE = {
     {
       id: "language-models-2",
       num: 8,
-      file: null,
+      file: "08-large-language-models.html",
       date: {
         en: "16 Sep 2026",
         kk: "16 қыркүйек 2026",
         ru: "16 сентября 2026"
       },
       title: {
-        en: "Language Models II",
-        kk: "Language Models II",
-        ru: "Language Models II"
+        en: "Large Language Models",
+        kk: "Large Language Models",
+        ru: "Large Language Models"
       },
       topics: {
-        en: "Generative Models · InstructGPT · DialoGPT",
-        kk: "Generative Models · InstructGPT · DialoGPT",
-        ru: "Generative Models · InstructGPT · DialoGPT"
+        en: "Sizes · Pricing · Sampling · Reasoning · LoRA · Quantization",
+        kk: "Өлшемдер · Баға · Sampling · Reasoning · LoRA · Quantization",
+        ru: "Размеры · Цены · Sampling · Reasoning · LoRA · Quantization"
       }
     },
     {

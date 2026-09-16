@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Large Language Models | NLP Course</title>
+    <meta
+      name="description"
+      content="8-дәріс: тәжірибедегі үлкен тілдік модельдер — олар қалай жұмыс істейді, параметр саны мен жады, ашық салмақты және меншікті модельдер, токендер мен API бағасы қазақ тілі үшін өлшенген, модель таңдау, sampling параметрлері, reasoning модельдері, reinforcement learning, толық fine-tuning пен LoRA, және quantization."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Тіл">
+        <a href="../en/08-large-language-models.html" data-lang-link="en">EN</a>
+        <a href="../kk/08-large-language-models.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/08-large-language-models.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">Мәтінді өңдеуден Large Language Models дейін</p>
+        <div class="lang-switch" role="group" aria-label="Тіл">
+          <a href="../en/08-large-language-models.html" data-lang-link="en">EN</a>
+          <a href="../kk/08-large-language-models.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/08-large-language-models.html" data-lang-link="ru">RU</a>
+        </div>
+        <p class="sidebar__mt" role="note">
+          <span aria-hidden="true">⚠</span> Машиналық аударма — сапасы тексерілу
+          үстінде.
+        </p>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс жоспары</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Мазмұнды жабу" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <!-- Машиналық аударма туралы ескерту ------------------------- -->
+          <div class="container">
+            <div class="mt-notice" role="note">
+              <span class="mt-notice__icon" aria-hidden="true">⚠</span>
+              <p>
+                <strong>Машиналық аударма.</strong> Бұл беттің қазақша нұсқасы
+                ағылшын тілінен машиналық аудармамен жасалған, аударма сапасы
+                тексерілу үстінде.
+                <span class="mt-notice__en"
+                  >The Kazakh version was translated from English via machine
+                  translation, and translation quality is under validation.</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">8-дәріс</span>
+              <h1>Large Language Models</h1>
+              <p class="hero__subtitle">
+                6-дәрісте құрған сол декодер, мың есе үлкейтілген және жазылған интернеттің басым бөлігінде оқытылған. Бұл дәріс тәжірибеде не өзгеретіні туралы: өлшемдер нені білдіреді, шақырулар қанша тұрады, қай тұтқаларды бұрайсыз және GPU-сыз тағы нені бейімдеуге болады.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістің соңында сіз&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>LLM қалай жұмыс істейтінін түсіндіресіз</h3>
+                  <p>Келесі токенді болжау, үш оқыту сатысы және ауқым сол архитектураның не істей алатынын неге өзгерткені.</p>
+                </div>
+                <div class="card">
+                  <h3>Параметр санын оқисыз</h3>
+                  <p>&#171;7B&#187;-ны гигабайтқа айналдырасыз, машинаңызға не сыятынын білесіз және нағыз шектеу неге KV cache екенін түсіндіресіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Ашықты меншіктіден ажыратасыз</h3>
+                  <p>Ашық салмақтар, ашық бастапқы код және жабық API &#8212; үш бөлек нәрсе, лицензиялары да, тәуекелдері де әртүрлі.</p>
+                </div>
+                <div class="card">
+                  <h3>API шотын есептейсіз</h3>
+                  <p>Токендерді санап, кіріс пен шығыс мөлшерлемесін қолданып, қазақ тіліндегі өнім ағылшыншамен салыстырғанда қанша тұратынын білесіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Шығысты басқарасыз</h3>
+                  <p>Temperature, top-k, top-p &#8212; әрі олардың әрқайсысы қай кезде жарамсыз құрал.</p>
+                </div>
+                <div class="card">
+                  <h3>Модельді арзан бейімдейсіз</h3>
+                  <p>Толық fine-tuning мен LoRA, әрі quantization &#8212; әрқайсысы неге тұрады және неден бас тартады.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>Бұл бетте бірде-бір үлкен модель оқытылмайды.</strong> Мұндағы әр сан &#8212; не сіз тексере алатын арифметика, не токен санағы, не параметр санағы, не ноутбукте жүретін 0.5&#8202;B модельдің генерациясы. Fine-tuning бөлімдері кодтың қалай көрінетінін және оның қанша тұратынын көрсетеді, бірақ іске қоспайды, себебі бұл жабдықта ол жүрмейді.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="how">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Механизм</span>
+              <h2 id="how">LLM қалай жұмыс істейді</h2>
+              <p class="narrow lead">
+                Мұнда атауы меңзегеннен әлдеқайда аз жаңа механизм бар. LLM &#8212; бұл 6-дәрістегі декодер стегі, ауқымы ұлғайтылған және бір емес, үш сатыда оқытылған.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Үлкен тілдік модель</strong> &#8212; бұл келесі токенді болжауға оқытылған Transformer декодері, әрі сол бір істі жақсы орындау аударманы, түйіндеуді, кодты және әңгімені қосалқы әсер ретінде беретін ауқымда.
+                </p>
+              </div>
+              <h3 style="margin-top: 44px">Сіз әлдеқашан құрған цикл</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-loop-t">
+                <title id="fig-loop-t">Бір токен болжанады, жалғанады, және бәрі қайтадан жүреді</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">осы кездегі промпт</text>
+                <rect x="8" y="20" width="54" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="35" y="34" font-size="8" fill="#111111" text-anchor="middle">Астана</text>
+                <rect x="64" y="20" width="26" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="77" y="34" font-size="8" fill="#111111" text-anchor="middle">&#8212;</text>
+                <rect x="92" y="20" width="76" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="130" y="34" font-size="8" fill="#111111" text-anchor="middle">Қазақстанның</text>
+                <line x1="88" y1="46" x2="88" y2="58" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="58" width="128" height="24" rx="5" fill="#2563eb" />
+                <text x="88" y="74" font-size="9" fill="#ffffff" text-anchor="middle">декодер стегі, causal</text>
+                <line x1="88" y1="82" x2="88" y2="94" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="94" width="128" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="88" y="108" font-size="8" fill="#111111" text-anchor="middle">150 000 токен бойынша softmax</text>
+                <line x1="152" y1="104" x2="172" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="172" y="94" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="212" y="108" font-size="8" fill="#ffffff" text-anchor="middle">«астанасы» 0.63</text>
+                <path d="M 252 104 L 292 104 L 292 30 L 176 30" fill="none" stroke="#2563eb" stroke-width="1.6" />
+                <text x="264" y="66" font-size="8" fill="#2563eb">жалғау</text>
+                <text x="180" y="24" font-size="8" fill="#5b6270">және қайта жүргізу</text>
+                <line x1="8" y1="130" x2="332" y2="130" stroke="#e8ecf2" />
+                <text x="8" y="148" font-size="9" fill="#111111">бүкіл шығару циклі осы</text>
+                <text x="8" y="164" font-size="8" fill="#5b6270">LLM істеп жатқандай көрінетіннің бәрі &#8212; қайталанған осы</text>
+                <text x="8" y="182" font-size="8" fill="#5b6270">және жүздеген мың токенмен өлшенетін контекст терезесі</text>
+                </svg>
+                <p class="figure__caption">
+                  Бір токенді болжау, оны жалғау, қайта болжау. 6-дәріс осыны құрды; қазіргі жалғыз айырма &#8212; ортадағы қораптың көлемі.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">6-дәрістегідей не қалды, не қалмады</span>
+                <dl class="breakdown__list">
+                  <dt>сол күйінде</dt>
+                  <dd>Q, K және V. Scaled dot-product attention. Multi-head. Residuals. Әр токенге feed-forward желі. Causal маскалау. Cross-entropy-мен келесі токенді болжау. Кез келген ашық модельдің бастапқы кодын ашып, мұның бәрін тани аласыз</dd>
+                  <dt>үлкенірек</dt>
+                  <dd>6-дәрістегі модель 2 блок және 1&#8202;миллион параметр болатын. Заманауи LLM &#8212; 32-ден 126-ға дейін блок және 7-ден 1&#8202;000 миллиардқа дейін параметр. Контекст терезесі 60 токеннен жүздеген мыңға дейін өсті</dd>
+                  <dt>жаңартылған</dt>
+                  <dd>Pre-norm, RMSNorm, SwiGLU, RoPE, grouped-query attention &#8212; 6-дәрістің соңындағы сол алты ауыстыру. Олардың бірде-бірі әңгіменің желісін өзгертпейді</dd>
+                  <dt>бірде емес, үш сатыда оқытылған</dt>
+                  <dd>Міне, шынымен жаңа бөлігі осы, ал келесі схема сол туралы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Олай болса неге әсері бөлек?</strong> Себебі жеткілікті ауқымда &#171;келесі токенді болжау&#187; мәтінді жалғастыру айласы болудан қалады. Химия мақаласының келесі токенін болжау үшін біраз химия керек; дәлелдеудің келесі жолын болжау үшін біраз арифметика керек. Мақсат функциясы өзгерген жоқ. Оны жақсы орындау үшін не қажет екені өзгерді.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Үш саты</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 240" role="img" aria-labelledby="fig-stages-t">
+                <title id="fig-stages-t">Алдын ала оқыту, instruction tuning және preference tuning, құнымен қоса</title>
+                <rect x="8" y="20" width="100" height="56" rx="5" fill="#2563eb" />
+                <text x="58" y="38" font-size="9" fill="#ffffff" text-anchor="middle">1. алдын ала оқыту</text>
+                <text x="58" y="52" font-size="7" fill="#ffffff" text-anchor="middle">келесі токенді</text>
+                <text x="58" y="62" font-size="7" fill="#ffffff" text-anchor="middle">болжау, вебте</text>
+                <line x1="108" y1="48" x2="124" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="124" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="172" y="38" font-size="9" fill="#ffffff" text-anchor="middle">2. instruction</text>
+                <text x="172" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: сұралғанды</text>
+                <text x="172" y="62" font-size="7" fill="#ffffff" text-anchor="middle">орындау</text>
+                <line x1="220" y1="48" x2="236" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="236" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="284" y="38" font-size="9" fill="#ffffff" text-anchor="middle">3. preference</text>
+                <text x="284" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: жақсырақ</text>
+                <text x="284" y="62" font-size="7" fill="#ffffff" text-anchor="middle">жауаптарды таңдау</text>
+                <text x="8" y="94" font-size="7" fill="#5b6270">дерек</text>
+                <text x="62" y="94" font-size="7" fill="#111111" text-anchor="middle">триллион токен</text>
+                <text x="172" y="94" font-size="7" fill="#111111" text-anchor="middle">10м&#8211;1M мысал</text>
+                <text x="284" y="94" font-size="7" fill="#111111" text-anchor="middle">салыстырулар</text>
+                <text x="8" y="110" font-size="7" fill="#5b6270">таңбалар</text>
+                <text x="58" y="110" font-size="7" fill="#111111" text-anchor="middle">қажет емес</text>
+                <text x="172" y="110" font-size="7" fill="#111111" text-anchor="middle">адамдар жазған</text>
+                <text x="284" y="110" font-size="7" fill="#111111" text-anchor="middle">адамдар саралаған</text>
+                <text x="8" y="126" font-size="7" fill="#5b6270">құны</text>
+                <text x="58" y="126" font-size="7" fill="#111111" text-anchor="middle">миллиондаған $</text>
+                <text x="172" y="126" font-size="7" fill="#111111" text-anchor="middle">мыңдаған</text>
+                <text x="284" y="126" font-size="7" fill="#111111" text-anchor="middle">мыңдаған</text>
+                <text x="8" y="142" font-size="7" fill="#5b6270">береді</text>
+                <text x="58" y="142" font-size="7" fill="#111111" text-anchor="middle">білім</text>
+                <text x="172" y="142" font-size="7" fill="#111111" text-anchor="middle">мойынсұнушылық</text>
+                <text x="284" y="142" font-size="7" fill="#111111" text-anchor="middle">пайым, реңк</text>
+                <line x1="8" y1="158" x2="332" y2="158" stroke="#e8ecf2" />
+                <text x="8" y="176" font-size="9" fill="#111111">1-сатыдан кейінгі базалық модель сұраққа жауап бермейді</text>
+                <rect x="8" y="184" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="14" y="196" font-size="7" fill="#111111">сұрау: «Астанасы қай қала?»</text>
+                <rect x="172" y="184" width="160" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="178" y="196" font-size="7" fill="#111111">база: «Халқы қанша?»</text>
+                <text x="8" y="218" font-size="8" fill="#5b6270">ол мәтінді жалғастырады, себебі оны соған үйреткен</text>
+                <text x="8" y="232" font-size="8" fill="#2563eb">2-саты &#8212; мәтін жалғастырушыны ассистентке айналдыратын нәрсе</text>
+                </svg>
+                <p class="figure__caption">
+                  1-саты білім сатып алады және бәрін дерлік тұрады. 2 және 3-саты мінез-құлық сатып алады және салыстырмалы түрде ештеңе тұрмайды.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Сатылар, кезекпен</span>
+                <dl class="breakdown__list">
+                  <dt>1. алдын ала оқыту &#8212; қымбаты</dt>
+                  <dd>Жиналған мәтіннің триллиондаған токенінде келесі токенді болжау. Self-supervised, дәл 7-дәрістегі masked language modelling сияқты, тек causal. Білім осыдан келеді, бұл миллиондаған долларға түседі және дата-орталығы бар зертхана оны бір рет істейді</dd>
+                  <dt>2. instruction tuning (SFT) &#8212; жауап беруі үшін</dt>
+                  <dd>Адамдар жазған (нұсқау, жақсы жауап) жұптарында supervised fine-tuning. Сұрақ қойылған базалық модель тағы сұрақтар шығаруға бейім, себебі веб-мәтінде сұрақтан кейін дәл сол келеді. SFT &#8212> оны жалғастырудың орнына жауап беруге мәжбүрлейтін нәрсе. Бұл &#8212; InstructGPT енгізген саты, әрі сонша модель атауында &#171;instruct&#187; кездесетінінің себебі осы</dd>
+                  <dt>3. preference tuning &#8212; жақсырақ болуы үшін</dt>
+                  <dd>Адамдарға екі жауап көрсетіледі, олар жақсысын таңдайды. Модель адамдар таңдағанды артық көруге оқытылады. RLHF, DPO және олардың туыстары осында тұрады, әрі оларға төмендегі бөлім арналған</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Модель карточкаларында көретін атаулар:</strong> <code>-base</code> деп аяқталатын модель тек 1-сатыдан өткен &#8212; әрі қарай оқытуға пайдалы, әңгімелесуге ыңғайсыз. <code>-instruct</code> не <code>-chat</code> 2 және әдетте 3-сатыдан өткен, әрі сіз шын мәнінде шақырғыңыз келетіні осы.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Тексеруге болатын арифметика</span>
+              <h2 id="sizes">&#171;7B&#187; шын мәнінде нені білдіреді</h2>
+              <p class="narrow lead">
+                Модель атауларында сан тұрады: 0.5B, 7B, 70B, 405B. Бұл &#8212; файлдағы оқытылатын сандардың саны. Оны гигабайтқа айналдыру &#8212; бір көбейту, әрі ол модельдің қайда жүре алатыны туралы бәрін шешеді.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Параметр</strong> &#8212; бұл оқыту процесі түзеткен бір сан. 6-дәрісте сіз оларды өзіңіз санадыңыз: <code>W_Q</code>, <code>W_K</code>, <code>W_V</code>, <code>W&#8338;</code> матрицаларының әр элементі, feed-forward матрицалары, embedding кестесі. &#171;7B&#187; дегеніміз &#8212; сондай жеті миллиард сан.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --memory</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>PARAMETERS TO GIGABYTES
+  weights only, no activations, no KV cache
+
+  model               fp32     fp16/bf16          int8          int4
+  ------------------------------------------------------------------
+  0.5 B             2.0 GB        1.0 GB        0.5 GB        0.2 GB
+  7 B              28.0 GB       14.0 GB        7.0 GB        3.5 GB
+  70 B            280.0 GB      140.0 GB       70.0 GB       35.0 GB
+  405 B          1620.0 GB      810.0 GB      405.0 GB      202.5 GB
+  1 T            4000.0 GB     2000.0 GB     1000.0 GB      500.0 GB
+
+  what fits in 24 GB of unified memory (this laptop), weights only:
+    0.5 B    fp32, fp16/bf16, int8, int4
+    7 B      fp16/bf16, int8, int4
+    70 B     nothing — needs a bigger machine
+    405 B    nothing — needs a bigger machine
+    1 T      nothing — needs a bigger machine</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Кестені оқу</span>
+                <dl class="breakdown__list">
+                  <dt>практикалық ереже</dt>
+                  <dd><strong>fp16-ға миллиард параметрге шамамен 2 ГБ керек.</strong> 7B модель &#8212; ~14 ГБ, 70B модель &#8212; ~140 ГБ. Осы дәрістен бір сан есте қалса, сол осы болсын</dd>
+                  <dt>дәлдік &#8212; факт емес, реттегіш</dt>
+                  <dd>Сол бір модель әр салмақ қанша битте сақталғанына ғана байланысты 28 ГБ не 3.5 ГБ алады. Quantization деген осы, әрі оған төменде бөлек бөлім арналған</dd>
+                  <dt>ноутбук туралы жол шынайы</dt>
+                  <dd>fp16-дағы 7B модель 24 ГБ біріккен жадыға жұмысқа орын қалдыра отырып сыяды. 70B модель бұл машинада ешқандай дәлдікте сыймайды. Жоба жоспарлар алдында білуге ең пайдалы нәрсе осы</dd>
+                  <dt>оқытуға шығарудан әлдеқайда көп керек</dt>
+                  <dd>Модельді іске қосу үшін салмақтар керек. Оны <em>оқыту</em> үшін салмақтар, градиенттер және оптимизатор күйі керек &#8212; AdamW-мен 2-нің орнына параметрге шамамен 12&#8211;16 байт. Ноутбукте іске қосуға болатын 7B модельді толық дәлдеп оқыту үшін шамамен 100 ГБ керек</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Соңғы жол &#8212; LoRA-ның бар болу себебі</strong>, әрі бұл дәрістің сізге кодты көрсете алатынының, бірақ оны іске қоса алмайтынының себебі.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Өлшемдер сатысы және әр басқышы не үшін</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Модель өлшемдері және оларға тән қолданыс</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Өлшем</th><th scope="col">fp16</th>
+                      <th scope="col">Қайда жүреді</th><th scope="col">Не үшін жақсы</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>0.5&#8211;3 B</td><td>1&#8211;6 GB</td><td>телефонда, ноутбук CPU-да</td><td>жіктеу, ақпарат шығару, автотолықтыру, құрылғыда</td></tr>
+                    <tr><td>7&#8211;14 B</td><td>14&#8211;28 GB</td><td>бір тұтынушылық GPU не жақсы ноутбукте</td><td>өндірістік тапсырмалардың көбі, өз серверіңдегі ассистенттер</td></tr>
+                    <tr><td>30&#8211;70 B</td><td>60&#8211;140 GB</td><td>2&#8211;4 дата-орталық GPU-сы бар бір серверде</td><td>сапасы фронтирге жақын, жеке орналастырылған</td></tr>
+                    <tr><td>100&#8211;700 B+</td><td>200 GB&#8211;1.4 TB</td><td>кластерде</td><td>фронтирлік мүмкіндіктер, әдетте API арқылы</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Үлкен болғаны сіздің тапсырмаңыз үшін автоматты түрде жақсы дегенді білдірмейді.</strong> 7-дәріс мұны кіші ауқымда өлшеді: көлемі 3.3&#215; ерекшеленетін бес энкодер қазақ көңіл күйінде бір-бірінен 0.010 шегінде аяқтады. Мұнда да солай. Өз жабдығыңызға сыятын, шақыруға ештеңе тұрмайтын және деректеріңізді ғимараттан шығармайтын 7B модель, бенчмаркте 400B модель жоғары ұпай жинағанның өзінде, дұрыс инженерлік жауап болуы мүмкін.
+              </p>
+
+              <h3 style="margin-top: 48px">KV cache &#8212; нағыз шектеу осы</h3>
+              <p class="narrow">
+                Салмақтар бір рет жүктеліп, бәріне ортақ болады. <strong>KV cache</strong> &#8212; 6-дәрістегі сақталған кілттер мен мәндер, <em>t</em>+1 токенін генерациялау бүкіл промптты қайта оқымауы үшін ұсталатын &#8212; әр пайдаланушыға, әр токенге тиесілі, әрі шын мәнінде таусылатын нәрсе де сол.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>THE KV CACHE — why long chats get expensive
+  a 8 B model: 32 layers, 8 KV heads, head dim 128, bf16
+  per token, per sequence: 2 x 32 x 8 x 128 x 2 = 131,072 bytes = 128 KB
+
+     context      1 user    10 users   100 users
+  --------------------------------------------
+       1,000     0.13 GB     1.31 GB     13.11 GB
+       8,000     1.05 GB    10.49 GB    104.86 GB
+      32,000     4.19 GB    41.94 GB    419.43 GB
+     128,000    16.78 GB   167.77 GB   1677.72 GB</code></pre></div>
+              <div class="callout">
+                <strong>Сол жақ төменгі ұяшыққа қараңыз.</strong> 128&#8202;000 токенді контексі бар бір пайдаланушыға салмақтары небәрі 16 ГБ болатын 8B модельде <strong>16.8 ГБ</strong> KV cache керек. Кэш модельдің өзінен үлкен. Ұзын контекстің қымбат болуының, провайдерлердің кіріс токендері үшін мүлде ақы алуының және 6-дәрістегі grouped-query attention-ның бар болуының себебі осы &#8212; ол K мен V-ны query бастары арасында бөлісу арқылы дәл осы кестені кішірейтеді.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="open">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Ландшафт</span>
+              <h2 id="open">Ашық салмақты және меншікті модельдер</h2>
+              <p class="narrow lead">
+                &#171;Open-source LLM&#187; тіркесі еркін әрі әдетте қате қолданылады. Үш бөлек нәрсе бар, ал айырма заңгер сұрақ қойғанда маңызды болады.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-open-t">
+                <title id="fig-open-t">Ашықтықтың үш деңгейі: жабық API, ашық салмақтар, толық ашық</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">сізге шын мәнінде не беріледі</text>
+                <rect x="8" y="22" width="104" height="90" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="60" y="38" font-size="9" fill="#111111" text-anchor="middle">меншікті</text>
+                <text x="60" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(жабық, тек API)</text>
+                <text x="16" y="66" font-size="7" fill="#111111">&#10007; салмақтар</text>
+                <text x="16" y="78" font-size="7" fill="#111111">&#10007; оқыту деректері</text>
+                <text x="16" y="90" font-size="7" fill="#111111">&#10007; оқыту коды</text>
+                <text x="16" y="102" font-size="7" fill="#2563eb">&#10003; эндпоинт</text>
+                <rect x="118" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="38" font-size="9" fill="#111111" text-anchor="middle">ашық салмақты</text>
+                <text x="170" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(«ашық» модельдердің көбі)</text>
+                <text x="126" y="66" font-size="7" fill="#2563eb">&#10003; салмақтар</text>
+                <text x="126" y="78" font-size="7" fill="#111111">&#10007; оқыту деректері</text>
+                <text x="126" y="90" font-size="7" fill="#111111">&#10007; оқыту коды</text>
+                <text x="126" y="102" font-size="7" fill="#5b6270">~ лицензия, оны оқыңыз</text>
+                <rect x="228" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="280" y="38" font-size="9" fill="#111111" text-anchor="middle">толық ашық</text>
+                <text x="280" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(сирек)</text>
+                <text x="236" y="66" font-size="7" fill="#2563eb">&#10003; салмақтар</text>
+                <text x="236" y="78" font-size="7" fill="#2563eb">&#10003; оқыту деректері</text>
+                <text x="236" y="90" font-size="7" fill="#2563eb">&#10003; оқыту коды</text>
+                <text x="236" y="102" font-size="7" fill="#2563eb">&#10003; еркін лицензия</text>
+                <line x1="8" y1="128" x2="332" y2="128" stroke="#e8ecf2" />
+                <text x="8" y="146" font-size="9" fill="#111111">«open-source» сөзі шын мәнінде тек үшінші блокқа тиесілі</text>
+                <text x="8" y="162" font-size="8" fill="#5b6270">open-source LLM деп аталатынның бәрі дерлік ортаңғы блокта:</text>
+                <text x="8" y="176" font-size="8" fill="#5b6270">жүктеп алып іске қоса аласыз, бірақ қайта жасай алмайсыз</text>
+                <text x="8" y="196" font-size="8" fill="#111111">практикалық сұрақ «ол ашық па» емес, мынау:</text>
+                <text x="8" y="212" font-size="8" fill="#2563eb">мұны өз жабдығымда жүргізе аламын ба, лицензия рұқсат бере ме?</text>
+                </svg>
+                <p class="figure__caption">
+                  Үш деңгей, әдетте бір сөзге сығылып кетеді. Экожүйенің басым бөлігі ортаңғы блокта тұрады.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Осы үшеуі, дәл</span>
+                <dl class="breakdown__list">
+                  <dt>меншікті / жабық</dt>
+                  <dd>Сіз эндпоинтке мәтін жіберіп, мәтін аласыз. Салмақтар провайдерден ешқашан шықпайды. Мысалдар: GPT, Claude және Gemini отбасылары. Токен үшін төлейсіз, ең күшті модельдерді аласыз, әрі оларды қарай да, өзіңізде орналастыра да, сақтай да алмайсыз</dd>
+                  <dt>ашық салмақты</dt>
+                  <dd>Оқытылған салмақтар жарияланған, сіз оларды жүктеп алып іске қоса аласыз. Оқыту деректері мен оларды жасаған код әдетте жарияланбайды. Мысалдар: Llama, Qwen, Mistral және Gemma отбасылары, сондай-ақ 7-дәрістегі қазақ модельдері. &#171;Open-source LLM&#187; дегенде барлығы дерлік осыны айтады, ал бұл бір нәрсе емес</dd>
+                  <dt>толық ашық</dt>
+                  <dd>Салмақтар, деректер, оқыту коды және еркін лицензия. Мысалдары сирегірек: OLMo және BLOOM желісі дәл осылай құрылды. Тек осында ғана тәуелсіз тарап модельді шынымен қайта жасай не тексере алады</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Маркетингті емес, лицензияны оқыңыз.</strong> Кейбір ашық салмақ лицензиялары шынымен еркін (Apache 2.0, MIT). Басқалары &#8212> арнайы жасалған және шарттары бар: қолданыс шектеулері, жоғарыда келісуге тура келетін пайдаланушы саны шегі, не атау туралы тармақ. &#171;Тегін жүктеу&#187; мен &#171;өз өніміңде тегін пайдалану&#187; &#8212; бөлек тұжырымдар.
+                </p>
+              </div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Меншікті мен ашық салмақты, шешім критерийлері бойынша</caption>
+                  <thead>
+                    <tr><th scope="col">Критерий</th><th scope="col">Меншікті API</th><th scope="col">Ашық салмақ, өз серверінде</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Ең жақсы қолжетімді сапа</td><td class="yes">әдетте алда</td><td>жақын әрі жақындап келеді</td></tr>
+                    <tr><td>Аз көлемдегі құны</td><td class="yes">шақыру үшін төлейсіз, тұрақты шығын жоқ</td><td class="no">GPU толық бағамен бос тұрады</td></tr>
+                    <tr><td>Үлкен көлемдегі құны</td><td class="no">шексіз сызықты өседі</td><td class="yes">тұрақты, содан кейін тегін дерлік</td></tr>
+                    <tr><td>Деректер ғимараттан шығады</td><td class="no">иә</td><td class="yes">жоқ</td></tr>
+                    <tr><td>Офлайн / on-premise жұмыс істейді</td><td class="no">жоқ</td><td class="yes">иә</td></tr>
+                    <tr><td>Модель сізден сұрамай өзгеруі мүмкін</td><td class="no">иә, олардың кестесімен</td><td class="yes">ешқашан, файл сізде</td></tr>
+                    <tr><td>Дәлдеп оқытуға бола ма</td><td>шектеулі, ұсынылса</td><td class="yes">толығымен</td></tr>
+                    <tr><td>Инженерлік күш</td><td class="yes">API кілті</td><td class="no">қызмет көрсету, ауқымдау, жаңарту</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Қазақстан үшін нақты екі жол қалғандарынан маңыздырақ.</strong> &#171;Деректер ғимараттан шығады&#187; жүйенің дербес, банктік не мемлекеттік деректерге мүлде тие алатын-алмайтынын шешеді. Ал &#171;дәлдеп оқытуға бола ма&#187; &#8212; бұл модельдің қазақ тілін түзетуге мүмкіндік беретін нәрсе, ал 7-дәріс оны біз тексерген әр көптілді модельдің ең әлсіз бөлігі деп өлшеді.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tokens">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="tokens">Токендер және тіл неге түседі</h2>
+              <p class="narrow lead">
+                Меншікті модельдер сөз не сұраныс үшін емес, токен үшін ақы алады. Токенизаторлармен 2 және 7-дәрісте таныстыңыз; бұл &#8212; олар ақшаға айналатын бөлім.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --tokens</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  «Fine-tuning is expensive.» under o200k_base:
+        84886  ->  'Fine'
+         2378  ->  '-t'
+        30541  ->  'uning'
+          382  ->  ' is'
+        14818  ->  ' expensive'
+           13  ->  '.'
+  A token is a piece of a word. Billing counts these, not words.</code></pre></div>
+              <p class="narrow">
+                Төрт ағылшын сөзі алты токен болды. Бос орын өзінен кейінгі токенге тиесілі екеніне назар аударыңыз &#8212; <code>&#39; is&#39;</code>, <code>&#39;is&#39;</code> емес &#8212; сондықтан мәтінді жалғау токен санын бір рет осы басылымды көрмейінше өз бетінше көрінетін жолдармен өзгертеді.
+              </p>
+
+              <h3 style="margin-top: 44px">Сол бір сөйлем үш тілде</h3>
+              <p class="narrow">
+                Төмендегі қазақша мен орысша &#8212; ағылшыншаның аудармасы, сондықтан кез келген айырма &#8212> токенизатор, ұзынырақ хабар емес.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  the same message, three languages, tokens per message:
+  tokenizer                           en      ru      kk
+  ------------------------------------------------------
+  o200k_base  (GPT-4o family)         19      25      38
+  cl100k_base (GPT-4 / 3.5)           19      45      86
+  Qwen2.5                             19      37      72
+
+  cost multiplier against English (same meaning):
+  o200k_base  (GPT-4o family)       1.00    1.32    2.00
+  cl100k_base (GPT-4 / 3.5)         1.00    2.37    4.53
+  Qwen2.5                           1.00    1.95    3.79
+
+  words per message: en 16  ru 14  kk 12
+  tokens/word  o200k_base                 1.19    1.79    3.17
+  tokens/word  cl100k_base                1.19    3.21    7.17
+  tokens/word  Qwen2.5                    1.19    2.64    6.00</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-toklang-t">
+                <title id="fig-toklang-t">Сол бір хабар қазақ тілінде ағылшыншадан екі-төрт есе көп токенге түседі</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">бір бірдей хабарға токендер, токенизатор бойынша</text>
+                <text x="8" y="34" font-size="8" fill="#111111">o200k</text>
+                <rect x="66" y="24" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="34" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="39" width="68" height="13" fill="#c7d9ff" />
+                <text x="138" y="49" font-size="7" fill="#111111">ru 25</text>
+                <rect x="66" y="54" width="104" height="13" fill="#fecaca" />
+                <text x="174" y="64" font-size="7" fill="#111111">kk 38 (2.0x)</text>
+                <text x="8" y="90" font-size="8" fill="#111111">Qwen2.5</text>
+                <rect x="66" y="80" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="90" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="95" width="101" height="13" fill="#c7d9ff" />
+                <text x="171" y="105" font-size="7" fill="#111111">ru 37</text>
+                <rect x="66" y="110" width="197" height="13" fill="#fecaca" />
+                <text x="267" y="120" font-size="7" fill="#111111">kk 72  (3.8x)</text>
+                <text x="8" y="146" font-size="8" fill="#111111">cl100k</text>
+                <rect x="66" y="136" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="146" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="151" width="123" height="13" fill="#c7d9ff" />
+                <text x="193" y="161" font-size="7" fill="#111111">ru 45</text>
+                <rect x="66" y="166" width="235" height="13" fill="#fecaca" />
+                <text x="305" y="176" font-size="7" fill="#111111">kk 86</text>
+                <text x="8" y="194" font-size="8" fill="#2563eb">жаңа токенизаторлар әлдеқайда әділ: 4.5x 2.0x-ке дейін түсті</text>
+                </svg>
+                <p class="figure__caption">
+                  Сол бір мағына, үш түрлі бағаланған. cl100k-тан o200k-ке дейінгі жақсару нақты әрі әдейі жасалған &#8212; бірақ қазақ тілі әлі де екі есе тұрады.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл неге болады және не істеу керек</span>
+                <dl class="breakdown__list">
+                  <dt>себебі сөздікте</dt>
+                  <dd>Токенизатордың бекітілген сөздігі оқыту мәтінімен сатып алынады. Ағылшын тіліне оның басым бөлігі тиді, сондықтан ағылшын сөзі әдетте бір токен. Қазақ тіліне өте аз тиді, сондықтан қазақ сөздері сынықтардан құралады &#8212; 7-дәріс <span class="token">кітаптарымыздан</span> сөзінде өлшеген дәл сол әсер</dd>
+                  <dt>бұл бірден үш нәрсеге салынған салық</dt>
+                  <dd>Хабарға көбірек төлейсіз, контекст терезесіне азырақ сыйғызасыз және ұзағырақ күтесіз, себебі генерация уақыты токенмен саналады. Сол өнімді қазақ тілінде пайдалану жай ғана қымбатырақ</dd>
+                  <dt>жағдай жақсарып келеді</dt>
+                  <dd>cl100k қазақ тілінен 4.53&#215; алатын; o200k 2.00&#215; алады. Жаңа токенизаторлар сөздікті көбірек тілге әдейі бөледі, ал айырма бір ұрпақта шамамен екі есе қысқарды</dd>
+                  <dt>мұны сырттан түзету мүмкін емес</dt>
+                  <dd>Токенизатор модельмен бірге келеді. Сіздің жалғыз тетіктеріңіз &#8212; токенизаторы тіліңізді жақсырақ игеретін модель таңдау және бір нәрсеге келісер алдында өлшеу</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Өлшеуді келісімшартқа дейін жасаңыз.</strong> Өз трафигіңіздің шынайы үлгісін әр үміткердің токенизаторымен токенизациялап, салыстырыңыз. Бұл бірнеше минут алады және бюджетті екі есе өзгертеді.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Шотты есептеу</h3>
+              <p class="narrow">
+                Кез келген меншікті API бірдей тәсілмен, екі мөлшерлемемен ақы алады:
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>cost = (input_tokens  / 1 000 000) × price_in
+     + (output_tokens / 1 000 000) × price_out
+
+input_tokens  = system prompt + conversation history + this message
+output_tokens = what the model generates</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Адамдар қателесетін төрт нәрсе</span>
+                <dl class="breakdown__list">
+                  <dt>шығыс кіріске қарағанда шамамен бес есе қымбат</dt>
+                  <dd>Генерация тізбекті және оқу сияқты батчталмайды. Көпсөзді жүйелік промпт арзан; көпсөзді <em>модель</em> арзан емес. &#171;Ең көбі үш сөйлеммен жауап бер&#187; &#8212; бұл бюджеттік нұсқау</dd>
+                  <dt>әр кезекте бүкіл әңгіме қайта жіберіледі</dt>
+                  <dd>API күй сақтамайды. Чаттың 20-кезегі 1&#8211;19 кезектерді қайтадан кіріс ретінде төлейді. Ұзын әңгіме қысқартылмаса не түйінделмесе, өз ұзындығы бойынша квадраттық тұрады</dd>
+                  <dt>жүйелік промпт әр шақыруда төленеді</dt>
+                  <dd>Миллион шақырудағы 2&#8202;000 токенді жүйелік промпт &#8212; екі миллиард кіріс токені. Prompt caching дәл осы үшін керек: провайдерлер өздері көріп қойған префикс үшін бағаның бір бөлігін ғана алады</dd>
+                  <dt>reasoning токендері &#8212; бұл шығыс токендері</dt>
+                  <dd>Reasoning модельде жауап алдындағы ойлау шығыс ретінде, шығыс мөлшерлемесімен төленеді, тіпті ол сізге көрсетілмесе де</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Білуге тұрарлық үш жеңілдік:</strong> қайталанатын префикс үшін prompt caching; күте алатын жұмыс үшін топтама өңдеу (әдетте бағаның жартысындай); және трафигіңіздің жеңіл үлесіне кішірек модель.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Талданған айлық шот</h3>
+              <p class="narrow">
+                Айына 100&#8202;000 шақыру, екі жүктеме пішіні, нақты мысал ретінде Anthropic-тің жарияланған мөлшерлемелерімен есептелген. Жауап та пайдаланушының тілінде жазылады, сондықтан токен көбейткіші кіріске ғана емес, шығысқа да қолданылады.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  100,000 calls per month, o200k_base, system prompt 34 tokens
+  measured language multiplier (tokens per word vs English): en 1.00x, ru 1.50x, kk 2.67x
+
+  --- chat reply: 20 words in, 100 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5                326$         481$         840$      2.58x
+  claude-sonnet-5              130$         193$         336$      2.58x
+  claude-haiku-4-5              65$          96$         168$      2.58x
+
+  --- classify a document: 2000 words in, 5 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5              1,219$       1,825$       3,223$      2.64x
+  claude-sonnet-5              488$         730$       1,289$      2.64x
+  claude-haiku-4-5             244$         365$         645$      2.64x</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Есептеуде қолданылған жарияланған мөлшерлемелер мысалы</caption>
+                  <thead>
+                    <tr><th scope="col">Модель</th><th scope="col">Контекст</th><th scope="col">Кіріс $/M</th><th scope="col">Шығыс $/M</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>claude-opus-5</td><td>1M</td><td>5.00</td><td>25.00</td></tr>
+                    <tr><td>claude-sonnet-5</td><td>1M</td><td>2.00</td><td>10.00</td></tr>
+                    <tr><td>claude-haiku-4-5</td><td>200K</td><td>1.00</td><td>5.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Бұл мөлшерлемелер &#8212; мысал, ағымдағы баға ұсынысы емес.</strong> Бұл &#8212; 2026 жылдың ортасындағы бірінші тараптың прейскурант бағалары, әрі олар өзгереді. Осыдан алатыныңыз &#8212> әдіс: өз мәтініңізде токендерді санаңыз, жеткізуші бүгін алатын бағаны қолданыңыз да, өз көлеміңізге көбейтіңіз. Әр провайдер баға бетін де, токенизаторды да жариялайды; арифметика бірдей.
+              </p>
+              <div class="callout">
+                <strong>Екі блоктан екі қорытынды.</strong> Қазақ үстемесі екеуінде де шамамен 2.6&#215;, себебі токенизатор кірісті де, шығысты да бірдей үлкейтеді &#8212; бұл жүктеменің емес, тілдің қасиеті. Бірақ абсолют шот жіктеу тапсырмасында 3.7&#215; жоғары, ол бес-ақ сөз шығарса да, себебі ақшаны 2&#8202;000 сөздік кіріс тұрады. Шотыңыздың қай жартысын қысқартпақ екеніңізді қысқартар алдында біліңіз.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="choosing">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Шешім</span>
+              <h2 id="choosing">Модельді қалай таңдау керек</h2>
+              <p class="narrow lead">
+                Бенчмарк кестелері &#8212; бұл шешім үшін ең аз пайдалы кіріс. Төрт шектеу әдетте сапа туралы әңгіме басталмай тұрып-ақ мәселені шешеді.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 238" role="img" aria-labelledby="fig-choose8-t">
+                <title id="fig-choose8-t">Деректердің орналасуы мен бюджеттен модель класына дейінгі шешім жолы</title>
+                <rect x="84" y="8" width="172" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="22" font-size="8" fill="#111111" text-anchor="middle">деректерге ғимараттан шығуға бола ма?</text>
+                <line x1="170" y1="28" x2="170" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="274" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="66" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="274" y1="38" x2="274" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="14" y="48" width="104" height="18" rx="4" fill="#fef2f2" stroke="#fecaca" />
+                <text x="66" y="61" font-size="8" fill="#111111" text-anchor="middle">жоқ</text>
+                <rect x="222" y="48" width="104" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="274" y="61" font-size="8" fill="#111111" text-anchor="middle">иә</text>
+                <line x1="66" y1="66" x2="66" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="78" width="112" height="30" rx="4" fill="#2563eb" />
+                <text x="66" y="91" font-size="7" fill="#ffffff" text-anchor="middle">ашық салмақ, өз серверінде</text>
+                <text x="66" y="102" font-size="7" fill="#ffffff" text-anchor="middle">API тармағы жабық</text>
+                <line x1="274" y1="66" x2="274" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="218" y="78" width="112" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="274" y="91" font-size="8" fill="#111111" text-anchor="middle">көлемі қандай?</text>
+                <line x1="274" y1="96" x2="274" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="320" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="222" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="320" y1="106" x2="320" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="180" y="116" width="84" height="28" rx="4" fill="#2563eb" />
+                <text x="222" y="128" font-size="7" fill="#ffffff" text-anchor="middle">аз / үзік-үзік</text>
+                <text x="222" y="139" font-size="7" fill="#ffffff" text-anchor="middle">API алыңыз</text>
+                <rect x="274" y="116" width="58" height="28" rx="4" fill="#2563eb" />
+                <text x="303" y="128" font-size="7" fill="#ffffff" text-anchor="middle">өте жоғары</text>
+                <text x="303" y="139" font-size="7" fill="#ffffff" text-anchor="middle">есептеп көріңіз</text>
+                <line x1="8" y1="160" x2="332" y2="160" stroke="#e8ecf2" />
+                <text x="8" y="178" font-size="9" fill="#111111">содан кейін, қай тармақта болсаңыз, сол тармақтың ішінде:</text>
+                <text x="8" y="194" font-size="8" fill="#5b6270">1. өз мәтініңізді әр үміткермен токенизациялаңыз &#8212; бірнеше минут, GPU-сыз</text>
+                <text x="8" y="208" font-size="8" fill="#5b6270">2. 20 нақты мысал жазып, оларды 3 үміткер арқылы қолмен өткізіңіз</text>
+                <text x="8" y="222" font-size="8" fill="#5b6270">3. өтетіндердің ең арзанынан бастаңыз, сүрінгенде ғана көтеріліңіз</text>
+                <text x="8" y="234" font-size="8" fill="#2563eb">лидерборд сіздің тапсырмаңыз туралы дәлел емес</text>
+                </svg>
+                <p class="figure__caption">
+                  Деректердің орналасуы мен көлем тармақты шешеді; қолмен жасалған жиырма мысалдық бағалау модельді шешеді.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Сұрақтар, байланыстыру ретімен</span>
+                <dl class="breakdown__list">
+                  <dt>1. деректерді қайда жіберуге болады?</dt>
+                  <dd>Егер дербес, медициналық, банктік не мемлекеттік деректер елден не ғимараттан шыға алмаса, меншікті API тармағы жабық, әрі бенчмарктегі қандай да бір артықшылық оны қайта ашпайды. Мұны бірінші шешіңіз, себебі ол нұсқалардың жартысын тегін жояды</dd>
+                  <dt>2. көлемі қандай және тұрақты ма?</dt>
+                  <dd>GPU-ға күніне бір сұраныс жіберсеңіз де, миллион жіберсеңіз де бірдей тұрады. API бос тұрғанда ештеңе тұрмайды. Аз не үзік-үзік трафик API пайдасына; тұрақты жоғары трафик өз серверіңіз пайдасына, ал қиылысу нүктесі &#8212> жоғарыдағы баға бөлімімен жауап бере алатын арифметикалық сұрақ</dd>
+                  <dt>3. қаншалықты жақсы болуы керек және немен өлшенеді?</dt>
+                  <dd>Өз мәселеңізден қалаған жауаптарымен қоса жиырма нақты мысал жазыңыз. Әр үміткерді жүргізіңіз. Бұл &#8212; бір таңғы жұмыс, әрі ол кез келген жария лидербордтан маңыздырақ, өйткені ол сіздікі емес тапсырмада өлшенген &#8212; әдетте ағылшын тілінде</dd>
+                  <dt>4. кідіріс бюджеті қандай?</dt>
+                  <dd>Генерация тізбекті: уақыт шығыс токендерімен бірге өседі. Отыз секунд ойланатын reasoning модель автотолықтыру өрісінде жарамсыз, ал түнгі есепте әбден орынды</dd>
+                  <dt>5. тек содан кейін: қайсысы ақылдырақ?</dt>
+                  <dd>Жиырма мысалыңыздан өтетін ең арзан модельден бастаңыз. Ол дәлелді түрде сүрінген жерде ғана жоғары көтеріліңіз. Өндірістік трафиктің басым бөлігі жеңіл, ал жеңіл үлесті кішкентай модельге бағыттау &#8212; бар тетіктердің ішіндегі ең ірісі</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Қазақ тілі үшін осылардың бәрінің алдына бір қадам қосыңыз:</strong> токенизаторды тексеріңіз және модельдің бұл тілде мүлде жаза алатынын тексеріңіз. 7-дәрістегі бос орынды толтыру тесті екі минут алады және үміткерлерді кез келген басқа нәрседен жылдам шығарып тастайды.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sampling">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="sampling">Sampling параметрлері</h2>
+              <p class="narrow lead">
+                Әр қадамда модель бүкіл сөздік бойынша ықтималдық таралымын шығарады. Sampling параметрлері одан токеннің қалай таңдалатынын шешеді. Олар модельдің не білетінін өзгертпейді &#8212; тек оның қаншалықты батыл таңдайтынын өзгертеді.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 216" role="img" aria-labelledby="fig-sampling-t">
+                <title id="fig-sampling-t">Temperature таралымды қайта пішіндейді, top-k мен top-p оны кеседі</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">модельдің келесі токен бойынша таралымы</text>
+                <text x="8" y="30" font-size="8" fill="#111111">шикі</text>
+                <rect x="44" y="20" width="120" height="12" fill="#2563eb" /><text x="168" y="30" font-size="7" fill="#5b6270">Al .60</text>
+                <rect x="44" y="34" width="40" height="12" fill="#c7d9ff" /><text x="168" y="44" font-size="7" fill="#5b6270">The .20</text>
+                <rect x="44" y="48" width="20" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="58" font-size="7" fill="#5b6270">It .10</text>
+                <rect x="44" y="62" width="10" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="72" font-size="7" fill="#5b6270">&#8230; құйрық</text>
+                <text x="8" y="96" font-size="8" fill="#111111">T төмен</text>
+                <rect x="44" y="86" width="180" height="12" fill="#2563eb" /><text x="222" y="96" font-size="7" fill="#5b6270">өткірленген: әрқашан «Al»</text>
+                <text x="8" y="116" font-size="8" fill="#111111">T жоғары</text>
+                <rect x="44" y="106" width="60" height="12" fill="#2563eb" />
+                <rect x="106" y="106" width="50" height="12" fill="#c7d9ff" />
+                <rect x="158" y="106" width="44" height="12" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="222" y="116" font-size="7" fill="#5b6270">жазықталған: құйрық ашылады</text>
+                <line x1="8" y1="132" x2="332" y2="132" stroke="#e8ecf2" />
+                <text x="8" y="150" font-size="9" fill="#111111">top-k мен top-p басқа нәрсе істейді: олар нұсқаларды жояды</text>
+                <text x="8" y="168" font-size="8" fill="#5b6270">top-k = 3 &#8212; ықтималдығына қарамай үш үздігін қалдыру</text>
+                <rect x="44" y="176" width="120" height="10" fill="#2563eb" />
+                <rect x="44" y="188" width="40" height="10" fill="#c7d9ff" />
+                <rect x="44" y="200" width="20" height="10" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="176" y="186" font-size="7" fill="#5b6270">top-p = 0.9 &#8212; ықтималдықтарының қосындысы</text>
+                <text x="176" y="197" font-size="7" fill="#5b6270">0.9 болатын ең кіші жиын, сондықтан</text>
+                <text x="176" y="208" font-size="7" fill="#5b6270">саны модель сенімділігіне бейімделеді</text>
+                </svg>
+                <p class="figure__caption">
+                  Temperature бүкіл таралымды қайта масштабтайды; top-k мен top-p оны кеседі. Оларды әдетте қатар қолданады.
+                </p>
+              </div>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --sampling</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  model Qwen/Qwen2.5-0.5B-Instruct, prompt: «Write one sentence about Almaty.»
+
+  --- greedy (do_sample=False): the argmax every time ---
+    seed 0: Almaty is the capital and largest city of Kazakhstan, located in the
+            northwestern part of the country, near the Caspian Sea.
+    seed 1: (identical)
+    seed 2: (identical)
+
+  --- temperature ---
+    temperature=0.1
+      seed 0: ... located in the northwestern part of the country, near the Caspian Sea.
+      seed 1: ... located in the northwestern part of the country, on the banks of the Amur River.
+    temperature=0.7
+      seed 0: Almaty is a significant city in Kazakhstan, known for its historical
+              significance and the presence of numerous museums, art galleries...
+      seed 1: Almaty is the capital city of Kazakhstan and serves as the administrative
+              centre for the country's largest province, Kars Oblast.
+    temperature=1.5
+      seed 0: Almaty rose to encompass Mongolev Slimойут coordinated cities and railways
+              within North_USEx region安い Ølundiskoed Mexico azureTrain method
+      seed 1: En Baxter Heraldansa Shanghai clayijaolle手动nika硝zxraleixener...
+
+  --- top-k ---
+    top_k=1    (identical to greedy)
+    top_k=5    Almaty is a significant city in the Russian Federation located on
+               Kazakhstan's border, situated at approximately 41°37' north latitude...
+    top_k=50   Almaty is known for its picturesque natural beauty and modern skyline,
+               making it the capital and largest city of Kazakhstan by population.
+
+  --- top-p ---
+    top_p=0.1  (identical to greedy)
+    top_p=0.9  Almaty is a significant city in the Russian Federation's Kazakhstan
+               region, known for its important historical, cultural and economic...
+    top_p=1.0  Almaty is known for its picturesque natural beauty and modern skyline...
+
+  --- the distribution at each temperature ---
+    T=0.1  entropy 0.00   'Al' 1.000, 'The' 0.000, 'Located' 0.000
+    T=0.7  entropy 0.01   'Al' 0.999, 'The' 0.001, 'Located' 0.000
+    T=1.0  entropy 0.14   'Al' 0.984, 'The' 0.006, 'Located' 0.001
+    T=2.0  entropy 8.31   'Al' 0.188, 'The' 0.014, 'Located' 0.007</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Әр параметр не істеді</span>
+                <dl class="breakdown__list">
+                  <dt>greedy &#8212; әрқашан ең ықтимал токен</dt>
+                  <dd>Үш seed-те де бірдей, себебі кездейсоқ ештеңе болмайды. Қайталанғыштық керек болғанда қолданыңыз: ақпарат шығару, жіктеу, жүрістен жүріске салыстыратын кез келген нәрсе</dd>
+                  <dt>temperature &#8212; softmax алдында ұпайларды бөлу</dt>
+                  <dd>Энтропия кестесі &#8212; бүкіл әңгіме: T=0.1-де <code>0.00</code>, T=1.0-де <code>0.14</code>, T=2.0-де <code>8.31</code>. 1-ден төмені таралымды жоғарғы токенге қарай өткірлейді; 1-ден жоғарысы оны құйрық қолжетімді болғанша жазықтайды. 1.5-те бұл модель ағылшын сөйлемінің ішінде қытай, жапон және орыс сынықтарын шығарды &#8212; сөздіктің қалған 100 тілі құйрықта тұрады</dd>
+                  <dt>top-k &#8212; k үздік токенді қалдыру</dt>
+                  <dd><code>top_k=1</code> &#8212; дәл greedy, әрі мұны көрген пайдалы. Top-k әлсіздігі k тұрақты болуында: модель сенімді болғанда 50 үміткердің 49-ы нашар; ол шынымен күмәнданғанда 50 жақсыларын кесіп тастауы мүмкін</dd>
+                  <dt>top-p (nucleus) &#8212; қосындысы p болатын ең кіші жиынды қалдыру</dt>
+                  <dd>Модельдің сенімділігіне бейімделеді: бір токенде 0.99 болғанда ядро бір токеннен тұрады; жоғарғы қырықтың бәрі орынды болғанда қырқын қалдырады. Top-p жиірек әдепкі болуының себебі осы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Орынды бастау нүктелері:</strong> ақпарат шығару мен жіктеу &#8212; greedy не temperature 0. Әңгіме мен жалпы көмек &#8212; temperature 0.7 және top-p 0.9. Шығармашылық жазу &#8212; temperature 0.9&#8211;1.0. Шамамен 1.2-ден жоғары модельдердің көбі тез нашарлайды, мұны жоғарыдағы өлшеу көрсетеді.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Қате жауапты түзету үшін temperature қолданбаңыз.</strong> Бұл &#8212; модельдің өзі ықтимал деп санағанның ішінен таңдау. Егер дұрыс жауап таралымда болмаса, оны ешқандай баптау таппайды. Қате жауаптарды түзету &#8212; промпттың, retrieval-дің (9-дәріс) не жақсырақ модельдің жұмысы.
+              </p>
+
+              <h3 style="margin-top: 48px">Бұл тәжірибе шын мәнінде берген нәтиже</h3>
+              <div class="callout">
+                <strong>Шығысты стильге емес, мазмұнға қарап қайта оқыңыз.</strong> Алматы Қазақстанның астанасы <em>емес</em> &#8212; астанасы Астана. Алматы Каспий теңізінің жанында да, Амур өзенінде де, Ресей Федерациясында да емес, ал &#171;Карс облысы&#187; деген жоқ. 0.5&#8202;B модель мұның бәрін жатық әрі еш іркілместен, біз байқаған әр temperature бабында айтты.
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл неге параметрлердің өзінен маңыздырақ</span>
+                <dl class="breakdown__list">
+                  <dt>жатықтық пен дәлдік &#8212; бөлек нәрселер</dt>
+                  <dd>Осы сөйлемдердің әрқайсысы грамматикалық, сенімді әрі жақсы құрылған. Мәтінде мазмұнның ойдан шығарылғанын білдіретін ештеңе жоқ. Адамдар галлюцинация дегенде дәл осыны айтады, әрі бұл sampler-дің багы емес &#8212; greedy декодтау да қате астананы сол оңайлықпен шығарды</dd>
+                  <dt>кішкентай модельдер аз біледі</dt>
+                  <dd>0.5&#8202;B параметр &#8212; әлем туралы білімге бай орын емес. Үлкенірек модельдер бұл нақты сұраққа дұрыс жауап береді. Бірақ &#171;үлкенірек&#187; шекараны жылжытады, оны жоймайды</dd>
+                  <dt>айырма оқыту деректері ең жұқа жерде ең жаман</dt>
+                  <dd>7-дәріс mBERT-тің астана ретінде Алматыны Астанадан жоғары қоятынын анықтады. Мұнда генеративті модель сол нәрсені прозамен істейді. Қазақстан туралы фактілер &#8212; ағылшын тілі басым алдын ала оқыту корпусында ең нашар ұсынылған дәл сол фактілер, ал Қазақстанға арналған өнімге олардың дұрыс болуы дәл сол жерде керек</dd>
+                  <dt>бұған не істеу керек</dt>
+                  <dd>Модельден өзінде болмауы мүмкін фактілерді еске түсіруді сұрамаңыз. Фактілерді промптта беріп, соларды пайдалануды сұраңыз &#8212; бұл retrieval-augmented generation, әрі бұл &#8212> келесі дәріс</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Курстың бәрін өлшеуінің себебі осы.</strong> Біз sampling параметрлерін көрсетпек болып едік, ал жол-жөнекей әлдеқайда маңызды сабақ алдық, себебі шығысқа сеніп қалмай, оны оқып шықтық.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="reasoning">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Жаңарақ модель класы</span>
+              <h2 id="reasoning">Reasoning модельдері</h2>
+              <p class="narrow lead">
+                2024 жылдан бері кәдімгі чат-модельдің қасында екінші түрі пайда болды. Айырма архитектурада емес. Айырма &#8212; модельге жауап бермей тұрып қанша есептеу жұмсауға рұқсат етілгенінде.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Reasoning модель</strong> көрінетін жауабына дейін ұзын ішкі ой тізбегін жасайды және ол тізбекті шынымен пайдалы ету үшін &#8212; әдетте нығайтып оқыту арқылы &#8212; оқытылған: жоспарлауға, өзін тексеруге, қателерді байқауға және кері қайтуға.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-reason-t">
+                <title id="fig-reason-t">Кәдімгі модель бірден жауап береді, reasoning модель алдымен ойланады</title>
+                <text x="8" y="12" font-size="9" fill="#111111">кәдімгі чат-модель</text>
+                <rect x="8" y="20" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="34" font-size="8" fill="#111111" text-anchor="middle">сұрақ</text>
+                <line x1="68" y1="30" x2="86" y2="30" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="86" y="20" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="121" y="34" font-size="8" fill="#ffffff" text-anchor="middle">жауап</text>
+                <text x="164" y="34" font-size="8" fill="#5b6270">жылдам, арзан</text>
+                <line x1="8" y1="54" x2="332" y2="54" stroke="#e8ecf2" />
+                <text x="8" y="72" font-size="9" fill="#111111">reasoning модель</text>
+                <rect x="8" y="80" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="94" font-size="8" fill="#111111" text-anchor="middle">сұрақ</text>
+                <line x1="68" y1="90" x2="82" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="82" y="80" width="164" height="20" rx="4" fill="#c7d9ff" />
+                <text x="164" y="94" font-size="8" fill="#111111" text-anchor="middle">ойлау: жоспар, талпыныс, тексеру, кері қайту</text>
+                <line x1="246" y1="90" x2="260" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="260" y="80" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="295" y="94" font-size="8" fill="#ffffff" text-anchor="middle">жауап</text>
+                <text x="82" y="114" font-size="7" fill="#5b6270">жүздеген токеннен ондаған мыңға дейін, әдетте жасырын</text>
+                <text x="82" y="126" font-size="7" fill="#b91c1c">көрсеңіз де, көрмесеңіз де шығыс токені ретінде төленеді</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">айырбас</text>
+                <rect x="8" y="166" width="150" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="178" font-size="7" fill="#111111" text-anchor="middle">математика, код, логикада әлдеқайда жақсы</text>
+                <rect x="176" y="166" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="254" y="178" font-size="7" fill="#111111" text-anchor="middle">баяуырақ әрі бірнеше есе қымбат</text>
+                <text x="8" y="202" font-size="8" fill="#5b6270">«осы хатты түйінде» үшін ойлау &#8212; таза шығын</text>
+                </svg>
+                <p class="figure__caption">
+                  Сол архитектура, келесі токеннің сол циклі. Модельді жай ғана алдымен қара жоба пайдалануға &#8212; әрі оны жақсы пайдалануға &#8212> үйреткен.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Шын мәнінде не болып жатыр</span>
+                <dl class="breakdown__list">
+                  <dt>шығару кезіндегі есептеу</dt>
+                  <dd>Модельді жақсартудың ескі жолы оны үлкейту еді, ол ақшаны бір рет, оқыту кезінде тұрады. Жаңа жолы &#8212; сұрақ келгенде оған ұзағырақ ойлануға рұқсат беру, ол ақшаны әр жолы тұрады. Қиын мәселелердегі дәлдік тізбек ұзындығымен өседі &#8212; сіз шығару кезінде сапаны токенмен сатып аласыз</dd>
+                  <dt>chain of thought &#8212; оның бастаушысы</dt>
+                  <dd>Промптқа &#171;қадам-қадаммен ойла&#187; қосу кәдімгі модельдердің арифметикасын бұдан жылдар бұрын жақсартатын. Reasoning модельдер мұны сіңіріп алады: сұралмай-ақ, әлдеқайда ұзағырақ істейді, әрі оларды соңғы жауаптың дұрыс-бұрыстығы бойынша оқытқан</dd>
+                  <dt>тексерілетін мәселелерде нығайтып оқытылған</dt>
+                  <dd>Математика мен кодта объективті жауап бар, сондықтан машина талпыныстарды адамсыз бағалай алады. Дұрыс жауапқа жеткенді марапаттаңыз, сонда пайдалы әдеттер &#8212; өзін тексеру, басқа тәсіл көру &#8212; ешкім нұсқамай-ақ өздігінен пайда болады. Келесі бөлім осы механизм туралы</dd>
+                  <dt>сізге әдетте тізбек емес, түйіні көрсетіледі</dt>
+                  <dd>Провайдерлер шикі пайымдауды әдетте жасырады не түйіндейді. Оған қалай болғанда да ақы төлейсіз, әрі бұл &#8212; осындай модельдердегі ең жиі кездесетін бюджеттік тосынсый</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Қашан осындай модельге жүгінеді:</strong> көп қадамды арифметика, компиляциялануға тиіс код, логикалық шектеулер, жоспарлау. <strong>Қашан жүгінбейді:</strong> түйіндеу, жіктеу, ақпарат шығару, қайта жазу, аударма, әңгіме &#8212; жауап кірістен қорытылмай, кірісті түрлендіру болатын кез келген нәрсе. Ондай жерде ойлау &#8212; сізге ештеңе бермейтін кідіріс пен шығын.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Күш реттегіші стандартқа айналып келеді.</strong> Екі бөлек модель отбасының орнына провайдерлер барған сайын қаншалықты қатты ойлану керегін баптайтын бір модель ұсынады: күнделікті трафикке төмен, дұрыстық бағадан маңызды болғанда жоғары. Оған дәл өзі не болса, солай қараңыз: бұл &#8212; бір рет жаһандық қойылмай, маршрут бойынша бапталып, өлшенетін шығын бақылауы.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="rl">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Үшінші оқыту сатысы</span>
+              <h2 id="rl">Нығайтып оқыту және ол не үшін керек</h2>
+              <p class="narrow lead">
+                Мұғаліммен оқытуға еліктейтін дұрыс жауап керек. &#171;Пайдалы жауап жаз&#187; үшін жалғыз дұрыс жауап жоқ &#8212; бірақ адамдар екі жауаптың қайсысы жақсы екенін сенімді айта алады. Нығайтып оқыту &#8212; сол әлсіздеу сигналдың жақсырақ модельге айналу жолы.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 236" role="img" aria-labelledby="fig-rlhf-t">
+                <title id="fig-rlhf-t">Салыстырулар марапат моделіне айналады, ол тілдік модельді оқытады</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">1-қадам &#183; салыстырулар жинау</text>
+                <rect x="8" y="20" width="84" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="50" y="32" font-size="7" fill="#111111" text-anchor="middle">бір промпт</text>
+                <line x1="92" y1="29" x2="106" y2="29" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="106" y="20" width="92" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="152" y="32" font-size="7" fill="#111111" text-anchor="middle">A жауабы</text>
+                <rect x="206" y="20" width="92" height="18" rx="4" fill="#2563eb" />
+                <text x="252" y="32" font-size="7" fill="#ffffff" text-anchor="middle">B жауабы &#10003; таңдалды</text>
+                <text x="8" y="56" font-size="9" fill="#5b6270">2-қадам &#183; таңдауды болжайтын марапат моделін оқыту</text>
+                <rect x="8" y="64" width="150" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="78" font-size="7" fill="#111111" text-anchor="middle">марапат моделі: мәтін &#8594; ұпай</text>
+                <text x="166" y="78" font-size="7" fill="#5b6270">адамдарға не ұнағанын үйренеді</text>
+                <text x="8" y="102" font-size="9" fill="#5b6270">3-қадам &#183; LLM-ді жоғары ұпай жинауға оқыту</text>
+                <rect x="8" y="110" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="48" y="124" font-size="7" fill="#ffffff" text-anchor="middle">LLM жазады</text>
+                <line x1="88" y1="120" x2="104" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="104" y="110" width="76" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="142" y="124" font-size="7" fill="#111111" text-anchor="middle">марапат бағалайды</text>
+                <line x1="180" y1="120" x2="196" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="196" y="110" width="76" height="20" rx="4" fill="#2563eb" />
+                <text x="234" y="124" font-size="7" fill="#ffffff" text-anchor="middle">LLM-ді жаңарту</text>
+                <path d="M 272 120 L 296 120 L 296 100 L 48 100 L 48 110" fill="none" stroke="#2563eb" stroke-width="1.4" />
+                <text x="8" y="150" font-size="8" fill="#b91c1c">бау керек: RL-ге дейінгі модельге жақын қалу,</text>
+                <text x="8" y="162" font-size="8" fill="#b91c1c">әйтпесе ол жоғары ұпай алатын мағынасыздық тауып, тек соны жазады</text>
+                <line x1="8" y1="176" x2="332" y2="176" stroke="#e8ecf2" />
+                <text x="8" y="194" font-size="9" fill="#111111">DPO ортаңғы қадамды алып тастайды</text>
+                <text x="8" y="210" font-size="8" fill="#5b6270">«B, A-дан артық» дегенге тікелей оқыту &#8212; марапат моделі жоқ,</text>
+                <text x="8" y="224" font-size="8" fill="#5b6270">sampling циклі жоқ, әлдеқайда қарапайым және әдетте кем түспейді</text>
+                </svg>
+                <p class="figure__caption">
+                  RLHF үш қадамда. DPO 2 және 3-қадамды бір мұғаліммен оқыту мақсатына сығады, сондықтан командалардың көбі бүгін содан бастайды.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Кездесетін сөздік</span>
+                <dl class="breakdown__list">
+                  <dt>RLHF &#8212; адам кері байланысымен нығайтып оқыту</dt>
+                  <dd>InstructGPT-дегі түпнұсқа рецепт: салыстырулар жинау, марапат моделін үйрету, KL айыппұлы оны бастапқы жерге жақын ұстап тұрғанда LLM-ді PPO-мен соған қарсы оңтайландыру. Бұл жұмыс істейді әрі күтім талап етеді &#8212; жадыда үш модель, тұрақсыз оптимизатор және алдауға болатын марапат моделі</dd>
+                  <dt>марапатты алдау (reward hacking)</dt>
+                  <dd>KL айыппұлын міндетті ететін сәтсіздік түрі. Модель жақсы болмай-ақ жоғары ұпай алатын мәтін табады &#8212; жағымпаздық, бұлтарыс, су, сұрақты қайталау. &#171;Тамаша сұрақ!&#187; деп бастайтын ассистенттерді байқасаңыз, сіз марапат моделінің талғамын, адал үйренілген күйінде көрдіңіз</dd>
+                  <dt>DPO &#8212; қалауды тікелей оңтайландыру</dt>
+                  <dd>Марапат моделін мүлде өткізіп жіберуге болатыны туралы байқау: мұздатылған тірек модельге қатысты таңдалған жауаптың ықтималдығын тікелей көтеріп, екіншісін төмендететін шығын функциясын шығару. Оқытатын бір модель, кәдімгі мұғаліммен оқыту циклі, дұрыс істеу әлдеқайда оңай. Бүгін командалардың көбі осыдан бастайды</dd>
+                  <dt>RLVR &#8212; тексерілетін марапаттармен RL</dt>
+                  <dd>Математика, код және жауабын тексеруге болатын кез келген нәрсе үшін марапат адам да, үйренілген модель де емес, <em>бағдарлама</em>: тесттерді жүргізу, жауапты тексеру. Адам таңбалауы да, алдауға болатын марапат моделі де жоқ, әрі ауқымдағанда адал қалатын сигнал. Reasoning модельдерінің қозғалтқышы осы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Бүкіл идеяның пішіні:</strong> мұғаліммен оқыту модельді бір жақсы жауапқа еліктеуге үйретеді. Нығайтып оқыту оны жақсырақ жауаптарды нашарларынан артық көруге үйретеді. Екіншісі &#8212; мысалға шаққанда әлдеқайда әлсіз сигнал және тілде &#171;жақсы&#187; дегеннің мағынасына әлдеқайда сай.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Бұл сізге қай жерден тиеді.</strong> Сіз RLHF жүргізуіңіз екіталай. Бірақ оның үш салдарын кез келген нәрсені құра бастағаннан кейінгі бір аптада кездестіресіз: модельдің реңкі мен бас тартулары білімінен емес, 3-сатыдан шығады; &#171;пайдалы&#187; &#8212; факт емес, үйренілген қалау, сондықтан әртүрлі жеткізушінің модельдері бұл жөнінде келіспейді; ал жауапты сумен толтыру әдеті &#8212; әдетте айқын нұсқаумен басуға болатын үйренілген мінез.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="finetune">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Модельді бейімдеу</span>
+              <h2 id="finetune">Fine-tuning: толық және LoRA</h2>
+              <p class="narrow lead">
+                7-дәрісте біз 178&#8202;M энкодердің әр салмағын ноутбукте дәлдеп оқыттық. 7&#8202;B модельдегі сол қадам үдеткіш жадысының шамамен жүз гигабайтын талап етеді. LoRA &#8212> сол санның қайта төмендеу жолы.
+              </p>
+              <div class="callout">
+                <strong>Бұл бөлімде ештеңе оқытылмайды.</strong> Сіз жүрісті емес, рецепттерді сұрадыңыз, әрі бұл дұрыс шешім: бұл жұмыстардың бірде-бірі ноутбукке сыймайды. Төменде <em>өлшенетін</em> нәрсе &#8212; GPU қажет етпейтін бөлік: параметр санақтары, ал дәлелдің бәрі солар.
+              </div>
+
+              <h3 style="margin-top: 44px">Толық fine-tuning неге қымбат</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 202" role="img" aria-labelledby="fig-ftmem-t">
+                <title id="fig-ftmem-t">Оқыту жадысы салмақтар көлемінен бірнеше есе үлкен</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">7 B модель, bf16 салмақтар, AdamW</text>
+                <text x="8" y="32" font-size="8" fill="#111111">шығару</text>
+                <rect x="76" y="22" width="42" height="14" fill="#2563eb" />
+                <text x="124" y="32" font-size="7" fill="#111111">салмақтар 14 ГБ</text>
+                <text x="8" y="58" font-size="8" fill="#111111">толық оқыту</text>
+                <rect x="76" y="48" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="48" width="42" height="14" fill="#c7d9ff" />
+                <rect x="164" y="48" width="84" height="14" fill="#fecaca" />
+                <rect x="250" y="48" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="286" y="58" font-size="7" fill="#111111">~100 ГБ</text>
+                <text x="76" y="76" font-size="6" fill="#5b6270">салмақтар</text>
+                <text x="120" y="76" font-size="6" fill="#5b6270">градиенттер</text>
+                <text x="164" y="76" font-size="6" fill="#5b6270">оптимизатор күйі, fp32</text>
+                <text x="250" y="76" font-size="6" fill="#5b6270">активациялар</text>
+                <text x="8" y="102" font-size="8" fill="#111111">LoRA</text>
+                <rect x="76" y="92" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="92" width="4" height="14" fill="#c7d9ff" />
+                <rect x="126" y="92" width="6" height="14" fill="#fecaca" />
+                <rect x="134" y="92" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="170" y="102" font-size="7" fill="#111111">~18 ГБ &#8212; бір тұтынушылық GPU</text>
+                <text x="8" y="126" font-size="8" fill="#5b6270">мұздатылған салмақтар ұсталады, бірақ басқа ештеңе ауқымдалмайды</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">AdamW параметрге екі қосымша fp32 сан ұстайды</text>
+                <text x="8" y="174" font-size="8" fill="#5b6270">момент пен дисперсия &#8212; параметрге 8 байт, оған қоса</text>
+                <text x="8" y="188" font-size="8" fill="#5b6270">2 байттық салмақ пен оның 2 байттық градиенті &#8212; 12&#8211;16x осыдан</text>
+                </svg>
+                <p class="figure__caption">
+                  Салмақтар &#8212; оқыту жұмысының ең кіші бөлігі. Оптимизатор күйі &#8212; ең үлкені, ал LoRA одан барлығын дерлік алып тастайды.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">LoRA не істейді</h3>
+              <p class="narrow">
+                Алдын ала оқытылған <code>W</code> салмақ матрицасын мұздатыңыз. Қасына кішкентай айналма жол қосып, тек соны оқытыңыз.
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>ordinary layer   h = W x                     W is (d, k), all of it trainable
+
+LoRA layer       h = W x  +  (B · A) x       W frozen
+                 A is (r, k), B is (d, r),   only A and B are trained
+                 r is small: 4, 8, 16, 64
+
+trainable numbers:  d·k      ->     r·(d + k)</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 180" role="img" aria-labelledby="fig-lora-t">
+                <title id="fig-lora-t">Мұздатылған салмақ матрицасы және оның қасындағы жіңішке оқытылатын айналма жол</title>
+                <rect x="20" y="30" width="64" height="64" rx="4" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="52" y="58" font-size="8" fill="#5b6270" text-anchor="middle">W мұздатылған</text>
+                <text x="52" y="72" font-size="7" fill="#5b6270" text-anchor="middle">896 &#215; 896</text>
+                <text x="52" y="108" font-size="7" fill="#5b6270" text-anchor="middle">802 816 сан</text>
+                <text x="100" y="66" font-size="11" fill="#111111">+</text>
+                <rect x="124" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="152" y="66" font-size="8" fill="#ffffff" text-anchor="middle">A  8 &#215; 896</text>
+                <text x="188" y="66" font-size="10" fill="#111111">&#183;</text>
+                <rect x="200" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="228" y="66" font-size="8" fill="#ffffff" text-anchor="middle">B  896 &#215; 8</text>
+                <text x="190" y="90" font-size="7" fill="#2563eb" text-anchor="middle">14 336 сан, оқытылатын</text>
+                <text x="190" y="104" font-size="7" fill="#5b6270" text-anchor="middle">осы бір матрица үшін 56&#215; аз</text>
+                <line x1="8" y1="122" x2="332" y2="122" stroke="#e8ecf2" />
+                <text x="8" y="140" font-size="8" fill="#111111">r рангі &#8212; тар жердің ені: қабатқа қаншалықты өзгеруге рұқсат</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">оқытудан кейін B&#183;A-ны W-ға қосуға болады: шығару баяуламайды</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">ал адаптер бірнеше МБ: бір база көп тапсырмаға жарайды</text>
+                </svg>
+                <p class="figure__caption">
+                  Дәлдеп оқытуға қажет жаңарту төмен рангті болып шығады, сондықтан оны бір жуан матрицаның орнына екі жіңішке матрицамен сақтауға болады.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --lora        # counts parameters; trains nothing</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  base model Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  full fine-tuning would train all 494,032,768 of them,
+  and the optimiser needs roughly 12–16 bytes per parameter on top.
+
+    rank r     trainable   % of model   adapter MB
+  --------------------------------------------------
+         4       540,672       0.109%         2.2
+         8     1,081,344       0.219%         4.3
+        16     2,162,688       0.438%         8.7
+        64     8,650,752       1.751%        34.6</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Кестені оқу</span>
+                <dl class="breakdown__list">
+                  <dt>8-рангте 0.219%</dt>
+                  <dd>Модельдің мыңнан бірі шамасында. Жадыны шын мәнінде толтыратын оптимизатор күйі де сонша есе кемиді</dd>
+                  <dt>адаптер 4 МБ</dt>
+                  <dd>bf16-дағы базалық модельдің шамамен 1 ГБ-ына қарсы. Жиырма тапсырмаға арналған адаптер ұстап, оларды бір жүктелген базалық модельде ауыстыра аласыз &#8212; провайдер дәлдеп оқытуды бірден көп клиентке дәл осылай ұсынады</dd>
+                  <dt>ранг &#8212; жалғыз нағыз гиперпараметр</dt>
+                  <dd>Төмен ранг (4&#8211;8) стиль, реңк және пішім үшін. Жоғарырақ (16&#8211;64) тапсырмаға базалық модельде жоқ білім керек болғанда. Жоғары ранг автоматты түрде жақсы емес және жадыны сызықты тұтынады</dd>
+                  <dt>шығару кезінде қосымша шығын жоқ</dt>
+                  <dd><code>B&#183;A</code> пішіні <code>W</code> пішінімен бірдей, сондықтан оқытудан кейін оны салмақтарға қайта қосып жіберуге болады. Орналастырылған модель бастапқысымен дәл бірдей жылдам жұмыс істейді</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>QLoRA</strong> тағы бір қадам әрі кетеді: мұздатылған базалық модельді 4 битте ұстап, үстіне LoRA адаптерлерін оқыту. 7&#8202;B модельді дәлдеп оқытуды бір 16 ГБ тұтынушылық GPU-ға сыйғызатын дәл осы, әрі бұл &#8212; кластері жоқ адамдарға арналған стандартты рецепт.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Код қалай көрінеді</h3>
+              <p class="narrow">
+                Бұл &#8212; LoRA дәлдеп оқытудың толық нұсқасы. Ол іске қосылмай, көрсетілген &#8212; осы курс қолданатын жабдықта ол аяқталмас еді.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from datasets import load_dataset
+from peft import LoraConfig, get_peft_model
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+BASE = "Qwen/Qwen2.5-7B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(BASE)
+
+# 1. the base model, frozen weights in bf16 (or 4-bit, for QLoRA)
+model = AutoModelForCausalLM.from_pretrained(BASE, dtype="bfloat16", device_map="auto")
+
+# 2. attach the adapters — this is the entire difference from Lecture 7
+model = get_peft_model(model, LoraConfig(
+    r=8,                      # rank: the width of the bottleneck
+    lora_alpha=16,            # scaling, conventionally 2 x r
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+))
+model.print_trainable_parameters()     # -> trainable: 0.2% of all params
+
+# 3. the data: instruction / response pairs in the model's own chat format
+def format_example(row):
+    messages = [{"role": "user", "content": row["instruction"]},
+                {"role": "assistant", "content": row["response"]}]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    return tokenizer(text, truncation=True, max_length=1024)
+
+data = load_dataset("json", data_files="kazakh_support_pairs.jsonl")["train"]
+data = data.map(format_example, remove_columns=data.column_names)
+
+# 4. an ordinary training loop — the same five operations as Lecture 5
+#    (forward, loss, backward, clip, step). Nothing here is LoRA-specific.
+
+# 5. save only the adapter: a few megabytes, not a few gigabytes
+model.save_pretrained("adapters/kazakh-support")</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Шын мәнінде маңызды шешімдер</span>
+                <dl class="breakdown__list">
+                  <dt><code>target_modules</code></dt>
+                  <dd>Қай матрицалар адаптер алады. Attention проекциялары &#8212; әдеттегі таңдау; feed-forward матрицаларын қосу адаптерге көбірек сыйымдылық әрі көбірек параметр береді. Тек attention-нан бастаңыз</dd>
+                  <dt>чат шаблоны</dt>
+                  <dd>Оқыту деректері модель шығару кезінде күтетіндей етіп, арнайы токендерін қоса дәл солай пішімделуге тиіс. <code>apply_chat_template</code> осыны істейді; пішімді қолмен құрастыру &#8212; LoRA жүрісі үнсіз нашарлау модель шығаратын ең жиі жол</dd>
+                  <dt>қанша дерек керек</dt>
+                  <dd>Стиль мен пішім үшін бірнеше жүзден бірнеше мыңға дейін жақсы таңдалған мысал &#8212; қалыпты ауқым. 7-дәріс бұл қисықтың пішінін тікелей өлшеді: алғашқы мың мысал ұтыстың басым бөлігін көтереді</dd>
+                  <dt>дәлдеп оқыту не үшін керек, не үшін керек емес</dt>
+                  <dd><strong>Керек:</strong> пішім, реңк, сала сөздігі, модель құрылымдық түрде қате шешетін тапсырма, ол нашар игеретін тіл. <strong>Керек емес:</strong> оған фактілерді үйрету. Фактілердің орны &#8212; сұрау кезінде табылып промптқа қойылған жер, ал бұл &#8212; 9-дәріс</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Адал әрекет реті:</strong> алдымен жақсырақ промпт, содан кейін few-shot мысалдар, содан кейін retrieval, тек содан кейін дәлдеп оқыту. Дәлдеп оқыту &#8212; төртеудің ішіндегі ең қымбаты әрі адамдар бірінші болып жүгінетіні.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="quantization">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Өлшенді</span>
+              <h2 id="quantization">Quantization</h2>
+              <p class="narrow lead">
+                Модельдегі әр салмақ &#8212; белгілі бір бит санымен сақталған сан. Quantization оны азырақ битпен сақтайды. Бұл &#8212; модельді шынымен өзіңізде бар жабдыққа сыйғызудың ең тиімді тәсілі.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Quantization</strong> жоғары дәлдікті салмақтарды төмен дәлдіктілерімен ауыстырады &#8212; әдетте 16 биттік жылжымалы нүктелі сандарды 8 не 4 биттік бүтін сандармен &#8212; әр жолға шағын масштаб коэффициентін сақтай отырып, сонда бастапқы мәндерді жуықтап қалпына келтіруге болады.
+                </p>
+              </div>
+              <div class="code-block" data-lang="math"><pre><code>for each row of the weight matrix:
+    scale = max(|row|) / 127
+    stored = round(row / scale)        an int8 in [-127, 127]
+    restored = stored × scale          close to the original, not equal
+
+one float32 weight  = 32 bits
+one int8 weight     =  8 bits + a shared scale per row  ->  ~4x smaller</code></pre></div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --quantize</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  precision       bytes/param       total   vs fp32
+  --------------------------------------------------
+  fp32                      4     1.98 GB      1.0x
+  fp16/bf16                 2     0.99 GB      2.0x
+  int8                      1     0.49 GB      4.0x
+  int4                    0.5     0.25 GB      8.0x
+
+  one real weight matrix, (896, 896), rounded to int8:
+    original range      -1.2266 .. +1.1719
+    mean absolute error 0.000484
+    worst single error  0.004829
+    relative error      1.15%
+    distinct values     4,209 -> 255
+
+  rounded 169 linear layers to int8 and back:
+    «The capital of Kazakhstan is»
+    fp32 : located in the ___ A. Central Asia region B
+    int8 : located in the ___ A. Central Asia region B
+    identical: True</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 190" role="img" aria-labelledby="fig-quant-t">
+                <title id="fig-quant-t">Салмақ қатесінің шамамен бір пайызына төрт есе кіші</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">сол 0.5 B модель, оны сақтаудың төрт тәсілі</text>
+                <text x="8" y="32" font-size="8" fill="#111111">fp32</text>
+                <rect x="58" y="22" width="248" height="14" fill="#2563eb" />
+                <text x="310" y="32" font-size="7" fill="#111111">1.98</text>
+                <text x="8" y="52" font-size="8" fill="#111111">fp16</text>
+                <rect x="58" y="42" width="124" height="14" fill="#2563eb" />
+                <text x="188" y="52" font-size="7" fill="#111111">0.99 ГБ</text>
+                <text x="8" y="72" font-size="8" fill="#111111">int8</text>
+                <rect x="58" y="62" width="62" height="14" fill="#2563eb" />
+                <text x="126" y="72" font-size="7" fill="#111111">0.49 ГБ &#8212; 4x кіші</text>
+                <text x="8" y="92" font-size="8" fill="#111111">int4</text>
+                <rect x="58" y="82" width="31" height="14" fill="#2563eb" />
+                <text x="95" y="92" font-size="7" fill="#111111">0.25 ГБ &#8212; 8x кіші</text>
+                <line x1="8" y1="108" x2="332" y2="108" stroke="#e8ecf2" />
+                <text x="8" y="126" font-size="9" fill="#111111">int8 бізге неге түсті, өлшенген</text>
+                <text x="8" y="142" font-size="8" fill="#5b6270">бір матрицадағы 4 209 түрлі салмақ мәні 255 болды</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">орташа қате салмақтың орташа шамасының 1.15%-ы</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">ал модель сол сөйлемді, токенге токен дәл сондай шығарды</text>
+                <text x="8" y="186" font-size="8" fill="#5b6270">оның 169 сызықтық қабатының бәрі дөңгелектенген күйде</text>
+                </svg>
+                <p class="figure__caption">
+                  Төрт есе аз жады, салмақтардың бір пайыздық ауытқуы және мүлде өзгермеген шығыс.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл неге сонша жақсы жұмыс істейді</span>
+                <dl class="breakdown__list">
+                  <dt>нейрожелілер салмақтардағы шағын шуға төзімді</dt>
+                  <dd>Оқыту ешқашан сандардың бір дәл жиынын тапқан жоқ; ол шығын аз болатын кең аймақ тапты. 1%-дық ауытқу сол аймақтың басқа бір жеріне түседі. Dropout-тың жұмыс істеу себебі де осы</dd>
+                  <dt>ұтыс жады сыйымдылығында ғана емес, өткізу қабілетінде</dt>
+                  <dd>Генерацияны арифметика емес, салмақтардың жадыдан қаншалықты жылдам оқылатыны шектейді. Төрт есе кіші салмақтар токенге шаққанда шамамен төрт есе аз оқу дегенді білдіреді, сондықтан кванттелген модельдер нағыз бүтін сандық ядролармен қоса жылдам да болады</dd>
+                  <dt>4 бит &#8212; пайым керек жер</dt>
+                  <dd>int8 тегін дерлік. int4 тағы екі есе үнемдейді және өлшенетін сапаға түсе бастайды, модель кіші болған сайын күштірек. Практикалық ереже: 4 биттік 13&#8202;B модель сол жады бюджетінде 8 биттік 7&#8202;B модельді әдетте басып озады</dd>
+                  <dt>қабаттардың бәрі тең емес</dt>
+                  <dd>Нағыз схемалар &#8212; GPTQ, AWQ, GGUF-тің k-кванттары &#8212; сезімтал қабаттарды жоғары дәлдікте ұстайды және масштабтарды таңдауға калибрлеу деректерін пайдаланады. Біздің біркелкі жол бойынша дөңгелектеуіміз &#8212; оқу нұсқасы; өндірістік квантизаторлар ұқыптырақ әрі азырақ жоғалтады</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Өз демонстрациямызға адал ескертпе:</strong> бір промпт және бірдей шығыс &#8212; ештеңе бұзылмағанының дәлелі, ештеңе өзгермегенінің дәлелі емес. Нағыз бағалау бенчмаркті алдында да, кейін де жүргізеді. Сондай-ақ 0.5&#8202;B модельдің жауабы <em>екі жағдайда да</em> нашар екеніне назар аударыңыз; quantization бар сапаны сақтады, ал ол көп емес еді.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Бұл сізге тәжірибеде не береді.</strong> 70&#8202;B модель fp16-да 140 ГБ және қолжетімсіз. 4 битте ол 35 ГБ және бір 80 ГБ үдеткіште не екі тұтынушылық картада жүреді. Quantization &#8212; ешкім жаңа ештеңе оқытпай-ақ &#171;бір адам іске қоса алатын модельдер&#187; шекарасын шамамен 7&#8202;B-дан шамамен 70&#8202;B-ға жылжытқан нәрсе.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="run">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Скрипт</span>
+              <h2 id="run">Өзіңіз іске қосу</h2>
+              <p class="narrow lead">
+                Осы беттегі әр өлшенген сан <a href="../../code_files/lesson8.py">code_files/lesson8.py</a> файлынан алынған. Оның ешқайсысына GPU керек емес: жүктелетін ең үлкен модель &#8212; 0.5&#8202;B, ал бес бөлімнің екеуі &#8212; таза арифметика.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds tiktoken and peft
+
+python3 lesson8.py --tokens     # tokenizer economics, kk / ru / en, and a bill
+python3 lesson8.py --memory     # parameters -> gigabytes, and the KV cache
+python3 lesson8.py --sampling   # temperature, top-k, top-p on a real model
+python3 lesson8.py --lora       # LoRA parameter counts (counts, does not train)
+python3 lesson8.py --quantize   # int8: size, weight error, output
+python3 lesson8.py --all</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Әр жалауша неге түседі</span>
+                <dl class="breakdown__list">
+                  <dt><code>--tokens</code>, <code>--memory</code></dt>
+                  <dd>Секундтар. <code>--memory</code> үшін модель мүлде жүктелмейді; <code>--tokens</code> тек токенизаторларды жүктейді, ал олар бірнеше мегабайт</dd>
+                  <dt><code>--sampling</code>, <code>--lora</code>, <code>--quantize</code></dt>
+                  <dd>Әрқайсысы бірнеше минут, оған қоса Qwen2.5-0.5B-Instruct-тің шамамен 1 ГБ бір реттік жүктемесі. MPS не CUDA құрылғысы болмаса, олар CPU-да жүреді</dd>
+                  <dt>мұнда әдейі жоқ нәрсе</dt>
+                  <dd>Дәлдеп оқыту жүрісі. LoRA бөлімі параметр санағын басып шығарады және кодты көрсетеді; ол оқытпайды, себебі бұл жабдықта аяқталмас еді</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Өз деректеріңізде жүргізуге тұрарлық екеуі</strong> &#8212; өз мәтініңіз қойылған <code>--tokens</code> және &#171;модельді қалай таңдау керек&#187; бөліміндегі жиырма мысалдық бағалау. Екеуі де бір сағаттан аз алады және екеуі де шешімдерді өзгертеді.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Адал қорытынды</span>
+              <h2 id="limits">LLM сіз үшін әлі не істей алмайды</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Ол сіздің фактілеріңізді білмейді</h3>
+                  <p>
+                    Модельдің Алматыға Каспий жағалауын ойлап тапқанын көрдік. Ұйымыңызға тән, не жақындағы, не оқыту деректерінде жұқа ұсынылған кез келген нәрсені еске түсіртпей, беру керек.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ол қателескенін сізге айтпайды</h3>
+                  <p>
+                    Мазмұн дұрыс па, ойдан шығарылған ба &#8212; жатықтық бірдей. Мәтіннің өзінде сигнал жоқ, сондықтан тексеру модельдің сыртынан келуге тиіс.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Сіздің тіліңіз екі есе қымбат болуы мүмкін</h3>
+                  <p>
+                    Мұнда өлшенген: біз тексерген ең үздік токенизаторда қазақ тіліне 2.0&#215;, ескілеуінде 4.5&#215; токен. Бұл &#8212; бюджет, кідіріс және контекст терезесі, бірден.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Контекст шектеулі әрі қымбат</h3>
+                  <p>
+                    KV cache кестесі 128k токенді бір әңгіме модельдің өзінен көп жады талап ететінін көрсетті. Ұзын контекст &#8212; тегін мүмкіндік емес, нақты шығын.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ол әдепкі бойынша детерминды емес</h3>
+                  <p>
+                    Тексергіңіз не аудиттегіңіз келетін кез келген нәрсеге greedy декодтау мен бекітілген seed керек, әйтпесе сіз жүйелерді емес, үлгілерді салыстырып отырасыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Дәлдеп оқыту &#8212; бірінші емес, соңғы амал</h3>
+                  <p>
+                    Промпт, содан кейін мысалдар, содан кейін retrieval, содан кейін дәлдеп оқыту. Адамдар дәлдеп оқытумен шешпек болатын мәселелердің көбі &#8212; промпт не retrieval мәселесі.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">word2vec</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">LSTM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">Transformer</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">алдын ала оқытылған энкодер</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--accent">LLM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--soft">LLM + сіздің деректеріңіз</span></li>
+              </ul>
+              <p class="narrow">
+                Жоғарыдағы тордағы соңғы екеуінен басқа әр шектеу бір жаққа меңзейді: модельге еске түсіруді тапсырмай, жауап беру сәтінде дұрыс ақпаратты беру керек. Бұл &#8212; retrieval-augmented generation, әрі промптинг пен агенттермен бірге ол &#8212> келесі дәріс.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Сабақта</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">Аяқтар алдында бірге жауап беретін сегіз сұрақ.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">Базалық модельден &#171;Қазақстанның астанасы қай қала?&#187; деп сұрайды, ал ол басқа сұрақпен жауап береді. Ол бұзылған ба?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жоқ &#8212; ол 1-саты үйреткен нәрсені дәл істеп тұр: мәтінді жалғастырады. Веб-мәтінде сұрақтан кейін жиі басқа сұрақтар келеді. Instruction tuning &#8212; жалғастырушыны ассистентке айналдыратын саты, ал <code>-base</code> чекпоинті одан өткен жоқ.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">13B модельге fp16-да қанша жады керек, ал толық дәлдеп оқытуға шамамен қанша керек болар еді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Іске қосуға шамамен 26 ГБ (миллиардқа 2 ГБ). Толық дәлдеп оқытуға салмақтар, градиенттер және екі AdamW күйі керек &#8212; параметрге шамамен 12&#8211;16 байт, яғни шамамен 160&#8211;200 ГБ. LoRA-ның бар болуының бүкіл себебі &#8212; осы алшақтық.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">Llama &#8212; open-source модель ме?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Ол &#8212; <em>open-weight</em>. Салмақтарды жүктеп алып іске қоса аласыз, бірақ оқыту деректері мен оқыту коды жарияланбаған, ал лицензияда шарттар бар. &#171;Open-source&#187; шын мәнінде мұның бәрін талап етеді. Айырма сіздің архитектура құжатыңызды заңгер алғаш оқығанда маңызды болады.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Сол бір қолдау хабары ағылшынша 19 токен, қазақша 38 токен тұрады. Біреуін емес, нашарлайтын үш нәрсені атаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Шот шамамен екі еселенеді; пайдалы контекст терезесі шамамен екі есе қысқарады, себебі ол токенмен өлшенеді; әрі жауаптар баяуырақ, себебі генерация уақыты токенмен саналады. Токенизатордың бір қасиеті, үш бөлек төлем.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">Чат-ботыңыз қате жауап береді. Біреу temperature-ді төмендетуді ұсынады. Бұл түзете ме?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жоқ. Temperature модельдің өзі ықтимал деп санаған токендерді қайта өлшейді. Егер дұрыс жауап таралымда болмаса, ешқандай sampling баптауы оған жетпейді. Біз мұны өлшедік: greedy декодтау &#8212; temperature іс жүзінде нөл &#8212; бәрібір Алматыны астана деп айтты. Мұны промпт, retrieval не басқа модель түзейді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-сұрақ</h3>
+                  <p class="challenge__task">Reasoning модель қай кезде қате таңдау?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жауап кірістен қорытылмай, кірісті түрлендіру болғанда: түйіндеу, жіктеу, ақпарат шығару, аударма, қайта жазу. Ойлау токендері шығыс ретінде төленеді және кідіріс қосады, ал қорытатын ештеңе жоқ тапсырмаларда ештеңе бермейді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-сұрақ</h3>
+                  <p class="challenge__task">LoRA 8-рангте параметрлердің 0.219%-ын оқытты. Бұл неге жадының 0.219%-ынан әлдеқайда көбін үнемдейді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Себебі мұздатылған салмақтарды бәрібір ұстау керек, ал градиенттер мен оптимизатор күйі &#8212; оқыту жұмысының ең үлкен бөлігі, оқытылатын параметрге 8&#8211;12 байттан &#8212; енді тек адаптер үшін ғана бар. Сіз модель үшін әлі де төлейсіз; оның айналасындағы оқыту механизмі үшін төлеуді қоясыз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-сұрақ</h3>
+                  <p class="challenge__task">169 қабатты int8-ке дөңгелектеу салмақтарды 1.15%-ға өзгертті, ал шығысты мүлде өзгертпеді. Бұл int8 тегін екенін дәлелдей ме?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Жоқ. Бірдей жалғасын берген бір промпт &#8212; ештеңе бұзылмағанының дәлелі, ештеңе өзгермегенінің дәлелі емес. Нағыз тексеру бенчмаркті алдында да, кейін де жүргізеді. Тәжірибеде int8 тегін дерлік, ал өлшенетін сапа жоғалуы int4-тен басталады деу әділ.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Дәрістен кейін</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                Олардың бірде-біріне GPU керек емес. Көбі &#8212; бір команда және жазбаша байқау; екеуі &#8212; соңына қарай қағазда істей алуға тиіс арифметика.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-тапсырма &#8212; Өз өніміңіздің құнын есептеңіз</h3>
+                  <p class="challenge__task">Жасап жатқан нәрсеңізден 100 нақты хабар алыңыз. Екі түрлі токенизатормен токендерді санап, ағымдағы жарияланған мөлшерлемелерді қолданып, қазақша және ағылшынша айлық цифр шығарыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Нәтиже &#8212; бір сан және бір сөйлем: бұл қанша тұрады және өз мәтініңіздегі тіл үстемесі қандай. Бұл &#8212; осы дәрістегі ең пайдалы бір сағат, әрі басшы сізден шын мәнінде сұрайтын нәрсе.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-тапсырма &#8212; Қиылысу нүктесін табыңыз</h3>
+                  <p class="challenge__task">Айлық қандай көлемде GPU жалдау токен үшін төлеуден тиімді болады? Нақты GPU бағасы мен нақты API мөлшерлемесін алып, шығынсыздық теңдеуін шешіңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      GPU-дың тұрақты айлық құнын шақыру құнына бөлу. Қызықтысы &#8212; жолда не жорамалдауға тура келетіні: жүктелу, шақыруға шаққандағы токен және өз серверіңіздегі кішірек модель жеткілікті жақсы ма. Сол жорамалдарды тілге тиек етіңіз; олар арифметикадан маңыздырақ.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-тапсырма &#8212; Модельді temperature арқылы бұзыңыз</h3>
+                  <p class="challenge__task">--sampling-ті temperature 0.5, 1.0, 1.5 және 2.0-мен жүргізіңіз. Шығыс жарамсыз болатын нүктені тауып, алдымен не сынатынын сипаттаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Грамматика әдетте фактілік дәлдіктен ұзағырақ шыдайды, ал көптілді модельдегі алғашқы көзге көрінетін сәтсіздік &#8212; жиі сөйлем ортасында басқа тілдердің токендері: таралымның құйрығы таңдалып жатыр. Біздікі 1.0 мен 1.5 арасында сынды.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-тапсырма &#8212; Қазақ тіліндегі галлюцинацияларды аулаңыз</h3>
+                  <p class="challenge__task">Кішкентай модельге Қазақстан туралы он фактілік сұрақ қойыңыз. Қаншасы қате екенін және тұжырымның қаншалықты сенімді естілетінін жазып отырыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Қате үлесі жоғары әрі тұжырымдар біркелкі сенімді болады деп күтіңіз. Нәтиже &#8212; екі баған: дұрыстық және сырттай сенімділік, себебі олардың арасында корреляция болмауы &#8212> бүкіл мән.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-тапсырма &#8212; Орналастыруды есептеңіз</h3>
+                  <p class="challenge__task">13B модельде 8k контекспен 50 қатарлас пайдаланушыға қызмет көрсету керек. Салмақтар мен KV cache-ті есептеп, жабдықты атаңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      fp16-да салмақтар ~26 ГБ. KV cache қабаттармен, KV бастарымен, бас өлшемімен, контекспен және пайдаланушы санымен ауқымдалады &#8212; жады бөліміндегі формуланы қолданыңыз. Содан кейін 4 биттік салмақтармен және grouped-query attention-мен қайта есептеп, қайсысы көбірек көмектескенін белгілеңіз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-тапсырма &#8212; Ранг бойынша сүзу</h3>
+                  <p class="challenge__task">--lora жүргізіп, кестені 1, 2, 128 және 256 рангтерге дейін кеңейтіңіз. Оқытылатын параметрлерді рангке қарсы сызып шығыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Сызық дәл түзу: оқытылатын параметрлер r бойынша сызықты. Мұны сызып шыққаннан кейін LoRA-да жұмбақ ештеңе қалмайды &#8212; r дегеніміз жай ғана қанша сан оқытуға дайын екеніңіз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-тапсырма &#8212; Қаттырақ кванттаңыз</h3>
+                  <p class="challenge__task">int8 рәсімін int4-ке ауыстырыңыз (255-тің орнына 15 деңгей). Салмақ қатесін өлшеп, шығыс аман қала ма, тексеріңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Қате күрт өседі, ал аңғал жол бойынша int4 әдетте 0.5B модельді көзге көрінетіндей бүлдіреді. Нағыз 4 биттік схемалардың ұсақтау топтарды, калибрлеу деректерін пайдаланып, сезімтал қабаттарды кеңірек ұстауының себебі осы. Сәтсіздікті қайталап шығару олардың күрделілігін мағыналы етеді.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-тапсырма &#8212; Жиырма мысал</h3>
+                  <p class="challenge__task">Өзіңізге маңызды тапсырма үшін &#171;модельді қалай таңдау керек&#187; бөліміндегі жиырма мысалдық бағалауды құрып, үш үміткер модельді ол арқылы қолмен өткізіңіз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Күтілетін жауаптарды кез келген модельдің шығысын көрмей <em>тұрып</em> жазыңыз, әйтпесе жомарт бағалайсыз. Жиырма мысал нашар үміткерді шығарып тастауға жеткілікті әрі кез келген жария лидербордтан әлдеқайда орынды.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>9-тапсырма &#8212; Модель карточкасын оқыңыз</h3>
+                  <p class="challenge__task">Ашық салмақты модель алып, тек оның карточкасы бойынша жауап беріңіз: параметрлер, контекст терезесі, лицензия, мәлімделген тілдер және оны коммерциялық пайдалануға бола ма.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Бұлардың бір бөлігі әдетте жоқ не бұлыңғыр, әрі бұл өзі де нәтиже. Қазақ тілінің тізімде бар-жоғын және мәлімделген тілдің қандай да бір бағалаумен расталғанын бөлек белгілеңіз.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>10-тапсырма &#8212; Бүкіл курс бір абзацта</h3>
+                  <p class="challenge__task">Қазақ тіліндегі көңіл күйді жіктеу үшін TF-IDF (3-дәріс), дәлдеп оқытылған энкодер (7-дәріс) және API арқылы LLM арасынан таңдап жатқан басшыға берер абзацты жазыңыз.</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">
+                      Алғашқы екеуі бойынша сізде өлшенген сандар бар: сол бір тест жиынында 0.780 және 0.799. Адал абзац дәлдікті, шақыру құнын, кідірісті және деректердің қайда баратынын береді &#8212; әрі дұрыс ұсыныс үшеуінің ең арзаны болып шығуы әбден мүмкін.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Түйін</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>LLM &#8212; бұл 6-дәрістегі декодер, ауқымдалған және бірдің орнына үш сатыда оқытылған</li>
+                <li>Алдын ала оқыту білім сатып алады; instruction tuning мойынсұнушылық сатып алады; preference tuning пайым сатып алады</li>
+                <li>fp16-ға миллиард параметрге шамамен 2 ГБ керек &#8212; ал оқытуға одан 6&#8211;8 есе көп</li>
+                <li>KV cache модельден асып кетуі мүмкін: 8B модельде 128k токенді бір әңгімеге 16.8 ГБ</li>
+                <li>Open-weight деген open-source емес, ал маңыздысы &#8212; лицензия</li>
+                <li>Ақы токенмен алынады, шығыс кірістен ~5&#215; қымбат, әрі әр кезекте бүкіл тарих қайта жіберіледі</li>
+                <li>Сол бір хабар o200k-да қазақ тілінде ағылшыншадан 2.0&#215;, cl100k-да 4.5&#215; көп токен тұрады</li>
+                <li>Алдымен деректердің орналасуы мен көлемі бойынша таңдаңыз; жиырма мысалдық бағалау кез келген лидербордтан күшті</li>
+                <li>Temperature таралымды қайта пішіндейді; top-k мен top-p оны кеседі; greedy қайталанады</li>
+                <li>Sampling қате жауапты түзетпейді &#8212; greedy декодтау Алматыға Каспий жағалауын ойлап тапты</li>
+                <li>Reasoning модельдер дәлдікті шығару кезіндегі токенмен сатып алады әрі түрлендіру тапсырмаларында бос кетеді</li>
+                <li>RLHF &#171;B, A-дан жақсы&#187; дегенді жақсырақ модельге айналдырады; DPO мұны марапат моделінсіз істейді</li>
+                <li>LoRA 8-рангте параметрлердің 0.219%-ын оқытады және 4 МБ адаптер береді</li>
+                <li>int8 салмақ қатесінің ~1%-ы үшін 4&#215; кіші, әрі мұнда шығысы бірдей</li>
+                <li>Дәлдеп оқытуды соңында істеңіз: промпт, содан кейін мысалдар, содан кейін retrieval, содан кейін дәлдеп оқыту</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; 8-дәріс &middot; 2026 ж. 16 қыркүйек</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

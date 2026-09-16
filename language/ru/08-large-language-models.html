@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Large Language Models | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 8: большие языковые модели на практике — как они работают, размеры и память, открытые веса против проприетарных, токены и цены API, измеренные для казахского, выбор модели, параметры sampling, reasoning-модели, reinforcement learning, полный fine-tuning против LoRA и quantization."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Язык">
+        <a href="../en/08-large-language-models.html" data-lang-link="en">EN</a>
+        <a href="../kk/08-large-language-models.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/08-large-language-models.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">От обработки текста до Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Язык">
+          <a href="../en/08-large-language-models.html" data-lang-link="en">EN</a>
+          <a href="../kk/08-large-language-models.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/08-large-language-models.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">План курса</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Закрыть содержание" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 8</span>
+              <h1>Large Language Models</h1>
+              <p class="hero__subtitle">
+                Тот же декодер, который вы построили в лекции 6, увеличенный в тысячу раз и обученный на большей части написанного интернета. Эта лекция о том, что меняется на практике: что означают размеры, сколько стоят вызовы, какие ручки вы крутите и что ещё можно адаптировать без GPU.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели обучения</span>
+              <h2 id="goals">К концу этой лекции вы сможете&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Объяснить, как работает LLM</h3>
+                  <p>Предсказание следующего токена, три стадии обучения и почему масштаб изменил то, на что способна та же архитектура.</p>
+                </div>
+                <div class="card">
+                  <h3>Читать число параметров</h3>
+                  <p>Превращать &#171;7B&#187; в гигабайты, понимать, что поместится на вашей машине, и объяснять, почему настоящее ограничение &#8212; это KV cache.</p>
+                </div>
+                <div class="card">
+                  <h3>Отличать открытое от проприетарного</h3>
+                  <p>Открытые веса, открытый исходный код и закрытый API &#8212; три разные вещи, с разными лицензиями и разными рисками.</p>
+                </div>
+                <div class="card">
+                  <h3>Посчитать счёт за API</h3>
+                  <p>Считать токены, применять входные и выходные ставки и знать, во что обходится продукт на казахском против английского.</p>
+                </div>
+                <div class="card">
+                  <h3>Управлять выводом</h3>
+                  <p>Temperature, top-k, top-p &#8212; и когда каждый из них неподходящий инструмент.</p>
+                </div>
+                <div class="card">
+                  <h3>Дёшево адаптировать модель</h3>
+                  <p>Полный fine-tuning против LoRA и quantization &#8212; чего стоит каждый и чем каждый жертвует.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>На этой странице не обучается ни одна большая модель.</strong> Каждое число здесь &#8212; это либо арифметика, которую вы можете проверить, либо подсчёт токенов, либо подсчёт параметров, либо генерация модели на 0.5&#8202;B, работающей на ноутбуке. Разделы про fine-tuning показывают, как выглядит код и во что он обойдётся, но не запускают его, потому что на этом железе он не пойдёт.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="how">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Механизм</span>
+              <h2 id="how">Как работает LLM</h2>
+              <p class="narrow lead">
+                Здесь меньше новой машинерии, чем подсказывает название. LLM &#8212; это стопка декодера из лекции 6, увеличенная в масштабе и обученная в три стадии вместо одной.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Большая языковая модель</strong> &#8212; это декодер Transformer, обученный предсказывать следующий токен, в таком масштабе, при котором хорошее выполнение этой одной задачи даёт перевод, суммаризацию, код и диалог как побочные эффекты.
+                </p>
+              </div>
+              <h3 style="margin-top: 44px">Цикл, который вы уже построили</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-loop-t">
+                <title id="fig-loop-t">Один токен предсказывается, дописывается, и всё повторяется снова</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">промпт на данный момент</text>
+                <rect x="8" y="20" width="54" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="35" y="34" font-size="8" fill="#111111" text-anchor="middle">Астана</text>
+                <rect x="64" y="20" width="26" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="77" y="34" font-size="8" fill="#111111" text-anchor="middle">&#8212;</text>
+                <rect x="92" y="20" width="76" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="130" y="34" font-size="8" fill="#111111" text-anchor="middle">Қазақстанның</text>
+                <line x1="88" y1="46" x2="88" y2="58" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="58" width="128" height="24" rx="5" fill="#2563eb" />
+                <text x="88" y="74" font-size="9" fill="#ffffff" text-anchor="middle">стопка декодера, causal</text>
+                <line x1="88" y1="82" x2="88" y2="94" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="94" width="128" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="88" y="108" font-size="8" fill="#111111" text-anchor="middle">softmax по 150 000 токенов</text>
+                <line x1="152" y1="104" x2="172" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="172" y="94" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="212" y="108" font-size="8" fill="#ffffff" text-anchor="middle">«астанасы» 0.63</text>
+                <path d="M 252 104 L 292 104 L 292 30 L 176 30" fill="none" stroke="#2563eb" stroke-width="1.6" />
+                <text x="264" y="66" font-size="8" fill="#2563eb">дописать</text>
+                <text x="180" y="24" font-size="8" fill="#5b6270">и запустить снова</text>
+                <line x1="8" y1="130" x2="332" y2="130" stroke="#e8ecf2" />
+                <text x="8" y="148" font-size="9" fill="#111111">вот и весь цикл вывода</text>
+                <text x="8" y="164" font-size="8" fill="#5b6270">всё, что LLM как будто делает, &#8212; это он, повторённый</text>
+                <text x="8" y="182" font-size="8" fill="#5b6270">и контекстным окном в сотни тысяч токенов</text>
+                </svg>
+                <p class="figure__caption">
+                  Предсказать один токен, дописать его, предсказать снова. Лекция 6 это построила; единственное отличие теперь &#8212; размер коробки посередине.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Что осталось как в лекции 6, а что нет</span>
+                <dl class="breakdown__list">
+                  <dt>то же самое</dt>
+                  <dd>Q, K и V. Scaled dot-product attention. Multi-head. Residuals. Feed-forward сеть на каждый токен. Causal-маскирование. Предсказание следующего токена с cross-entropy. Вы можете открыть исходники любой открытой модели и узнать там всё это</dd>
+                  <dt>больше</dt>
+                  <dd>Модель из лекции 6 была 2 блока и 1&#8202;миллион параметров. Современная LLM &#8212; это от 32 до 126 блоков и от 7 до 1&#8202;000 миллиардов. Контекстное окно выросло с 60 токенов до сотен тысяч</dd>
+                  <dt>осовременено</dt>
+                  <dd>Pre-norm, RMSNorm, SwiGLU, RoPE, grouped-query attention &#8212; те шесть замен из конца лекции 6. Ни одна из них не меняет сюжет</dd>
+                  <dt>обучена в три стадии, а не в одну</dt>
+                  <dd>Вот это действительно новая часть, и следующая схема про неё</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Так почему же ощущение другое?</strong> Потому что при достаточном масштабе &#171;предсказать следующий токен&#187; перестаёт быть трюком дописывания текста. Чтобы предсказать следующий токен статьи по химии, нужна некоторая химия; чтобы предсказать следующую строку доказательства, нужна некоторая арифметика. Цель обучения не изменилась. Изменилось то, что требуется, чтобы выполнять её хорошо.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Три стадии</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 240" role="img" aria-labelledby="fig-stages-t">
+                <title id="fig-stages-t">Предобучение, instruction tuning и preference tuning, с их стоимостью</title>
+                <rect x="8" y="20" width="100" height="56" rx="5" fill="#2563eb" />
+                <text x="58" y="38" font-size="9" fill="#ffffff" text-anchor="middle">1. предобучение</text>
+                <text x="58" y="52" font-size="7" fill="#ffffff" text-anchor="middle">предсказывать следующий</text>
+                <text x="58" y="62" font-size="7" fill="#ffffff" text-anchor="middle">токен, на вебе</text>
+                <line x1="108" y1="48" x2="124" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="124" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="172" y="38" font-size="9" fill="#ffffff" text-anchor="middle">2. instruction</text>
+                <text x="172" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: следовать</text>
+                <text x="172" y="62" font-size="7" fill="#ffffff" text-anchor="middle">тому, о чём просят</text>
+                <line x1="220" y1="48" x2="236" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="236" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="284" y="38" font-size="9" fill="#ffffff" text-anchor="middle">3. preference</text>
+                <text x="284" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: предпочитать</text>
+                <text x="284" y="62" font-size="7" fill="#ffffff" text-anchor="middle">лучшие ответы</text>
+                <text x="8" y="94" font-size="7" fill="#5b6270">дан.</text>
+                <text x="62" y="94" font-size="7" fill="#111111" text-anchor="middle">триллионы токенов</text>
+                <text x="172" y="94" font-size="7" fill="#111111" text-anchor="middle">10к&#8211;1M примеров</text>
+                <text x="284" y="94" font-size="7" fill="#111111" text-anchor="middle">сравнения</text>
+                <text x="8" y="110" font-size="7" fill="#5b6270">метки</text>
+                <text x="58" y="110" font-size="7" fill="#111111" text-anchor="middle">не нужны</text>
+                <text x="172" y="110" font-size="7" fill="#111111" text-anchor="middle">написаны людьми</text>
+                <text x="284" y="110" font-size="7" fill="#111111" text-anchor="middle">ранжированы людьми</text>
+                <text x="8" y="126" font-size="7" fill="#5b6270">цена</text>
+                <text x="58" y="126" font-size="7" fill="#111111" text-anchor="middle">миллионы $</text>
+                <text x="172" y="126" font-size="7" fill="#111111" text-anchor="middle">тысячи</text>
+                <text x="284" y="126" font-size="7" fill="#111111" text-anchor="middle">тысячи</text>
+                <text x="8" y="142" font-size="7" fill="#5b6270">даёт</text>
+                <text x="58" y="142" font-size="7" fill="#111111" text-anchor="middle">знания</text>
+                <text x="172" y="142" font-size="7" fill="#111111" text-anchor="middle">послушание</text>
+                <text x="284" y="142" font-size="7" fill="#111111" text-anchor="middle">суждение, тон</text>
+                <line x1="8" y1="158" x2="332" y2="158" stroke="#e8ecf2" />
+                <text x="8" y="176" font-size="9" fill="#111111">базовая модель после стадии 1 не отвечает на вопросы</text>
+                <rect x="8" y="184" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="14" y="196" font-size="7" fill="#111111">спросить: «Какая столица?»</text>
+                <rect x="172" y="184" width="160" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="178" y="196" font-size="7" fill="#111111">база: «Какое население?»</text>
+                <text x="8" y="218" font-size="8" fill="#5b6270">она продолжает текст, потому что этому её и учили</text>
+                <text x="8" y="232" font-size="8" fill="#2563eb">стадия 2 &#8212; это то, что превращает продолжателя текста в ассистента</text>
+                </svg>
+                <p class="figure__caption">
+                  Стадия 1 покупает знания и стоит почти всё. Стадии 2 и 3 покупают поведение и стоят сравнительно ничего.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Стадии по очереди</span>
+                <dl class="breakdown__list">
+                  <dt>1. предобучение &#8212; дорогая</dt>
+                  <dd>Предсказание следующего токена на триллионах токенов собранного текста. Self-supervised, ровно как masked language modelling из лекции 7, только causal. Отсюда берутся знания, это стоит миллионы долларов и делается один раз лабораторией с дата-центром</dd>
+                  <dt>2. instruction tuning (SFT) &#8212; чтобы она отвечала</dt>
+                  <dd>Supervised fine-tuning на парах (инструкция, хороший ответ), написанных людьми. Базовая модель, которой задали вопрос, склонна выдавать ещё вопросы, потому что именно это следует за вопросом в веб-тексте. SFT &#8212; это то, что заставляет её отвечать, а не продолжать. Это стадия, которую ввёл InstructGPT, и именно поэтому &#171;instruct&#187; встречается в стольких названиях моделей</dd>
+                  <dt>3. preference tuning &#8212; чтобы она стала лучше</dt>
+                  <dd>Людям показывают два ответа, и они выбирают лучший. Модель обучают предпочитать то, что предпочли люди. RLHF, DPO и их родственники живут здесь, и им посвящён отдельный раздел ниже</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Названия, которые вы увидите на карточках моделей:</strong> модель, оканчивающаяся на <code>-base</code>, прошла только стадию 1 &#8212; полезна для дальнейшего обучения, неудобна для диалога. <code>-instruct</code> или <code>-chat</code> прошла стадии 2 и обычно 3, и это то, что вы на самом деле хотите вызывать.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Арифметика, которую можно проверить</span>
+              <h2 id="sizes">Что на самом деле означает &#171;7B&#187;</h2>
+              <p class="narrow lead">
+                В названиях моделей стоит число: 0.5B, 7B, 70B, 405B. Это количество обучаемых чисел в файле. Перевод его в гигабайты &#8212; одно умножение, и оно решает всё о том, где модель сможет работать.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Параметр</strong> &#8212; это одно число, которое подстроил процесс обучения. В лекции 6 вы считали их сами: каждый элемент <code>W_Q</code>, <code>W_K</code>, <code>W_V</code>, <code>W&#8338;</code>, матриц feed-forward, таблицы embeddings. &#171;7B&#187; означает семь миллиардов таких чисел.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --memory</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>PARAMETERS TO GIGABYTES
+  weights only, no activations, no KV cache
+
+  model               fp32     fp16/bf16          int8          int4
+  ------------------------------------------------------------------
+  0.5 B             2.0 GB        1.0 GB        0.5 GB        0.2 GB
+  7 B              28.0 GB       14.0 GB        7.0 GB        3.5 GB
+  70 B            280.0 GB      140.0 GB       70.0 GB       35.0 GB
+  405 B          1620.0 GB      810.0 GB      405.0 GB      202.5 GB
+  1 T            4000.0 GB     2000.0 GB     1000.0 GB      500.0 GB
+
+  what fits in 24 GB of unified memory (this laptop), weights only:
+    0.5 B    fp32, fp16/bf16, int8, int4
+    7 B      fp16/bf16, int8, int4
+    70 B     nothing — needs a bigger machine
+    405 B    nothing — needs a bigger machine
+    1 T      nothing — needs a bigger machine</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Как читать таблицу</span>
+                <dl class="breakdown__list">
+                  <dt>практическое правило</dt>
+                  <dd><strong>fp16 требует примерно 2 ГБ на миллиард параметров.</strong> Модель 7B &#8212; это ~14 ГБ, модель 70B &#8212; ~140 ГБ. Если вы запомните из этой лекции одно число, пусть это будет оно</dd>
+                  <dt>точность &#8212; это регулятор, а не факт</dt>
+                  <dd>Одна и та же модель занимает 28 ГБ или 3.5 ГБ в зависимости только от того, во сколько бит записан каждый вес. Это и есть quantization, и ниже ей посвящён отдельный раздел</dd>
+                  <dt>строчка про ноутбук настоящая</dt>
+                  <dd>Модель 7B в fp16 помещается в 24 ГБ единой памяти с запасом на работу. Модель 70B не помещается ни при какой точности на этой машине. Это самое полезное, что стоит знать до планирования проекта</dd>
+                  <dt>обучению нужно намного больше, чем выводу</dt>
+                  <dd>Чтобы запустить модель, нужны веса. Чтобы <em>обучать</em> её, нужны веса, градиенты и состояние оптимизатора &#8212; с AdamW примерно 12&#8211;16 байт на параметр вместо 2. Модели 7B, которую можно запустить на ноутбуке, нужно около 100 ГБ для полного дообучения</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Последняя строка &#8212; это и есть причина существования LoRA</strong>, и причина, по которой эта лекция может показать вам код, но не запустить его.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Лестница размеров и для чего нужна каждая ступень</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Размеры моделей и их типичное применение</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Размер</th><th scope="col">fp16</th>
+                      <th scope="col">Работает на</th><th scope="col">Хорош для</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>0.5&#8211;3 B</td><td>1&#8211;6 GB</td><td>телефоне, CPU ноутбука</td><td>классификация, извлечение, автодополнение, на устройстве</td></tr>
+                    <tr><td>7&#8211;14 B</td><td>14&#8211;28 GB</td><td>одной потребительской GPU или хорошем ноутбуке</td><td>большинство продакшен-задач, самостоятельно размещённые ассистенты</td></tr>
+                    <tr><td>30&#8211;70 B</td><td>60&#8211;140 GB</td><td>одном сервере с 2&#8211;4 датацентровыми GPU</td><td>качество близко к фронтиру, размещено приватно</td></tr>
+                    <tr><td>100&#8211;700 B+</td><td>200 GB&#8211;1.4 TB</td><td>кластере</td><td>фронтирные возможности, обычно через API</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Больше не означает автоматически лучше для вашей задачи.</strong> Лекция 7 измерила это в малом: пять энкодеров, различающихся в 3.3&#215; по размеру, финишировали в пределах 0.010 друг от друга на казахской тональности. Здесь то же самое. Модель 7B, которая помещается на вашем железе, не стоит ничего за вызов и не выпускает ваши данные за пределы здания, может быть правильным инженерным ответом даже тогда, когда модель на 400B набирает больше на бенчмарке.
+              </p>
+
+              <h3 style="margin-top: 48px">KV cache &#8212; вот настоящее ограничение</h3>
+              <p class="narrow">
+                Веса загружаются один раз и общие для всех. <strong>KV cache</strong> &#8212; сохранённые ключи и значения из лекции 6, которые держат, чтобы генерация токена <em>t</em>+1 не перечитывала весь промпт, &#8212> существует на каждого пользователя и на каждый токен, и именно он заканчивается.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>THE KV CACHE — why long chats get expensive
+  a 8 B model: 32 layers, 8 KV heads, head dim 128, bf16
+  per token, per sequence: 2 x 32 x 8 x 128 x 2 = 131,072 bytes = 128 KB
+
+     context      1 user    10 users   100 users
+  --------------------------------------------
+       1,000     0.13 GB     1.31 GB     13.11 GB
+       8,000     1.05 GB    10.49 GB    104.86 GB
+      32,000     4.19 GB    41.94 GB    419.43 GB
+     128,000    16.78 GB   167.77 GB   1677.72 GB</code></pre></div>
+              <div class="callout">
+                <strong>Посмотрите на левую нижнюю ячейку.</strong> Одному пользователю с контекстом в 128&#8202;000 токенов нужно <strong>16.8 ГБ</strong> KV cache на модели 8B, чьи веса весят всего 16 ГБ. Кэш больше самой модели. Вот почему длинный контекст дорог, почему провайдеры вообще берут деньги за входные токены и зачем существует grouped-query attention из лекции 6 &#8212; оно уменьшает ровно эту таблицу, разделяя K и V между query-головами.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="open">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Ландшафт</span>
+              <h2 id="open">Модели с открытыми весами и проприетарные</h2>
+              <p class="narrow lead">
+                &#171;Open-source LLM&#187; используют вольно и обычно неверно. Есть три разные вещи, и разница становится важной, когда вопрос задаёт юрист.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-open-t">
+                <title id="fig-open-t">Три уровня открытости: закрытый API, открытые веса, полностью открытая</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">что вам на самом деле дают</text>
+                <rect x="8" y="22" width="104" height="90" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="60" y="38" font-size="9" fill="#111111" text-anchor="middle">проприетарная</text>
+                <text x="60" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(закрытая, только API)</text>
+                <text x="16" y="66" font-size="7" fill="#111111">&#10007; веса</text>
+                <text x="16" y="78" font-size="7" fill="#111111">&#10007; обучающие данные</text>
+                <text x="16" y="90" font-size="7" fill="#111111">&#10007; код обучения</text>
+                <text x="16" y="102" font-size="7" fill="#2563eb">&#10003; эндпоинт</text>
+                <rect x="118" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="38" font-size="9" fill="#111111" text-anchor="middle">открытые веса</text>
+                <text x="170" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(большинство «открытых»)</text>
+                <text x="126" y="66" font-size="7" fill="#2563eb">&#10003; веса</text>
+                <text x="126" y="78" font-size="7" fill="#111111">&#10007; обучающие данные</text>
+                <text x="126" y="90" font-size="7" fill="#111111">&#10007; код обучения</text>
+                <text x="126" y="102" font-size="7" fill="#5b6270">~ лицензия, прочтите её</text>
+                <rect x="228" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="280" y="38" font-size="9" fill="#111111" text-anchor="middle">полностью открытая</text>
+                <text x="280" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(редкость)</text>
+                <text x="236" y="66" font-size="7" fill="#2563eb">&#10003; веса</text>
+                <text x="236" y="78" font-size="7" fill="#2563eb">&#10003; обучающие данные</text>
+                <text x="236" y="90" font-size="7" fill="#2563eb">&#10003; код обучения</text>
+                <text x="236" y="102" font-size="7" fill="#2563eb">&#10003; свободная лицензия</text>
+                <line x1="8" y1="128" x2="332" y2="128" stroke="#e8ecf2" />
+                <text x="8" y="146" font-size="9" fill="#111111">слово «open-source» по праву относится только к третьему блоку</text>
+                <text x="8" y="162" font-size="8" fill="#5b6270">почти всё, что называют open-source LLM, находится в среднем блоке:</text>
+                <text x="8" y="176" font-size="8" fill="#5b6270">вы можете скачать и запустить, но не можете воспроизвести</text>
+                <text x="8" y="196" font-size="8" fill="#111111">практический вопрос не «открытая ли она», а:</text>
+                <text x="8" y="212" font-size="8" fill="#2563eb">запущу ли я её на своём железе и разрешает ли лицензия?</text>
+                </svg>
+                <p class="figure__caption">
+                  Три уровня, которые регулярно схлопывают в одно слово. В среднем блоке живёт бо&#769;льшая часть экосистемы.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Эти три, точно</span>
+                <dl class="breakdown__list">
+                  <dt>проприетарная / закрытая</dt>
+                  <dd>Вы отправляете текст на эндпоинт и получаете текст обратно. Веса никогда не покидают провайдера. Примеры: семейства GPT, Claude и Gemini. Вы платите за токены, получаете самые сильные модели и не можете их ни осмотреть, ни разместить у себя, ни сохранить</dd>
+                  <dt>открытые веса</dt>
+                  <dd>Обученные веса опубликованы, и вы можете их скачать и запустить. Обучающие данные и код, который их произвёл, обычно нет. Примеры: семейства Llama, Qwen, Mistral и Gemma, а также казахские модели из лекции 7. Именно это почти все имеют в виду под &#171;open-source LLM&#187;, и это не одно и то же</dd>
+                  <dt>полностью открытая</dt>
+                  <dd>Веса, данные, код обучения и свободная лицензия. Примеры реже: OLMo и линейка BLOOM строились именно так. Только здесь независимая сторона действительно может воспроизвести или проверить модель</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Читайте лицензию, а не маркетинг.</strong> Некоторые лицензии на открытые веса действительно свободные (Apache 2.0, MIT). Другие custom и несут условия &#8212; ограничения использования, порог по числу пользователей, выше которого нужно договариваться, или пункт об именовании. &#171;Бесплатно скачать&#187; и &#171;бесплатно использовать в своём продукте&#187; &#8212; разные утверждения.
+                </p>
+              </div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Проприетарная против открытых весов, по критериям решения</caption>
+                  <thead>
+                    <tr><th scope="col">Критерий</th><th scope="col">Проприетарный API</th><th scope="col">Открытые веса, своё размещение</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Лучшее доступное качество</td><td class="yes">обычно впереди</td><td>близко и сокращается</td></tr>
+                    <tr><td>Стоимость при малом объёме</td><td class="yes">платите за вызов, без постоянных затрат</td><td class="no">GPU простаивает по полной цене</td></tr>
+                    <tr><td>Стоимость при большом объёме</td><td class="no">растёт линейно бесконечно</td><td class="yes">фиксированная, потом почти бесплатно</td></tr>
+                    <tr><td>Данные покидают здание</td><td class="no">да</td><td class="yes">нет</td></tr>
+                    <tr><td>Работает офлайн / on-premise</td><td class="no">нет</td><td class="yes">да</td></tr>
+                    <tr><td>Модель может измениться под вами</td><td class="no">да, по их расписанию</td><td class="yes">никогда, файл у вас</td></tr>
+                    <tr><td>Можно дообучить</td><td>ограниченно, если предлагают</td><td class="yes">полностью</td></tr>
+                    <tr><td>Инженерные усилия</td><td class="yes">ключ от API</td><td class="no">обслуживание, масштабирование, обновления</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Для Казахстана конкретно две строки важнее остальных.</strong> &#171;Данные покидают здание&#187; решает, может ли система вообще касаться персональных, банковских или государственных данных. А &#171;можно дообучить&#187; &#8212; это то, что позволяет починить казахский язык модели, который лекция 7 измерила как самую слабую часть каждой протестированной многоязычной модели.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tokens">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Измерено</span>
+              <h2 id="tokens">Токены и во что обходится язык</h2>
+              <p class="narrow lead">
+                Проприетарные модели тарифицируются за токен, а не за слово и не за запрос. С токенизаторами вы познакомились в лекциях 2 и 7; это раздел, где они превращаются в деньги.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --tokens</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  «Fine-tuning is expensive.» under o200k_base:
+        84886  ->  'Fine'
+         2378  ->  '-t'
+        30541  ->  'uning'
+          382  ->  ' is'
+        14818  ->  ' expensive'
+           13  ->  '.'
+  A token is a piece of a word. Billing counts these, not words.</code></pre></div>
+              <p class="narrow">
+                Четыре английских слова стали шестью токенами. Обратите внимание, что пробел принадлежит следующему за ним токену &#8212; <code>&#39; is&#39;</code>, а не <code>&#39;is&#39;</code>, &#8212; и поэтому склейка текста меняет число токенов способами, которые кажутся произвольными, пока вы один раз не увидите эту распечатку.
+              </p>
+
+              <h3 style="margin-top: 44px">Одно и то же предложение на трёх языках</h3>
+              <p class="narrow">
+                Казахский и русский ниже &#8212; переводы английского, поэтому любая разница это токенизатор, а не более длинное сообщение.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  the same message, three languages, tokens per message:
+  tokenizer                           en      ru      kk
+  ------------------------------------------------------
+  o200k_base  (GPT-4o family)         19      25      38
+  cl100k_base (GPT-4 / 3.5)           19      45      86
+  Qwen2.5                             19      37      72
+
+  cost multiplier against English (same meaning):
+  o200k_base  (GPT-4o family)       1.00    1.32    2.00
+  cl100k_base (GPT-4 / 3.5)         1.00    2.37    4.53
+  Qwen2.5                           1.00    1.95    3.79
+
+  words per message: en 16  ru 14  kk 12
+  tokens/word  o200k_base                 1.19    1.79    3.17
+  tokens/word  cl100k_base                1.19    3.21    7.17
+  tokens/word  Qwen2.5                    1.19    2.64    6.00</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-toklang-t">
+                <title id="fig-toklang-t">Одно и то же сообщение стоит в два-четыре раза больше токенов на казахском, чем на английском</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">токены для одного и того же сообщения, по токенизаторам</text>
+                <text x="8" y="34" font-size="8" fill="#111111">o200k</text>
+                <rect x="66" y="24" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="34" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="39" width="68" height="13" fill="#c7d9ff" />
+                <text x="138" y="49" font-size="7" fill="#111111">ru 25</text>
+                <rect x="66" y="54" width="104" height="13" fill="#fecaca" />
+                <text x="174" y="64" font-size="7" fill="#111111">kk 38 (2.0x)</text>
+                <text x="8" y="90" font-size="8" fill="#111111">Qwen2.5</text>
+                <rect x="66" y="80" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="90" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="95" width="101" height="13" fill="#c7d9ff" />
+                <text x="171" y="105" font-size="7" fill="#111111">ru 37</text>
+                <rect x="66" y="110" width="197" height="13" fill="#fecaca" />
+                <text x="267" y="120" font-size="7" fill="#111111">kk 72  (3.8x)</text>
+                <text x="8" y="146" font-size="8" fill="#111111">cl100k</text>
+                <rect x="66" y="136" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="146" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="151" width="123" height="13" fill="#c7d9ff" />
+                <text x="193" y="161" font-size="7" fill="#111111">ru 45</text>
+                <rect x="66" y="166" width="235" height="13" fill="#fecaca" />
+                <text x="305" y="176" font-size="7" fill="#111111">kk 86</text>
+                <text x="8" y="194" font-size="8" fill="#2563eb">новые токенизаторы заметно справедливее: 4.5x упало до 2.0x</text>
+                </svg>
+                <p class="figure__caption">
+                  Один и тот же смысл, оценённый тремя способами. Улучшение от cl100k к o200k реально и намеренно &#8212; но казахский всё равно стоит вдвое дороже.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Почему так происходит и что делать</span>
+                <dl class="breakdown__list">
+                  <dt>причина в словаре</dt>
+                  <dd>Фиксированный словарь токенизатора покупается обучающим текстом. Английскому досталась бо&#769;льшая его часть, поэтому английское слово обычно один токен. Казахскому досталось очень мало, поэтому казахские слова собираются из обрывков &#8212; ровно тот эффект, который лекция 7 измерила на слове <span class="token">кітаптарымыздан</span></dd>
+                  <dt>это налог сразу на три вещи</dt>
+                  <dd>Вы платите больше за сообщение, вмещаете меньше в контекстное окно и дольше ждёте, потому что время генерации считается по токенам. Тот же продукт просто дороже эксплуатировать на казахском</dd>
+                  <dt>ситуация улучшается</dt>
+                  <dd>cl100k брал с казахского 4.53&#215;; o200k берёт 2.00&#215;. Новые токенизаторы намеренно выделяют словарь большему числу языков, и разрыв примерно вдвое сократился за одно поколение</dd>
+                  <dt>извне это не починить</dt>
+                  <dd>Токенизатор поставляется вместе с моделью. Ваши единственные рычаги &#8212; выбрать модель, чей токенизатор лучше справляется с вашим языком, и измерить до того, как вы на что-то подпишетесь</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Сделайте измерение до контракта.</strong> Токенизируйте реалистичную выборку собственного трафика токенизатором каждого кандидата и сравните. Это занимает минуты и меняет бюджет вдвое.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Считаем счёт</h3>
+              <p class="narrow">
+                Каждый проприетарный API тарифицирует одинаково, по двум ставкам:
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>cost = (input_tokens  / 1 000 000) × price_in
+     + (output_tokens / 1 000 000) × price_out
+
+input_tokens  = system prompt + conversation history + this message
+output_tokens = what the model generates</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Четыре вещи, в которых ошибаются</span>
+                <dl class="breakdown__list">
+                  <dt>выход стоит примерно впятеро дороже входа</dt>
+                  <dd>Генерация последовательна и не батчится так, как чтение. Многословный системный промпт дёшев; многословная <em>модель</em> нет. &#171;Ответь максимум тремя предложениями&#187; &#8212; это бюджетная инструкция</dd>
+                  <dt>весь диалог пересылается каждый ход</dt>
+                  <dd>API не хранит состояние. Ход 20 в чате снова оплачивает ходы 1&#8211;19 как вход. Длинный диалог стоит квадратично по собственной длине, если его не обрезать и не суммировать</dd>
+                  <dt>системный промпт оплачивается при каждом вызове</dt>
+                  <dd>Системный промпт на 2&#8202;000 токенов при миллионе вызовов &#8212; это два миллиарда входных токенов. Вот для чего нужен prompt caching: провайдеры берут долю цены за префикс, который они уже видели</dd>
+                  <dt>reasoning-токены &#8212; это выходные токены</dt>
+                  <dd>У reasoning-модели размышление перед ответом тарифицируется как выход, по выходной ставке, даже когда его вам не показывают</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Три скидки, о которых стоит знать:</strong> prompt caching для повторяющегося префикса; пакетная обработка для работы, которая может подождать (обычно около половины цены); и модель поменьше для лёгкой доли вашего трафика.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Разобранный месячный счёт</h3>
+              <p class="narrow">
+                100&#8202;000 вызовов в месяц, две формы нагрузки, посчитанные по опубликованным ставкам Anthropic как конкретному примеру. Ответ пишется на языке пользователя тоже, поэтому множитель токенов применяется и к выходу, а не только ко входу.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  100,000 calls per month, o200k_base, system prompt 34 tokens
+  measured language multiplier (tokens per word vs English): en 1.00x, ru 1.50x, kk 2.67x
+
+  --- chat reply: 20 words in, 100 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5                326$         481$         840$      2.58x
+  claude-sonnet-5              130$         193$         336$      2.58x
+  claude-haiku-4-5              65$          96$         168$      2.58x
+
+  --- classify a document: 2000 words in, 5 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5              1,219$       1,825$       3,223$      2.64x
+  claude-sonnet-5              488$         730$       1,289$      2.64x
+  claude-haiku-4-5             244$         365$         645$      2.64x</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Пример опубликованных ставок, использованных в расчёте</caption>
+                  <thead>
+                    <tr><th scope="col">Модель</th><th scope="col">Контекст</th><th scope="col">Вход $/M</th><th scope="col">Выход $/M</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>claude-opus-5</td><td>1M</td><td>5.00</td><td>25.00</td></tr>
+                    <tr><td>claude-sonnet-5</td><td>1M</td><td>2.00</td><td>10.00</td></tr>
+                    <tr><td>claude-haiku-4-5</td><td>200K</td><td>1.00</td><td>5.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Эти ставки &#8212; пример, а не актуальная котировка.</strong> Это прейскурантные цены первой стороны по состоянию на середину 2026 года, и они меняются. Забрать отсюда следует метод: посчитайте токены на собственном тексте, примените то, что вендор берёт сегодня, и умножьте на свой объём. Каждый провайдер публикует страницу цен и токенизатор; арифметика одинакова.
+              </p>
+              <div class="callout">
+                <strong>Два вывода из двух блоков.</strong> Казахская наценка составляет около 2.6&#215; в обоих, потому что токенизатор раздувает и вход, и выход &#8212; это свойство языка, а не нагрузки. Но абсолютный счёт в 3.7&#215; выше у задачи классификации, хотя она выдаёт пять слов, потому что деньги стоят 2&#8202;000 слов входа. Знайте, какую половину своего счёта вы пытаетесь урезать, прежде чем её урезать.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="choosing">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Решение</span>
+              <h2 id="choosing">Как выбрать модель</h2>
+              <p class="narrow lead">
+                Таблицы бенчмарков &#8212; наименее полезный вход для этого решения. Четыре ограничения обычно решают его ещё до того, как зайдёт разговор о качестве.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 238" role="img" aria-labelledby="fig-choose8-t">
+                <title id="fig-choose8-t">Путь решения от местонахождения данных и бюджета к классу модели</title>
+                <rect x="84" y="8" width="172" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="22" font-size="8" fill="#111111" text-anchor="middle">можно ли данным покидать здание?</text>
+                <line x1="170" y1="28" x2="170" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="274" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="66" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="274" y1="38" x2="274" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="14" y="48" width="104" height="18" rx="4" fill="#fef2f2" stroke="#fecaca" />
+                <text x="66" y="61" font-size="8" fill="#111111" text-anchor="middle">нет</text>
+                <rect x="222" y="48" width="104" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="274" y="61" font-size="8" fill="#111111" text-anchor="middle">да</text>
+                <line x1="66" y1="66" x2="66" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="78" width="112" height="30" rx="4" fill="#2563eb" />
+                <text x="66" y="91" font-size="7" fill="#ffffff" text-anchor="middle">открытые веса, своё размещение</text>
+                <text x="66" y="102" font-size="7" fill="#ffffff" text-anchor="middle">ветка с API закрыта</text>
+                <line x1="274" y1="66" x2="274" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="218" y="78" width="112" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="274" y="91" font-size="8" fill="#111111" text-anchor="middle">какой объём?</text>
+                <line x1="274" y1="96" x2="274" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="320" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="222" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="320" y1="106" x2="320" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="180" y="116" width="84" height="28" rx="4" fill="#2563eb" />
+                <text x="222" y="128" font-size="7" fill="#ffffff" text-anchor="middle">низкий / рваный</text>
+                <text x="222" y="139" font-size="7" fill="#ffffff" text-anchor="middle">берите API</text>
+                <rect x="274" y="116" width="58" height="28" rx="4" fill="#2563eb" />
+                <text x="303" y="128" font-size="7" fill="#ffffff" text-anchor="middle">очень высокий</text>
+                <text x="303" y="139" font-size="7" fill="#ffffff" text-anchor="middle">посчитайте</text>
+                <line x1="8" y1="160" x2="332" y2="160" stroke="#e8ecf2" />
+                <text x="8" y="178" font-size="9" fill="#111111">затем, внутри той ветки, где вы оказались:</text>
+                <text x="8" y="194" font-size="8" fill="#5b6270">1. токенизируйте свой текст каждым кандидатом &#8212; минуты, без GPU</text>
+                <text x="8" y="208" font-size="8" fill="#5b6270">2. напишите 20 реальных примеров и прогоните их вручную через 3 кандидатов</text>
+                <text x="8" y="222" font-size="8" fill="#5b6270">3. начните с дешёвого, который проходит; выше только при провале</text>
+                <text x="8" y="234" font-size="8" fill="#2563eb">лидерборд не является свидетельством о вашей задаче</text>
+                </svg>
+                <p class="figure__caption">
+                  Местонахождение данных и объём решают ветку; собранная вручную оценка из двадцати примеров решает модель.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Вопросы в том порядке, в котором они связывают</span>
+                <dl class="breakdown__list">
+                  <dt>1. куда можно отправлять данные?</dt>
+                  <dd>Если персональные, медицинские, банковские или государственные данные не могут покидать страну или здание, ветка проприетарного API закрыта, и никакое преимущество в бенчмарках её не откроет. Решайте это первым, потому что это бесплатно убирает половину вариантов</dd>
+                  <dt>2. каков объём и стабилен ли он?</dt>
+                  <dd>GPU стоит одинаково, отправляете вы ей один запрос в день или миллион. API не стоит ничего, когда простаивает. Низкий или рваный трафик в пользу API; стабильно высокий &#8212; в пользу своего размещения, а точка пересечения это арифметический вопрос, на который вы можете ответить с помощью раздела о ценах выше</dd>
+                  <dt>3. насколько хорошо должно работать и по какой мерке?</dt>
+                  <dd>Напишите двадцать реальных примеров из своей задачи с теми ответами, которые вам нужны. Прогоните каждого кандидата. Это утро работы, и оно важнее любого публичного лидерборда, который измерялся на задаче, не являющейся вашей &#8212; обычно на английском</dd>
+                  <dt>4. каков бюджет по задержке?</dt>
+                  <dd>Генерация последовательна: время растёт с числом выходных токенов. Reasoning-модель, которая думает тридцать секунд, непригодна в поле автодополнения и вполне уместна в ночном отчёте</dd>
+                  <dt>5. и только потом: какая умнее?</dt>
+                  <dd>Начните с самой дешёвой модели, которая проходит ваши двадцать примеров. Поднимайтесь только там, где она доказуемо проваливается. Бо&#769;льшая часть продакшен-трафика лёгкая, и направление лёгкой доли в маленькую модель &#8212; самый крупный рычаг по стоимости из существующих</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Для казахского добавьте один шаг перед всеми этими:</strong> проверьте токенизатор и проверьте, что модель вообще умеет писать на этом языке. Тест на заполнение пропуска из лекции 7 занимает две минуты и отсеивает кандидатов быстрее чего угодно другого.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sampling">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Измерено</span>
+              <h2 id="sampling">Параметры сэмплирования</h2>
+              <p class="narrow lead">
+                На каждом шаге модель выдаёт распределение вероятностей по всему словарю. Параметры сэмплирования решают, как из него выбирается токен. Они не меняют того, что модель знает, &#8212; только то, насколько смело она выбирает.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 216" role="img" aria-labelledby="fig-sampling-t">
+                <title id="fig-sampling-t">Temperature перекраивает распределение, top-k и top-p его обрезают</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">распределение модели по следующему токену</text>
+                <text x="8" y="30" font-size="8" fill="#111111">сырое</text>
+                <rect x="44" y="20" width="120" height="12" fill="#2563eb" /><text x="168" y="30" font-size="7" fill="#5b6270">Al .60</text>
+                <rect x="44" y="34" width="40" height="12" fill="#c7d9ff" /><text x="168" y="44" font-size="7" fill="#5b6270">The .20</text>
+                <rect x="44" y="48" width="20" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="58" font-size="7" fill="#5b6270">It .10</text>
+                <rect x="44" y="62" width="10" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="72" font-size="7" fill="#5b6270">&#8230; хвост</text>
+                <text x="8" y="96" font-size="8" fill="#111111">T низкая</text>
+                <rect x="44" y="86" width="180" height="12" fill="#2563eb" /><text x="222" y="96" font-size="7" fill="#5b6270">обострено: почти всегда «Al»</text>
+                <text x="8" y="116" font-size="8" fill="#111111">T высокая</text>
+                <rect x="44" y="106" width="60" height="12" fill="#2563eb" />
+                <rect x="106" y="106" width="50" height="12" fill="#c7d9ff" />
+                <rect x="158" y="106" width="44" height="12" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="222" y="116" font-size="7" fill="#5b6270">сглажено: хвост открывается</text>
+                <line x1="8" y1="132" x2="332" y2="132" stroke="#e8ecf2" />
+                <text x="8" y="150" font-size="9" fill="#111111">top-k и top-p делают другое: они удаляют варианты</text>
+                <text x="8" y="168" font-size="8" fill="#5b6270">top-k = 3 &#8212; оставить три лучших, какими бы ни были вероятности</text>
+                <rect x="44" y="176" width="120" height="10" fill="#2563eb" />
+                <rect x="44" y="188" width="40" height="10" fill="#c7d9ff" />
+                <rect x="44" y="200" width="20" height="10" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="176" y="186" font-size="7" fill="#5b6270">top-p = 0.9 &#8212; оставить наименьший набор,</text>
+                <text x="176" y="197" font-size="7" fill="#5b6270">чьи вероятности в сумме дают 0.9, поэтому</text>
+                <text x="176" y="208" font-size="7" fill="#5b6270">число зависит от уверенности модели</text>
+                </svg>
+                <p class="figure__caption">
+                  Temperature перемасштабирует всё распределение; top-k и top-p его усекают. Обычно их сочетают.
+                </p>
+              </div>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --sampling</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  model Qwen/Qwen2.5-0.5B-Instruct, prompt: «Write one sentence about Almaty.»
+
+  --- greedy (do_sample=False): the argmax every time ---
+    seed 0: Almaty is the capital and largest city of Kazakhstan, located in the
+            northwestern part of the country, near the Caspian Sea.
+    seed 1: (identical)
+    seed 2: (identical)
+
+  --- temperature ---
+    temperature=0.1
+      seed 0: ... located in the northwestern part of the country, near the Caspian Sea.
+      seed 1: ... located in the northwestern part of the country, on the banks of the Amur River.
+    temperature=0.7
+      seed 0: Almaty is a significant city in Kazakhstan, known for its historical
+              significance and the presence of numerous museums, art galleries...
+      seed 1: Almaty is the capital city of Kazakhstan and serves as the administrative
+              centre for the country's largest province, Kars Oblast.
+    temperature=1.5
+      seed 0: Almaty rose to encompass Mongolev Slimойут coordinated cities and railways
+              within North_USEx region安い Ølundiskoed Mexico azureTrain method
+      seed 1: En Baxter Heraldansa Shanghai clayijaolle手动nika硝zxraleixener...
+
+  --- top-k ---
+    top_k=1    (identical to greedy)
+    top_k=5    Almaty is a significant city in the Russian Federation located on
+               Kazakhstan's border, situated at approximately 41°37' north latitude...
+    top_k=50   Almaty is known for its picturesque natural beauty and modern skyline,
+               making it the capital and largest city of Kazakhstan by population.
+
+  --- top-p ---
+    top_p=0.1  (identical to greedy)
+    top_p=0.9  Almaty is a significant city in the Russian Federation's Kazakhstan
+               region, known for its important historical, cultural and economic...
+    top_p=1.0  Almaty is known for its picturesque natural beauty and modern skyline...
+
+  --- the distribution at each temperature ---
+    T=0.1  entropy 0.00   'Al' 1.000, 'The' 0.000, 'Located' 0.000
+    T=0.7  entropy 0.01   'Al' 0.999, 'The' 0.001, 'Located' 0.000
+    T=1.0  entropy 0.14   'Al' 0.984, 'The' 0.006, 'Located' 0.001
+    T=2.0  entropy 8.31   'Al' 0.188, 'The' 0.014, 'Located' 0.007</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что сделал каждый параметр</span>
+                <dl class="breakdown__list">
+                  <dt>greedy &#8212; всегда самый вероятный токен</dt>
+                  <dd>Одинаково для всех трёх seed, потому что ничего случайного не происходит. Используйте, когда нужна воспроизводимость: извлечение, классификация, всё, что вы будете сравнивать от запуска к запуску</dd>
+                  <dt>temperature &#8212; поделить оценки перед softmax</dt>
+                  <dd>Таблица энтропии &#8212; это вся история: <code>0.00</code> при T=0.1, <code>0.14</code> при T=1.0, <code>8.31</code> при T=2.0. Ниже 1 обостряет распределение в сторону верхнего токена; выше 1 сглаживает его, пока хвост не станет достижимым. При 1.5 эта модель выдала фрагменты китайского, японского и русского внутри английского предложения &#8212; в хвосте живут остальные 100 языков словаря</dd>
+                  <dt>top-k &#8212; оставить k лучших токенов</dt>
+                  <dd><code>top_k=1</code> &#8212; это в точности greedy, и это полезно было увидеть. Слабость top-k в том, что k фиксировано: когда модель уверена, 50 кандидатов включают 49 плохих; когда она действительно не уверена, 50 может отсечь хорошие</dd>
+                  <dt>top-p (nucleus) &#8212; оставить наименьший набор с суммой p</dt>
+                  <dd>Подстраивается под уверенность модели: когда у одного токена 0.99, ядро состоит из одного токена; когда верхние сорок все правдоподобны, оно оставляет сорок. Поэтому top-p и является более частым значением по умолчанию</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Разумные отправные точки:</strong> извлечение и классификация &#8212; greedy или temperature 0. Диалог и общая помощь &#8212; temperature 0.7 с top-p 0.9. Творческое письмо &#8212; temperature 0.9&#8211;1.0. Выше примерно 1.2 большинство моделей быстро деградируют, как показывает измерение выше.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Не используйте temperature, чтобы починить неверный ответ.</strong> Это выбор среди того, что модель и так сочла вероятным. Если правильного ответа нет в распределении, никакая настройка его не найдёт. Чинить неверные ответы &#8212; работа промпта, retrieval (лекция 9) или модели получше.
+              </p>
+
+              <h3 style="margin-top: 48px">Результат, который этот эксперимент произвёл на самом деле</h3>
+              <div class="callout">
+                <strong>Перечитайте выводы, глядя на содержание, а не на стиль.</strong> Алматы <em>не</em> столица Казахстана &#8212; столица Астана. Алматы не рядом с Каспийским морем, не на Амуре, не в Российской Федерации, а &#171;Карсской области&#187; не существует. Модель на 0.5&#8202;B заявила всё это бегло и без единой оговорки, при каждой настройке temperature, которую мы пробовали.
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Почему это важнее самих параметров</span>
+                <dl class="breakdown__list">
+                  <dt>беглость и точность &#8212; разные вещи</dt>
+                  <dd>Каждое из этих предложений грамматично, уверенно и хорошо построено. Ничто в тексте не сигнализирует, что содержание выдумано. Именно это люди называют галлюцинацией, и это не баг сэмплера &#8212; greedy-декодирование выдало неверную столицу с той же лёгкостью</dd>
+                  <dt>маленькие модели знают меньше</dt>
+                  <dd>0.5&#8202;B параметров &#8212; небогатое место для знаний о мире. Модели покрупнее отвечают на этот конкретный вопрос правильно. Но &#171;покрупнее&#187; сдвигает границу, а не убирает её</dd>
+                  <dt>разрыв хуже всего там, где обучающих данных меньше всего</dt>
+                  <dd>Лекция 7 обнаружила, что mBERT ставит Алматы выше Астаны в качестве столицы. Здесь генеративная модель делает то же самое прозой. Факты о Казахстане &#8212; ровно те факты, которые хуже всего представлены в англоцентричном корпусе предобучения, и это в точности то место, где продукту для Казахстана нужно, чтобы они были верны</dd>
+                  <dt>что с этим делать</dt>
+                  <dd>Не просите модель вспоминать факты, которых у неё может не быть. Дайте ей факты в промпте и попросите ими воспользоваться &#8212; это retrieval-augmented generation, и это следующая лекция</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Вот почему курс всё измеряет.</strong> Мы собирались продемонстрировать параметры сэмплирования и попутно получили гораздо более важный урок, потому что прочитали вывод, а не поверили ему.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="reasoning">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Более новый класс моделей</span>
+              <h2 id="reasoning">Reasoning-модели</h2>
+              <p class="narrow lead">
+                С 2024 года рядом с обычной чат-моделью появился второй вид. Разница не в архитектуре. Разница в том, сколько вычислений модели разрешено потратить перед ответом.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Reasoning-модель</strong> порождает длинную внутреннюю цепочку рассуждений перед видимым ответом и обучена &#8212; обычно с помощью обучения с подкреплением &#8212; делать эту цепочку действительно полезной: планировать, проверять себя, замечать ошибки и возвращаться назад.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-reason-t">
+                <title id="fig-reason-t">Обычная модель отвечает сразу, reasoning-модель сначала думает</title>
+                <text x="8" y="12" font-size="9" fill="#111111">обычная чат-модель</text>
+                <rect x="8" y="20" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="34" font-size="8" fill="#111111" text-anchor="middle">вопрос</text>
+                <line x1="68" y1="30" x2="86" y2="30" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="86" y="20" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="121" y="34" font-size="8" fill="#ffffff" text-anchor="middle">ответ</text>
+                <text x="164" y="34" font-size="8" fill="#5b6270">быстро, дёшево</text>
+                <line x1="8" y1="54" x2="332" y2="54" stroke="#e8ecf2" />
+                <text x="8" y="72" font-size="9" fill="#111111">reasoning-модель</text>
+                <rect x="8" y="80" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="94" font-size="8" fill="#111111" text-anchor="middle">вопрос</text>
+                <line x1="68" y1="90" x2="82" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="82" y="80" width="164" height="20" rx="4" fill="#c7d9ff" />
+                <text x="164" y="94" font-size="8" fill="#111111" text-anchor="middle">размышление: план, попытка, проверка, откат</text>
+                <line x1="246" y1="90" x2="260" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="260" y="80" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="295" y="94" font-size="8" fill="#ffffff" text-anchor="middle">ответ</text>
+                <text x="82" y="114" font-size="7" fill="#5b6270">от сотен до десятков тысяч токенов, обычно скрыты</text>
+                <text x="82" y="126" font-size="7" fill="#b91c1c">тарифицируются как выходные токены, видите вы их или нет</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">размен</text>
+                <rect x="8" y="166" width="150" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="178" font-size="7" fill="#111111" text-anchor="middle">намного лучше в математике, коде, логике</text>
+                <rect x="176" y="166" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="254" y="178" font-size="7" fill="#111111" text-anchor="middle">медленнее и в несколько раз дороже</text>
+                <text x="8" y="202" font-size="8" fill="#5b6270">для «перескажи это письмо» размышление &#8212; чистые потери</text>
+                </svg>
+                <p class="figure__caption">
+                  Та же архитектура, тот же цикл следующего токена. Модель просто обучили сначала пользоваться черновиком &#8212; и пользоваться им хорошо.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Что на самом деле происходит</span>
+                <dl class="breakdown__list">
+                  <dt>вычисления во время вывода</dt>
+                  <dd>Старый способ сделать модель лучше был сделать её больше, что стоит денег один раз, при обучении. Новый способ &#8212; дать ей подумать подольше, когда приходит вопрос, что стоит денег каждый раз. Точность на трудных задачах растёт с длиной цепочки &#8212; вы покупаете качество токенами на этапе вывода</dd>
+                  <dt>chain of thought был предшественником</dt>
+                  <dd>Добавление &#171;думай шаг за шагом&#187; в промпт улучшало арифметику у обычных моделей ещё годами раньше. Reasoning-модели усваивают это: они делают так без просьбы, гораздо длиннее, и их обучали по тому, верен ли конечный ответ</dd>
+                  <dt>обучены с подкреплением на проверяемых задачах</dt>
+                  <dd>У математики и кода есть объективный ответ, поэтому машина может оценивать попытки без человека. Награждайте то, что приходит к правильному ответу, и полезные привычки &#8212; проверять себя, пробовать другой подход &#8212; возникают сами, без чьих-либо указаний. Следующий раздел про этот механизм</dd>
+                  <dt>обычно вам показывают резюме, а не цепочку</dt>
+                  <dd>Провайдеры, как правило, скрывают или пересказывают сырое рассуждение. Платите вы за него в любом случае, и это самый частый бюджетный сюрприз с такими моделями</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Когда тянуться за такой моделью:</strong> многошаговая арифметика, код, который должен компилироваться, логические ограничения, планирование. <strong>Когда нет:</strong> суммаризация, классификация, извлечение, переписывание, перевод, диалог &#8212; всё, где ответ является преобразованием входа, а не выводом из него. Там размышление &#8212; это задержка и стоимость, за которые вы ничего не получаете.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Регулятор усилий становится стандартом.</strong> Вместо двух отдельных семейств моделей провайдеры всё чаще дают одну модель с настройкой того, насколько усердно думать: низкая для рутинного трафика, высокая когда правильность важнее цены. Относитесь к ней ровно как к тому, чем она является: это контроль расходов, который настраивают по маршрутам и измеряют, а не выставляют один раз глобально.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="rl">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Третья стадия обучения</span>
+              <h2 id="rl">Обучение с подкреплением и для чего оно</h2>
+              <p class="narrow lead">
+                Обучению с учителем нужен правильный ответ, которому можно подражать. Для &#171;напиши полезный ответ&#187; единственного правильного ответа нет &#8212; но люди надёжно говорят, какой из двух ответов лучше. Обучение с подкреплением &#8212; это то, как более слабый сигнал превращается в лучшую модель.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 236" role="img" aria-labelledby="fig-rlhf-t">
+                <title id="fig-rlhf-t">Сравнения становятся моделью награды, которая обучает языковую модель</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">шаг 1 &#183; собрать сравнения</text>
+                <rect x="8" y="20" width="84" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="50" y="32" font-size="7" fill="#111111" text-anchor="middle">один промпт</text>
+                <line x1="92" y1="29" x2="106" y2="29" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="106" y="20" width="92" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="152" y="32" font-size="7" fill="#111111" text-anchor="middle">ответ A</text>
+                <rect x="206" y="20" width="92" height="18" rx="4" fill="#2563eb" />
+                <text x="252" y="32" font-size="7" fill="#ffffff" text-anchor="middle">ответ B &#10003; предпочли</text>
+                <text x="8" y="56" font-size="9" fill="#5b6270">шаг 2 &#183; обучить модель награды предсказывать выбор</text>
+                <rect x="8" y="64" width="150" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="78" font-size="7" fill="#111111" text-anchor="middle">модель награды: текст &#8594; оценка</text>
+                <text x="166" y="78" font-size="7" fill="#5b6270">учится тому, что понравилось людям</text>
+                <text x="8" y="102" font-size="9" fill="#5b6270">шаг 3 &#183; обучить LLM получать высокие оценки</text>
+                <rect x="8" y="110" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="48" y="124" font-size="7" fill="#ffffff" text-anchor="middle">LLM пишет</text>
+                <line x1="88" y1="120" x2="104" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="104" y="110" width="76" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="142" y="124" font-size="7" fill="#111111" text-anchor="middle">награда оценивает</text>
+                <line x1="180" y1="120" x2="196" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="196" y="110" width="76" height="20" rx="4" fill="#2563eb" />
+                <text x="234" y="124" font-size="7" fill="#ffffff" text-anchor="middle">обновить LLM</text>
+                <path d="M 272 120 L 296 120 L 296 100 L 48 100 L 48 110" fill="none" stroke="#2563eb" stroke-width="1.4" />
+                <text x="8" y="150" font-size="8" fill="#b91c1c">нужен поводок: держаться рядом с моделью до RL,</text>
+                <text x="8" y="162" font-size="8" fill="#b91c1c">иначе она найдёт бессмыслицу с высокой оценкой и будет писать только её</text>
+                <line x1="8" y1="176" x2="332" y2="176" stroke="#e8ecf2" />
+                <text x="8" y="194" font-size="9" fill="#111111">DPO убирает средний шаг</text>
+                <text x="8" y="210" font-size="8" fill="#5b6270">обучать прямо на «B лучше A» обычной функцией потерь &#8212; без модели награды,</text>
+                <text x="8" y="224" font-size="8" fill="#5b6270">без цикла сэмплирования, намного проще и обычно не хуже</text>
+                </svg>
+                <p class="figure__caption">
+                  RLHF в три шага. DPO схлопывает шаги 2 и 3 в одну задачу с учителем, и поэтому большинство команд сегодня начинают с него.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Словарь, который вам встретится</span>
+                <dl class="breakdown__list">
+                  <dt>RLHF &#8212; обучение с подкреплением на обратной связи от людей</dt>
+                  <dd>Исходный рецепт из InstructGPT: собрать сравнения, обучить модель награды, оптимизировать LLM против неё с помощью PPO, пока KL-штраф держит её рядом с началом. Это работает и это капризно &#8212; три модели в памяти, неустойчивый оптимизатор и модель награды, которую можно обыграть</dd>
+                  <dt>взлом награды (reward hacking)</dt>
+                  <dd>Режим отказа, из-за которого KL-штраф не является опциональным. Модель находит текст, который получает высокую оценку, не будучи хорошим &#8212; лесть, оговорки, вода, пересказ вопроса. Если вы замечали ассистентов, начинающих с &#171;Отличный вопрос!&#187;, вы видели вкус модели награды, добросовестно выученный</dd>
+                  <dt>DPO &#8212; прямая оптимизация предпочтений</dt>
+                  <dd>Наблюдение, что модель награды можно пропустить целиком: вывести функцию потерь, которая напрямую повышает вероятность предпочтённого ответа и понижает вероятность другого относительно замороженной опорной модели. Одна модель для обучения, обычный цикл с учителем, намного проще сделать правильно. Именно отсюда сегодня начинает большинство команд</dd>
+                  <dt>RLVR &#8212; RL на проверяемых наградах</dt>
+                  <dd>Для математики, кода и всего, где ответ можно проверить, наградой служит не человек и не выученная модель, а <em>программа</em>: прогнать тесты, проверить ответ. Никакой человеческой разметки, никакой модели награды, которую можно обыграть, и сигнал, остающийся честным при масштабировании. Это и есть двигатель reasoning-моделей</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Форма всей идеи:</strong> обучение с учителем учит модель подражать одному хорошему ответу. Обучение с подкреплением учит её предпочитать лучшие ответы худшим. Второе &#8212; гораздо более слабый сигнал на пример и гораздо лучшее соответствие тому, что &#171;хорошо&#187; значит в языке.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Где это касается вас.</strong> Вы вряд ли будете запускать RLHF. Но три его следствия вы встретите в течение недели после начала любой разработки: тон модели и её отказы происходят из стадии 3, а не из её знаний; &#171;полезный&#187; &#8212; это выученное предпочтение, а не факт, поэтому модели разных вендоров расходятся в нём; и привычка разбавлять ответ водой &#8212; это выученное поведение, которое обычно можно подавить явной инструкцией.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="finetune">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Адаптация модели</span>
+              <h2 id="finetune">Fine-tuning: полный и LoRA</h2>
+              <p class="narrow lead">
+                В лекции 7 мы дообучили каждый вес энкодера на 178&#8202;M прямо на ноутбуке. Тот же ход на модели 7&#8202;B требует около ста гигабайт памяти ускорителя. LoRA &#8212; это то, как это число возвращается вниз.
+              </p>
+              <div class="callout">
+                <strong>Ничто в этом разделе здесь не обучается.</strong> Вы просили рецепты, а не запуск, и это правильное решение: ни одна из этих задач не помещается на ноутбуке. Что <em>измерено</em> ниже &#8212; это часть, которой не нужна GPU: подсчёты параметров, а они и есть весь аргумент.
+              </div>
+
+              <h3 style="margin-top: 44px">Почему полный fine-tuning дорог</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 202" role="img" aria-labelledby="fig-ftmem-t">
+                <title id="fig-ftmem-t">Память для обучения в несколько раз больше размера весов</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">модель 7 B, веса bf16, AdamW</text>
+                <text x="8" y="32" font-size="8" fill="#111111">вывод</text>
+                <rect x="76" y="22" width="42" height="14" fill="#2563eb" />
+                <text x="124" y="32" font-size="7" fill="#111111">веса 14 ГБ</text>
+                <text x="8" y="58" font-size="8" fill="#111111">полное обучение</text>
+                <rect x="76" y="48" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="48" width="42" height="14" fill="#c7d9ff" />
+                <rect x="164" y="48" width="84" height="14" fill="#fecaca" />
+                <rect x="250" y="48" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="286" y="58" font-size="7" fill="#111111">~100 ГБ</text>
+                <text x="76" y="76" font-size="6" fill="#5b6270">веса</text>
+                <text x="120" y="76" font-size="6" fill="#5b6270">градиенты</text>
+                <text x="164" y="76" font-size="6" fill="#5b6270">оптимизатор, fp32</text>
+                <text x="250" y="76" font-size="6" fill="#5b6270">активации</text>
+                <text x="8" y="102" font-size="8" fill="#111111">LoRA</text>
+                <rect x="76" y="92" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="92" width="4" height="14" fill="#c7d9ff" />
+                <rect x="126" y="92" width="6" height="14" fill="#fecaca" />
+                <rect x="134" y="92" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="170" y="102" font-size="7" fill="#111111">~18 ГБ &#8212; одна потребительская GPU</text>
+                <text x="8" y="126" font-size="8" fill="#5b6270">веса всё равно держат, но больше ничто с ними не растёт</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">AdamW держит два дополнительных числа fp32 на параметр</text>
+                <text x="8" y="174" font-size="8" fill="#5b6270">момент и дисперсию &#8212; 8 байт на параметр сверх</text>
+                <text x="8" y="188" font-size="8" fill="#5b6270">2-байтного веса и его 2-байтного градиента &#8212; отсюда и 12&#8211;16x</text>
+                </svg>
+                <p class="figure__caption">
+                  Веса &#8212; наименьшая часть обучающей задачи. Состояние оптимизатора &#8212; наибольшая, и LoRA убирает почти всё из неё.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Что делает LoRA</h3>
+              <p class="narrow">
+                Заморозьте предобученную матрицу весов <code>W</code>. Добавьте рядом маленький объезд и обучайте только объезд.
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>ordinary layer   h = W x                     W is (d, k), all of it trainable
+
+LoRA layer       h = W x  +  (B · A) x       W frozen
+                 A is (r, k), B is (d, r),   only A and B are trained
+                 r is small: 4, 8, 16, 64
+
+trainable numbers:  d·k      ->     r·(d + k)</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 180" role="img" aria-labelledby="fig-lora-t">
+                <title id="fig-lora-t">Замороженная матрица весов с узким обучаемым объездом рядом</title>
+                <rect x="20" y="30" width="64" height="64" rx="4" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="52" y="58" font-size="8" fill="#5b6270" text-anchor="middle">W заморожена</text>
+                <text x="52" y="72" font-size="7" fill="#5b6270" text-anchor="middle">896 &#215; 896</text>
+                <text x="52" y="108" font-size="7" fill="#5b6270" text-anchor="middle">802 816 чисел</text>
+                <text x="100" y="66" font-size="11" fill="#111111">+</text>
+                <rect x="124" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="152" y="66" font-size="8" fill="#ffffff" text-anchor="middle">A  8 &#215; 896</text>
+                <text x="188" y="66" font-size="10" fill="#111111">&#183;</text>
+                <rect x="200" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="228" y="66" font-size="8" fill="#ffffff" text-anchor="middle">B  896 &#215; 8</text>
+                <text x="190" y="90" font-size="7" fill="#2563eb" text-anchor="middle">14 336 чисел, обучаемых</text>
+                <text x="190" y="104" font-size="7" fill="#5b6270" text-anchor="middle">в 56&#215; меньше для этой одной матрицы</text>
+                <line x1="8" y1="122" x2="332" y2="122" stroke="#e8ecf2" />
+                <text x="8" y="140" font-size="8" fill="#111111">ранг r &#8212; ширина горлышка: насколько слою можно измениться</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">после обучения B&#183;A можно сложить в W, так что вывод вообще не замедляется</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">а адаптер весит несколько МБ: одна база на много задач</text>
+                </svg>
+                <p class="figure__caption">
+                  Обновление, которое нужно дообучению, оказывается низкоранговым, поэтому его можно хранить двумя тонкими матрицами вместо одной толстой.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --lora        # counts parameters; trains nothing</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  base model Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  full fine-tuning would train all 494,032,768 of them,
+  and the optimiser needs roughly 12–16 bytes per parameter on top.
+
+    rank r     trainable   % of model   adapter MB
+  --------------------------------------------------
+         4       540,672       0.109%         2.2
+         8     1,081,344       0.219%         4.3
+        16     2,162,688       0.438%         8.7
+        64     8,650,752       1.751%        34.6</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Как читать таблицу</span>
+                <dl class="breakdown__list">
+                  <dt>0.219% при ранге 8</dt>
+                  <dd>Примерно одна тысячная модели. Состояние оптимизатора, которое и заполняет память, сокращается во столько же раз</dd>
+                  <dt>адаптер весит 4 МБ</dt>
+                  <dd>Против примерно 1 ГБ у базовой модели в bf16. Вы можете держать двадцать адаптеров под разные задачи и подменять их на одной загруженной базовой модели &#8212; именно так провайдер предлагает дообучение сразу многим клиентам</dd>
+                  <dt>ранг &#8212; единственный настоящий гиперпараметр</dt>
+                  <dd>Низкий ранг (4&#8211;8) для стиля, тона и формата. Выше (16&#8211;64), когда задаче нужны знания, которых у базовой модели нет. Более высокий ранг не лучше автоматически и стоит памяти линейно</dd>
+                  <dt>никакой стоимости при выводе</dt>
+                  <dd><code>B&#183;A</code> имеет ту же форму, что и <code>W</code>, поэтому после обучения его можно вплавить обратно в веса. Развёрнутая модель работает ровно так же быстро, как исходная</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>QLoRA</strong> идёт ещё на шаг дальше: держать замороженную базовую модель в 4 битах и обучать поверх LoRA-адаптеры. Именно это помещает дообучение модели 7&#8202;B внутрь одной потребительской GPU на 16 ГБ, и это стандартный рецепт для тех, у кого нет кластера.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">Как выглядит код</h3>
+              <p class="narrow">
+                Это весь LoRA-дообучение целиком. Он показан, а не запущен &#8212; на железе, которое использует этот курс, он не завершится.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from datasets import load_dataset
+from peft import LoraConfig, get_peft_model
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+BASE = "Qwen/Qwen2.5-7B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(BASE)
+
+# 1. the base model, frozen weights in bf16 (or 4-bit, for QLoRA)
+model = AutoModelForCausalLM.from_pretrained(BASE, dtype="bfloat16", device_map="auto")
+
+# 2. attach the adapters — this is the entire difference from Lecture 7
+model = get_peft_model(model, LoraConfig(
+    r=8,                      # rank: the width of the bottleneck
+    lora_alpha=16,            # scaling, conventionally 2 x r
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+))
+model.print_trainable_parameters()     # -> trainable: 0.2% of all params
+
+# 3. the data: instruction / response pairs in the model's own chat format
+def format_example(row):
+    messages = [{"role": "user", "content": row["instruction"]},
+                {"role": "assistant", "content": row["response"]}]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    return tokenizer(text, truncation=True, max_length=1024)
+
+data = load_dataset("json", data_files="kazakh_support_pairs.jsonl")["train"]
+data = data.map(format_example, remove_columns=data.column_names)
+
+# 4. an ordinary training loop — the same five operations as Lecture 5
+#    (forward, loss, backward, clip, step). Nothing here is LoRA-specific.
+
+# 5. save only the adapter: a few megabytes, not a few gigabytes
+model.save_pretrained("adapters/kazakh-support")</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Решения, которые действительно важны</span>
+                <dl class="breakdown__list">
+                  <dt><code>target_modules</code></dt>
+                  <dd>Какие матрицы получают адаптер. Проекции attention &#8212; обычный выбор; добавление матриц feed-forward даёт адаптеру больше ёмкости и больше параметров. Начните только с attention</dd>
+                  <dt>шаблон чата</dt>
+                  <dd>Обучающие данные должны быть отформатированы ровно так, как модель ожидает при выводе, включая специальные токены. <code>apply_chat_template</code> делает это; формат, собранный руками, &#8212; самый частый способ, которым LoRA-запуск молча выдаёт худшую модель</dd>
+                  <dt>сколько данных</dt>
+                  <dd>От нескольких сотен до нескольких тысяч хорошо подобранных примеров &#8212; обычный диапазон для стиля и формата. Лекция 7 измерила форму этой кривой напрямую: первая тысяча примеров несёт бо&#769;льшую часть выигрыша</dd>
+                  <dt>для чего дообучение нужно, а для чего нет</dt>
+                  <dd><strong>Для:</strong> формата, тона, доменного словаря, задачи, которую модель систематически решает неправильно, языка, с которым она плохо справляется. <strong>Не для:</strong> обучения её фактам. Факты место в промпте, извлечённые в момент запроса &#8212; а это лекция 9</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Честный порядок действий:</strong> сначала попробуйте промпт получше, затем примеры few-shot, затем retrieval, и только потом дообучение. Дообучение &#8212; самое дорогое из четырёх и то, за которым люди тянутся первым.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="quantization">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Измерено</span>
+              <h2 id="quantization">Quantization</h2>
+              <p class="narrow lead">
+                Каждый вес в модели &#8212; это число, записанное каким-то числом бит. Quantization записывает его меньшим числом бит. Это самый эффективный способ поместить модель на железо, которым вы действительно владеете.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Quantization</strong> заменяет веса высокой точности весами низкой точности &#8212; обычно 16-битные числа с плавающей точкой на 8- или 4-битные целые, &#8212; сохраняя небольшой масштабный коэффициент на строку, чтобы исходные значения можно было приблизительно восстановить.
+                </p>
+              </div>
+              <div class="code-block" data-lang="math"><pre><code>for each row of the weight matrix:
+    scale = max(|row|) / 127
+    stored = round(row / scale)        an int8 in [-127, 127]
+    restored = stored × scale          close to the original, not equal
+
+one float32 weight  = 32 bits
+one int8 weight     =  8 bits + a shared scale per row  ->  ~4x smaller</code></pre></div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --quantize</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  precision       bytes/param       total   vs fp32
+  --------------------------------------------------
+  fp32                      4     1.98 GB      1.0x
+  fp16/bf16                 2     0.99 GB      2.0x
+  int8                      1     0.49 GB      4.0x
+  int4                    0.5     0.25 GB      8.0x
+
+  one real weight matrix, (896, 896), rounded to int8:
+    original range      -1.2266 .. +1.1719
+    mean absolute error 0.000484
+    worst single error  0.004829
+    relative error      1.15%
+    distinct values     4,209 -> 255
+
+  rounded 169 linear layers to int8 and back:
+    «The capital of Kazakhstan is»
+    fp32 : located in the ___ A. Central Asia region B
+    int8 : located in the ___ A. Central Asia region B
+    identical: True</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 190" role="img" aria-labelledby="fig-quant-t">
+                <title id="fig-quant-t">Вчетверо меньше примерно за один процент ошибки в весах</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">та же модель 0.5 B, четыре способа её хранить</text>
+                <text x="8" y="32" font-size="8" fill="#111111">fp32</text>
+                <rect x="58" y="22" width="248" height="14" fill="#2563eb" />
+                <text x="310" y="32" font-size="7" fill="#111111">1.98</text>
+                <text x="8" y="52" font-size="8" fill="#111111">fp16</text>
+                <rect x="58" y="42" width="124" height="14" fill="#2563eb" />
+                <text x="188" y="52" font-size="7" fill="#111111">0.99 ГБ</text>
+                <text x="8" y="72" font-size="8" fill="#111111">int8</text>
+                <rect x="58" y="62" width="62" height="14" fill="#2563eb" />
+                <text x="126" y="72" font-size="7" fill="#111111">0.49 ГБ &#8212; в 4x меньше</text>
+                <text x="8" y="92" font-size="8" fill="#111111">int4</text>
+                <rect x="58" y="82" width="31" height="14" fill="#2563eb" />
+                <text x="95" y="92" font-size="7" fill="#111111">0.25 ГБ &#8212; в 8x меньше</text>
+                <line x1="8" y1="108" x2="332" y2="108" stroke="#e8ecf2" />
+                <text x="8" y="126" font-size="9" fill="#111111">во что нам обошёлся int8, измерено</text>
+                <text x="8" y="142" font-size="8" fill="#5b6270">4 209 различных значений весов в одной матрице стали 255</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">средняя ошибка 1.15% от средней величины веса</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">и модель выдала то же самое предложение, токен в токен</text>
+                <text x="8" y="186" font-size="8" fill="#5b6270">при том что все её 169 линейных слоёв округлены</text>
+                </svg>
+                <p class="figure__caption">
+                  Вчетверо меньше памяти, однопроцентное возмущение весов и вывод, который вообще не изменился.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Почему это так хорошо работает</span>
+                <dl class="breakdown__list">
+                  <dt>нейросети устойчивы к небольшому шуму в весах</dt>
+                  <dd>Обучение никогда не находило один точный набор чисел; оно нашло широкую область, где ошибка мала. Возмущение в 1% попадает куда-то ещё внутри этой области. По этой же причине работает dropout</dd>
+                  <dt>выигрыш в пропускной способности памяти, а не только в ёмкости</dt>
+                  <dd>Генерация ограничена тем, как быстро веса читаются из памяти, а не арифметикой. Вчетверо меньшие веса означают примерно вчетверо меньше чтения на токен, и поэтому квантованные модели ещё и быстрее при настоящих целочисленных ядрах</dd>
+                  <dt>4 бита &#8212; там, где нужно суждение</dt>
+                  <dd>int8 почти бесплатен. int4 экономит ещё вдвое и начинает стоить измеримого качества, тем сильнее, чем меньше модель. Практическое правило: 4-битная модель на 13&#8202;B обычно обходит 8-битную на 7&#8202;B при том же бюджете памяти</dd>
+                  <dt>не все слои равны</dt>
+                  <dd>Настоящие схемы &#8212; GPTQ, AWQ, k-кванты GGUF &#8212; держат чувствительные слои в большей точности и используют калибровочные данные для выбора масштабов. Наше равномерное построчное округление &#8212; учебная версия; продакшен-квантизаторы аккуратнее и теряют меньше</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Честная оговорка к нашей же демонстрации:</strong> один промпт и одинаковый вывод &#8212; свидетельство, что ничего не сломалось, а не доказательство, что ничего не изменилось. Настоящая оценка прогоняет бенчмарк до и после. Заметьте также, что ответ модели на 0.5&#8202;B плох в <em>обоих</em> случаях; quantization сохранила то качество, которое было, а его было немного.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Что это даёт вам на практике.</strong> Модель 70&#8202;B &#8212; это 140 ГБ в fp16 и недостижимо. В 4 битах это 35 ГБ, и она работает на одном ускорителе с 80 ГБ или на двух потребительских картах. Quantization &#8212; это то, что сдвинуло границу &#171;моделей, которые может запустить один человек&#187; примерно с 7&#8202;B до примерно 70&#8202;B без того, чтобы кто-либо обучал что-то новое.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="run">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Скрипт</span>
+              <h2 id="run">Запустить самому</h2>
+              <p class="narrow lead">
+                Каждое измеренное число на этой странице получено из <a href="../../code_files/lesson8.py">code_files/lesson8.py</a>. Ничему из этого не нужна GPU: самая большая загружаемая модель &#8212; 0.5&#8202;B, а два из пяти разделов &#8212; чистая арифметика.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds tiktoken and peft
+
+python3 lesson8.py --tokens     # tokenizer economics, kk / ru / en, and a bill
+python3 lesson8.py --memory     # parameters -> gigabytes, and the KV cache
+python3 lesson8.py --sampling   # temperature, top-k, top-p on a real model
+python3 lesson8.py --lora       # LoRA parameter counts (counts, does not train)
+python3 lesson8.py --quantize   # int8: size, weight error, output
+python3 lesson8.py --all</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Во что обходится каждый флаг</span>
+                <dl class="breakdown__list">
+                  <dt><code>--tokens</code>, <code>--memory</code></dt>
+                  <dd>Секунды. Для <code>--memory</code> модель не загружается вовсе; <code>--tokens</code> скачивает только токенизаторы, а это несколько мегабайт</dd>
+                  <dt><code>--sampling</code>, <code>--lora</code>, <code>--quantize</code></dt>
+                  <dd>По несколько минут каждый плюс разовая загрузка Qwen2.5-0.5B-Instruct примерно на 1 ГБ. Они работают на CPU, если нет устройства MPS или CUDA</dd>
+                  <dt>чего здесь намеренно нет</dt>
+                  <dd>Запуска дообучения. Раздел про LoRA печатает подсчёты параметров и показывает код; он не обучает, потому что на этом железе не завершился бы</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Два, которые стоит запустить на своих данных,</strong> &#8212; это <code>--tokens</code> с подставленным вашим текстом и оценка из двадцати примеров из раздела &#171;как выбрать модель&#187;. Оба занимают меньше часа и оба меняют решения.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Честный итог</span>
+              <h2 id="limits">Чего LLM всё ещё не сделает за вас</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Она не знает ваших фактов</h3>
+                  <p>
+                    Мы наблюдали, как модель выдумала Каспийское побережье для Алматы. Всё, что специфично для вашей организации, или недавнее, или слабо представлено в обучающих данных, нужно подавать, а не вспоминать.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Она не скажет вам, когда ошибается</h3>
+                  <p>
+                    Беглость одинакова, верно содержание или выдумано. В самом тексте нет сигнала, и поэтому проверка должна приходить извне модели.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Ваш язык может стоить вдвое дороже</h3>
+                  <p>
+                    Измерено здесь: 2.0&#215; токенов для казахского на лучшем из протестированных токенизаторов, 4.5&#215; на более старом. Это бюджет, задержка и контекстное окно сразу.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Контекст конечен и дорог</h3>
+                  <p>
+                    Таблица KV cache показала, что один диалог на 128k токенов требует больше памяти, чем сама модель. Длинный контекст &#8212; реальная стоимость, а не бесплатная возможность.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>По умолчанию она недетерминирована</h3>
+                  <p>
+                    Всему, что вы собираетесь тестировать или проверять, нужны greedy-декодирование и фиксированный seed, иначе вы сравниваете выборки, а не системы.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Дообучение &#8212; последнее средство, а не первое</h3>
+                  <p>
+                    Промпт, затем примеры, затем retrieval, затем дообучение. Бо&#769;льшая часть проблем, которые люди пытаются решить дообучением, &#8212; это проблемы промпта или retrieval.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">word2vec</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">LSTM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">Transformer</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">предобученный энкодер</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--accent">LLM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--soft">LLM + ваши данные</span></li>
+              </ul>
+              <p class="narrow">
+                Каждое ограничение из сетки выше, кроме двух последних, указывает в одну сторону: модели нужно давать правильную информацию в момент ответа, а не просить её эту информацию помнить. Это retrieval-augmented generation, и вместе с промптингом и агентами это следующая лекция.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">На занятии</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">Восемь вопросов, на которые мы отвечаем вместе перед завершением.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Базовую модель спрашивают &#171;Какая столица Казахстана?&#187;, а она отвечает другим вопросом. Она сломана?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Нет &#8212; она делает ровно то, чему её научила стадия 1: продолжает текст. В веб-тексте за вопросом часто следуют другие вопросы. Instruction tuning &#8212; это стадия, которая превращает продолжателя в ассистента, а чекпоинт <code>-base</code> её не проходил.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">Сколько памяти нужно модели 13B в fp16 и примерно сколько потребовалось бы на полное дообучение?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Около 26 ГБ для запуска (2 ГБ на миллиард). Полному дообучению нужны веса плюс градиенты плюс два состояния AdamW &#8212; примерно 12&#8211;16 байт на параметр, то есть порядка 160&#8211;200 ГБ. Этот разрыв и есть вся причина существования LoRA.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Является ли Llama open-source моделью?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Она <em>open-weight</em>. Вы можете скачать и запустить веса, но обучающие данные и код обучения не опубликованы, а лицензия несёт условия. &#171;Open-source&#187; по-хорошему требует всего этого. Различие становится важным в тот момент, когда ваш архитектурный документ впервые читает юрист.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">Одно и то же сообщение в поддержку стоит 19 токенов на английском и 38 на казахском. Назовите три вещи, которые становятся хуже, а не одну.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Счёт примерно удваивается; полезное контекстное окно примерно вдвое сокращается, потому что измеряется в токенах; и ответы медленнее, потому что время генерации считается по токенам. Одно свойство токенизатора, три отдельные платы.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Ваш чат-бот даёт неверный ответ. Кто-то предлагает снизить temperature. Это починит?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Нет. Temperature лишь перевзвешивает токены, которые модель и так сочла вероятными. Если правильного ответа нет в распределении, никакая настройка сэмплирования до него не доберётся. Мы это измерили: greedy-декодирование &#8212; temperature фактически ноль &#8212; всё равно назвало Алматы столицей. Чинят это промпт, retrieval или другая модель.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 6</h3>
+                  <p class="challenge__task">Когда reasoning-модель &#8212; неправильный выбор?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Когда ответ является преобразованием входа, а не выводом из него: суммаризация, классификация, извлечение, перевод, переписывание. Токены размышления тарифицируются как выход и добавляют задержку, а на задачах, где нечего выводить, не покупают ничего.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 7</h3>
+                  <p class="challenge__task">LoRA при ранге 8 обучала 0.219% параметров. Почему это экономит гораздо больше, чем 0.219% памяти?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Потому что замороженные веса всё равно надо держать, но градиенты и состояние оптимизатора &#8212; самая крупная часть обучающей задачи, по 8&#8211;12 байт на обучаемый параметр &#8212; теперь существуют только для адаптера. Вы по-прежнему платите за модель; вы перестаёте платить за обучающую машинерию вокруг неё.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 8</h3>
+                  <p class="challenge__task">Округление 169 слоёв до int8 изменило веса на 1.15%, а вывод не изменило вовсе. Доказывает ли это, что int8 бесплатен?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Нет. Один промпт, давший одинаковое продолжение, &#8212; свидетельство, что ничего не сломалось, а не доказательство, что ничего не изменилось. Настоящая проверка прогоняет бенчмарк до и после. Справедливо сказать, что на практике int8 почти бесплатен, а измеримая потеря качества начинается на int4.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">После лекции</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Ни одному из них не нужна GPU. Большинство &#8212; это команда и письменное наблюдение; два &#8212; арифметика, которую к концу вы должны уметь делать на бумаге.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Задание 1 &#8212; Оцените стоимость своего продукта</h3>
+                  <p class="challenge__task">Возьмите 100 реальных сообщений из того, что вы делаете. Посчитайте токены двумя разными токенизаторами, примените актуальные опубликованные ставки и получите месячную цифру на казахском и на английском.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Результат &#8212; одно число и одно предложение: сколько это стоит и какова языковая наценка на вашем собственном тексте. Это самый полезный час в этой лекции, и именно это у вас на самом деле спросит руководитель.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 2 &#8212; Найдите точку пересечения</h3>
+                  <p class="challenge__task">При каком месячном объёме аренда GPU выгоднее оплаты за токены? Возьмите реальную цену GPU и реальную ставку API и решите уравнение безубыточности.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Фиксированная месячная стоимость GPU, делённая на стоимость вызова. Интереснее то, что вам придётся предположить по пути: загрузку, токены на вызов и достаточно ли хороша меньшая модель на своём сервере. Проговорите эти допущения; они важнее арифметики.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 3 &#8212; Сломайте модель через temperature</h3>
+                  <p class="challenge__task">Запустите --sampling с temperature 0.5, 1.0, 1.5 и 2.0. Найдите точку, где вывод перестаёт быть пригодным, и опишите, что ломается первым.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Грамматика обычно держится дольше фактической точности, а первый заметный сбой у многоязычной модели &#8212; часто токены из других языков посреди предложения: это сэмплируется хвост распределения. Наша сломалась между 1.0 и 1.5.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 4 &#8212; Поохотьтесь на галлюцинации на казахском</h3>
+                  <p class="challenge__task">Задайте маленькой модели десять фактических вопросов о Казахстане. Запишите, сколько ответов неверны и насколько уверенно они сформулированы.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Ожидайте высокую долю ошибок и равномерно уверенные формулировки. Результат &#8212; пара колонок, правильность и кажущаяся уверенность, потому что отсутствие корреляции между ними и есть весь смысл.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 5 &#8212; Рассчитайте развёртывание</h3>
+                  <p class="challenge__task">Нужно обслуживать 50 одновременных пользователей с контекстом 8k на модели 13B. Посчитайте веса плюс KV cache и назовите железо.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Веса ~26 ГБ в fp16. KV cache масштабируется со слоями, KV-головами, размерностью головы, контекстом и числом пользователей &#8212; используйте формулу из раздела про память. Затем пересчитайте при 4-битных весах и с grouped-query attention и отметьте, что помогло больше.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 6 &#8212; Развёртка по рангу</h3>
+                  <p class="challenge__task">Запустите --lora и расширьте таблицу до рангов 1, 2, 128 и 256. Постройте график обучаемых параметров по рангу.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Линия строго прямая: обучаемые параметры линейны по r. В LoRA не остаётся ничего загадочного, когда вы это нарисовали &#8212; r это просто то, сколько чисел вы готовы обучать.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 7 &#8212; Квантуйте жёстче</h3>
+                  <p class="challenge__task">Переделайте процедуру int8 в int4 (15 уровней вместо 255). Измерьте ошибку в весах и проверьте, выживает ли вывод.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Ошибка резко растёт, и наивный построчный int4 обычно заметно портит модель на 0.5B. Именно поэтому настоящие 4-битные схемы используют более мелкие группы, калибровочные данные и держат чувствительные слои шире. Воспроизведение поломки &#8212; это то, что делает их изощрённость осмысленной.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 8 &#8212; Двадцать примеров</h3>
+                  <p class="challenge__task">Соберите оценку из двадцати примеров из раздела &#171;как выбрать модель&#187; для задачи, которая вам важна, и прогоните через неё вручную трёх кандидатов.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Напишите ожидаемые ответы <em>до</em> того, как увидите вывод любой модели, иначе будете оценивать великодушно. Двадцати примеров достаточно, чтобы отсеять плохого кандидата, и это куда релевантнее любого публичного лидерборда.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 9 &#8212; Прочитайте карточку модели</h3>
+                  <p class="challenge__task">Возьмите модель с открытыми весами и ответьте только по её карточке: параметры, контекстное окно, лицензия, заявленные языки и можно ли использовать её коммерчески.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Часть этого обычно отсутствует или расплывчата, и это само по себе результат. Отметьте отдельно, указан ли казахский и подкреплён ли заявленный язык хоть какой-нибудь оценкой.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 10 &#8212; Весь курс в одном абзаце</h3>
+                  <p class="challenge__task">Напишите абзац, который вы дали бы руководителю, выбирающему между TF-IDF (лекция 3), дообученным энкодером (лекция 7) и LLM через API, для классификации тональности на казахском.</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">
+                      Для первых двух у вас есть измеренные числа: 0.780 и 0.799 на одном и том же тестовом наборе. Честный абзац даёт точность, стоимость вызова, задержку и то, куда уходят данные &#8212; и вполне возможно, что правильной рекомендацией окажется самый дешёвый из трёх.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итог</span>
+              <h2 id="takeaways">Сегодня мы узнали</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>LLM &#8212; это декодер из лекции 6, увеличенный и обученный в три стадии вместо одной</li>
+                <li>Предобучение покупает знания; instruction tuning покупает послушание; preference tuning покупает суждение</li>
+                <li>fp16 требует около 2 ГБ на миллиард параметров &#8212; а обучению нужно в 6&#8211;8 раз больше</li>
+                <li>KV cache может превысить модель: 16.8 ГБ на один диалог в 128k токенов на модели 8B</li>
+                <li>Open-weight &#8212; это не open-source, и важна именно лицензия</li>
+                <li>Тарификация по токенам, выход стоит ~5&#215; входа, и вся история пересылается каждый ход</li>
+                <li>Одно и то же сообщение стоит в 2.0&#215; больше токенов на казахском, чем на английском, в o200k и в 4.5&#215; в cl100k</li>
+                <li>Выбирайте сначала по местонахождению данных и объёму; оценка из двадцати примеров бьёт любой лидерборд</li>
+                <li>Temperature перекраивает распределение; top-k и top-p его усекают; greedy воспроизводим</li>
+                <li>Сэмплирование не чинит неверный ответ &#8212; greedy-декодирование выдумало Каспийское побережье для Алматы</li>
+                <li>Reasoning-модели покупают точность токенами во время вывода и бесполезны на задачах преобразования</li>
+                <li>RLHF превращает &#171;B лучше A&#187; в лучшую модель; DPO делает это без модели награды</li>
+                <li>LoRA обучает 0.219% параметров при ранге 8 и отдаёт адаптер на 4 МБ</li>
+                <li>int8 в 4&#215; меньше при ~1% ошибки в весах и, здесь, при одинаковом выводе</li>
+                <li>Дообучайте в последнюю очередь: промпт, затем примеры, затем retrieval, затем дообучение</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Лекция 8 &middot; 16 сентября 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

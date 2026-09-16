@@ -8,3 +8,5 @@ torch>=2.2             # lesson5 and lesson6: RNN, LSTM and Transformers
 transformers>=4.40      # lesson7: pretrained encoders and their tokenizers
 sentencepiece>=0.2      # lesson7: the tokenizer XLM-R and MiniLM use
 accelerate>=0.30        # lesson7: device placement helpers
+tiktoken>=0.7           # lesson8: counting tokens the way APIs bill them
+peft>=0.11              # lesson8: LoRA adapters (parameter counting)

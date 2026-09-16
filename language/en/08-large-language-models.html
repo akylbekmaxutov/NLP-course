@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Large Language Models | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 8: large language models in practice — how they work, parameter sizes and memory, open-weight against proprietary, tokens and API pricing measured for Kazakh, choosing a model, sampling parameters, reasoning models, reinforcement learning, full fine-tuning against LoRA, and quantization."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/08-large-language-models.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/08-large-language-models.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/08-large-language-models.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/08-large-language-models.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/08-large-language-models.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/08-large-language-models.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 8</span>
+              <h1>Large Language Models</h1>
+              <p class="hero__subtitle">
+                The same decoder you built in Lecture 6, made a thousand times
+                larger and trained on most of the written internet. This lecture is
+                about what that changes in practice: what the sizes mean, what the
+                calls cost, which knobs you turn, and what you can still adapt
+                without a GPU.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Explain how an LLM works</h3>
+                  <p>Next-token prediction, the three training stages, and why scale changed what the same architecture can do.</p>
+                </div>
+                <div class="card">
+                  <h3>Read a parameter count</h3>
+                  <p>Turn &#8220;7B&#8221; into gigabytes, know what fits on your machine, and explain why the KV cache is the real constraint.</p>
+                </div>
+                <div class="card">
+                  <h3>Tell open from proprietary</h3>
+                  <p>Open weights, open source and closed API &#8212; three different things, with different licences and different risks.</p>
+                </div>
+                <div class="card">
+                  <h3>Compute an API bill</h3>
+                  <p>Count tokens, apply input and output rates, and know what a Kazakh-language product costs against an English one.</p>
+                </div>
+                <div class="card">
+                  <h3>Steer the output</h3>
+                  <p>Temperature, top-k, top-p, and when each one is the wrong tool.</p>
+                </div>
+                <div class="card">
+                  <h3>Adapt a model cheaply</h3>
+                  <p>Full fine-tuning against LoRA, and quantization &#8212; what each costs and what each gives up.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <strong>No large model is trained on this page.</strong> Every number
+                here is either arithmetic you can check, a token count, a parameter
+                count, or a generation from a 0.5&#8202;B model that runs on a laptop.
+                The fine-tuning sections show you what the code looks like and what it
+                would cost &#8212; they do not run it, because on this hardware they
+                cannot.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="how">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The mechanism</span>
+              <h2 id="how">How an LLM works</h2>
+              <p class="narrow lead">
+                There is less new machinery here than the name suggests. An LLM is the
+                decoder stack from Lecture 6, scaled up, and trained in three stages
+                instead of one.
+              </p>
+              <div class="definition">
+                <p>
+                  A <strong>large language model</strong> is a Transformer decoder
+                  trained to predict the next token, at a scale where doing that one
+                  thing well turns out to produce translation, summarisation, code and
+                  conversation as side effects.
+                </p>
+              </div>
+              <h3 style="margin-top: 44px">The loop, which you have already built</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-loop-t">
+                <title id="fig-loop-t">One token is predicted, appended, and the whole thing runs again</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">the prompt so far</text>
+                <rect x="8" y="20" width="54" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="35" y="34" font-size="8" fill="#111111" text-anchor="middle">Астана</text>
+                <rect x="64" y="20" width="26" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="77" y="34" font-size="8" fill="#111111" text-anchor="middle">&#8212;</text>
+                <rect x="92" y="20" width="76" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="130" y="34" font-size="8" fill="#111111" text-anchor="middle">Қазақстанның</text>
+                <line x1="88" y1="46" x2="88" y2="58" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="58" width="128" height="24" rx="5" fill="#2563eb" />
+                <text x="88" y="74" font-size="9" fill="#ffffff" text-anchor="middle">decoder stack, causal</text>
+                <line x1="88" y1="82" x2="88" y2="94" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="24" y="94" width="128" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="88" y="108" font-size="8" fill="#111111" text-anchor="middle">softmax over 150 000 tokens</text>
+                <line x1="152" y1="104" x2="172" y2="104" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="172" y="94" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="212" y="108" font-size="8" fill="#ffffff" text-anchor="middle">«астанасы» 0.63</text>
+                <path d="M 252 104 L 292 104 L 292 30 L 176 30" fill="none" stroke="#2563eb" stroke-width="1.6" />
+                <text x="264" y="66" font-size="8" fill="#2563eb">append</text>
+                <text x="180" y="24" font-size="8" fill="#5b6270">and run again</text>
+                <line x1="8" y1="130" x2="332" y2="130" stroke="#e8ecf2" />
+                <text x="8" y="148" font-size="9" fill="#111111">that is the entire inference loop</text>
+                <text x="8" y="164" font-size="8" fill="#5b6270">everything an LLM appears to do is this, repeated, with a very large stack</text>
+                <text x="8" y="182" font-size="8" fill="#5b6270">and a context window measured in hundreds of thousands of tokens</text>
+                </svg>
+                <p class="figure__caption">
+                  Predict one token, append it, predict again. Lecture 6 built this; the only difference now is the size of the box in the middle.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">What is the same as Lecture 6, and what is not</span>
+                <dl class="breakdown__list">
+                  <dt>the same</dt>
+                  <dd>Q, K and V. Scaled dot-product attention. Multi-head. Residuals. A per-token feed-forward network. Causal masking. Next-token prediction with cross-entropy. You can read the source of any open model and recognise all of it</dd>
+                  <dt>bigger</dt>
+                  <dd>Lecture 6&#8217;s model was 2 blocks and 1&#8202;million parameters. A modern LLM is 32 to 126 blocks and 7 to 1&#8202;000 billion. The context window went from 60 tokens to hundreds of thousands</dd>
+                  <dt>modernised</dt>
+                  <dd>Pre-norm, RMSNorm, SwiGLU, RoPE, grouped-query attention &#8212; the six substitutions from the end of Lecture 6. None of them changes the story</dd>
+                  <dt>trained in three stages, not one</dt>
+                  <dd>This is the genuinely new part, and the next figure is about it</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>So why does it feel different?</strong> Because at sufficient
+                  scale, &#8220;predict the next token&#8221; stops being a text-completion
+                  trick. To predict the next token of a chemistry paper you need some
+                  chemistry; to predict the next line of a proof you need some
+                  arithmetic. The objective did not change. What it takes to do the
+                  objective well did.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">The three stages</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 240" role="img" aria-labelledby="fig-stages-t">
+                <title id="fig-stages-t">Pretraining, instruction tuning and preference tuning, with their costs</title>
+                <rect x="8" y="20" width="100" height="56" rx="5" fill="#2563eb" />
+                <text x="58" y="38" font-size="9" fill="#ffffff" text-anchor="middle">1. pretraining</text>
+                <text x="58" y="52" font-size="7" fill="#ffffff" text-anchor="middle">predict the next</text>
+                <text x="58" y="62" font-size="7" fill="#ffffff" text-anchor="middle">token, on the web</text>
+                <line x1="108" y1="48" x2="124" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="124" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="172" y="38" font-size="9" fill="#ffffff" text-anchor="middle">2. instruction</text>
+                <text x="172" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: follow</text>
+                <text x="172" y="62" font-size="7" fill="#ffffff" text-anchor="middle">what is asked</text>
+                <line x1="220" y1="48" x2="236" y2="48" stroke="#5b6270" stroke-width="1.3" />
+                <rect x="236" y="20" width="96" height="56" rx="5" fill="#2563eb" />
+                <text x="284" y="38" font-size="9" fill="#ffffff" text-anchor="middle">3. preference</text>
+                <text x="284" y="52" font-size="7" fill="#ffffff" text-anchor="middle">tuning: prefer</text>
+                <text x="284" y="62" font-size="7" fill="#ffffff" text-anchor="middle">better answers</text>
+                <text x="8" y="94" font-size="7" fill="#5b6270">data</text>
+                <text x="62" y="94" font-size="7" fill="#111111" text-anchor="middle">trillions of tokens</text>
+                <text x="172" y="94" font-size="7" fill="#111111" text-anchor="middle">10k&#8211;1M examples</text>
+                <text x="284" y="94" font-size="7" fill="#111111" text-anchor="middle">comparisons</text>
+                <text x="8" y="110" font-size="7" fill="#5b6270">labels</text>
+                <text x="58" y="110" font-size="7" fill="#111111" text-anchor="middle">none needed</text>
+                <text x="172" y="110" font-size="7" fill="#111111" text-anchor="middle">written by people</text>
+                <text x="284" y="110" font-size="7" fill="#111111" text-anchor="middle">ranked by people</text>
+                <text x="8" y="126" font-size="7" fill="#5b6270">cost</text>
+                <text x="58" y="126" font-size="7" fill="#111111" text-anchor="middle">millions of $</text>
+                <text x="172" y="126" font-size="7" fill="#111111" text-anchor="middle">thousands</text>
+                <text x="284" y="126" font-size="7" fill="#111111" text-anchor="middle">thousands</text>
+                <text x="8" y="142" font-size="7" fill="#5b6270">gives</text>
+                <text x="58" y="142" font-size="7" fill="#111111" text-anchor="middle">knowledge</text>
+                <text x="172" y="142" font-size="7" fill="#111111" text-anchor="middle">obedience</text>
+                <text x="284" y="142" font-size="7" fill="#111111" text-anchor="middle">judgement, tone</text>
+                <line x1="8" y1="158" x2="332" y2="158" stroke="#e8ecf2" />
+                <text x="8" y="176" font-size="9" fill="#111111">a base model after stage 1 does not answer questions</text>
+                <rect x="8" y="184" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="14" y="196" font-size="7" fill="#111111">ask: «What is the capital?»</text>
+                <rect x="172" y="184" width="160" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="178" y="196" font-size="7" fill="#111111">base: «What is the population?»</text>
+                <text x="8" y="218" font-size="8" fill="#5b6270">it continues the text, because that is what it was trained to do</text>
+                <text x="8" y="232" font-size="8" fill="#2563eb">stage 2 is what turns a text continuer into an assistant</text>
+                </svg>
+                <p class="figure__caption">
+                  Stage 1 buys knowledge and costs almost everything. Stages 2 and 3 buy behaviour and cost comparatively nothing.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The stages, one at a time</span>
+                <dl class="breakdown__list">
+                  <dt>1. pretraining &#8212; the expensive one</dt>
+                  <dd>Next-token prediction on trillions of tokens of scraped text. Self-supervised, exactly like Lecture 7&#8217;s masked language modelling, except causal. This is where the knowledge comes from, it costs millions of dollars, and it is done once by a lab with a data centre</dd>
+                  <dt>2. instruction tuning (SFT) &#8212; making it answer</dt>
+                  <dd>Supervised fine-tuning on pairs of (instruction, good answer) written by people. A base model asked a question tends to produce more questions, because that is what follows a question in web text. SFT is what makes it respond instead of continue. This is the stage InstructGPT introduced and it is why &#8220;instruct&#8221; appears in so many model names</dd>
+                  <dt>3. preference tuning &#8212; making it better</dt>
+                  <dd>People are shown two answers and pick the better one. The model is trained to prefer what people preferred. RLHF, DPO and their relatives all live here, and they are the subject of a later section</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Names you will see on model cards:</strong> a model ending in
+                  <code>-base</code> has had stage 1 only &#8212; useful for further
+                  training, awkward to chat with. <code>-instruct</code> or
+                  <code>-chat</code> has had stages 2 and usually 3, and is what you
+                  actually want to call.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Arithmetic you can check</span>
+              <h2 id="sizes">What &#8220;7B&#8221; actually means</h2>
+              <p class="narrow lead">
+                Model names carry a number: 0.5B, 7B, 70B, 405B. It is the count of
+                trainable numbers in the file. Turning it into gigabytes is one
+                multiplication, and it decides everything about where the model can run.
+              </p>
+              <div class="definition">
+                <p>
+                  A <strong>parameter</strong> is one number the training process
+                  adjusted. In Lecture 6 you counted them yourself: every entry of
+                  <code>W_Q</code>, <code>W_K</code>, <code>W_V</code>,
+                  <code>W&#8338;</code>, the feed-forward matrices, the embedding table.
+                  &#8220;7B&#8221; means seven billion such numbers.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --memory</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>PARAMETERS TO GIGABYTES
+  weights only, no activations, no KV cache
+
+  model               fp32     fp16/bf16          int8          int4
+  ------------------------------------------------------------------
+  0.5 B             2.0 GB        1.0 GB        0.5 GB        0.2 GB
+  7 B              28.0 GB       14.0 GB        7.0 GB        3.5 GB
+  70 B            280.0 GB      140.0 GB       70.0 GB       35.0 GB
+  405 B          1620.0 GB      810.0 GB      405.0 GB      202.5 GB
+  1 T            4000.0 GB     2000.0 GB     1000.0 GB      500.0 GB
+
+  what fits in 24 GB of unified memory (this laptop), weights only:
+    0.5 B    fp32, fp16/bf16, int8, int4
+    7 B      fp16/bf16, int8, int4
+    70 B     nothing — needs a bigger machine
+    405 B    nothing — needs a bigger machine
+    1 T      nothing — needs a bigger machine</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading the table</span>
+                <dl class="breakdown__list">
+                  <dt>the rule of thumb</dt>
+                  <dd><strong>fp16 needs about 2 GB per billion parameters.</strong> A 7B model is ~14 GB, a 70B model ~140 GB. If you remember one number from this lecture, make it this one</dd>
+                  <dt>precision is a dial, not a fact</dt>
+                  <dd>The same model is 28 GB or 3.5 GB depending only on how many bits each weight is stored in. That is what quantization is, and it gets its own section below</dd>
+                  <dt>the laptop line is real</dt>
+                  <dd>A 7B model in fp16 fits in 24 GB of unified memory with room to work. A 70B model does not fit at any precision on this machine. This is the single most useful thing to know before planning a project</dd>
+                  <dt>training needs far more than inference</dt>
+                  <dd>Running a model needs the weights. <em>Training</em> it needs the weights, the gradients, and the optimiser state &#8212; with AdamW, roughly 12&#8211;16 bytes per parameter instead of 2. A 7B model you can run on a laptop needs about 100 GB to fully fine-tune</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>That last row is why LoRA exists</strong>, and why this lecture
+                  can show you the code but not run it.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">The size ladder, and what each rung is for</h3>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Model sizes and their typical uses</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Size</th><th scope="col">fp16</th>
+                      <th scope="col">Runs on</th><th scope="col">Good for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>0.5&#8211;3 B</td><td>1&#8211;6 GB</td><td>a phone, a laptop CPU</td><td>classification, extraction, autocomplete, on-device</td></tr>
+                    <tr><td>7&#8211;14 B</td><td>14&#8211;28 GB</td><td>one consumer GPU or a good laptop</td><td>most production tasks, self-hosted assistants</td></tr>
+                    <tr><td>30&#8211;70 B</td><td>60&#8211;140 GB</td><td>one server with 2&#8211;4 datacentre GPUs</td><td>quality close to frontier, run privately</td></tr>
+                    <tr><td>100&#8211;700 B+</td><td>200 GB&#8211;1.4 TB</td><td>a cluster</td><td>frontier capability, usually via an API</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>Bigger is not automatically better for your task.</strong>
+                Lecture 7 measured this in the small: five encoders spanning 3.3&#215; in
+                size finished within 0.010 of each other on Kazakh sentiment. The same
+                holds here. A 7B model that fits on your own hardware, costs nothing per
+                call, and keeps your data in your building can be the correct engineering
+                answer even when a 400B model scores higher on a benchmark.
+              </p>
+
+              <h3 style="margin-top: 48px">The KV cache, which is the real constraint</h3>
+              <p class="narrow">
+                The weights are loaded once and shared by everyone. The
+                <strong>KV cache</strong> &#8212; the stored keys and values from Lecture
+                6, kept so that generating token <em>t</em>+1 does not have to re-read
+                the whole prompt &#8212; is per user, per token, and it is what actually
+                runs out.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>THE KV CACHE — why long chats get expensive
+  a 8 B model: 32 layers, 8 KV heads, head dim 128, bf16
+  per token, per sequence: 2 x 32 x 8 x 128 x 2 = 131,072 bytes = 128 KB
+
+     context      1 user    10 users   100 users
+  --------------------------------------------
+       1,000     0.13 GB     1.31 GB     13.11 GB
+       8,000     1.05 GB    10.49 GB    104.86 GB
+      32,000     4.19 GB    41.94 GB    419.43 GB
+     128,000    16.78 GB   167.77 GB   1677.72 GB</code></pre></div>
+              <div class="callout">
+                <strong>Look at the bottom-left cell.</strong> One user with a
+                128&#8202;000-token context needs <strong>16.8 GB</strong> of KV cache on an
+                8B model whose weights are only 16 GB. The cache is larger than the
+                model. This is why long context is expensive, why providers charge for
+                input tokens at all, and why grouped-query attention from Lecture 6
+                exists &#8212; it shrinks precisely this table by sharing K and V across
+                query heads.
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="open">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The landscape</span>
+              <h2 id="open">Open-weight and proprietary models</h2>
+              <p class="narrow lead">
+                &#8220;Open-source LLM&#8221; is used loosely and usually incorrectly.
+                There are three distinct things, and the difference matters when a lawyer
+                asks.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 226" role="img" aria-labelledby="fig-open-t">
+                <title id="fig-open-t">Three levels of openness: closed API, open weights, fully open</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">what you are actually given</text>
+                <rect x="8" y="22" width="104" height="90" rx="5" fill="#fef2f2" stroke="#fecaca" />
+                <text x="60" y="38" font-size="9" fill="#111111" text-anchor="middle">proprietary</text>
+                <text x="60" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(closed, API only)</text>
+                <text x="16" y="66" font-size="7" fill="#111111">&#10007; weights</text>
+                <text x="16" y="78" font-size="7" fill="#111111">&#10007; training data</text>
+                <text x="16" y="90" font-size="7" fill="#111111">&#10007; training code</text>
+                <text x="16" y="102" font-size="7" fill="#2563eb">&#10003; an endpoint</text>
+                <rect x="118" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="170" y="38" font-size="9" fill="#111111" text-anchor="middle">open-weight</text>
+                <text x="170" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(most «open» models)</text>
+                <text x="126" y="66" font-size="7" fill="#2563eb">&#10003; weights</text>
+                <text x="126" y="78" font-size="7" fill="#111111">&#10007; training data</text>
+                <text x="126" y="90" font-size="7" fill="#111111">&#10007; training code</text>
+                <text x="126" y="102" font-size="7" fill="#5b6270">~ a licence, read it</text>
+                <rect x="228" y="22" width="104" height="90" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="280" y="38" font-size="9" fill="#111111" text-anchor="middle">fully open</text>
+                <text x="280" y="50" font-size="7" fill="#5b6270" text-anchor="middle">(rare)</text>
+                <text x="236" y="66" font-size="7" fill="#2563eb">&#10003; weights</text>
+                <text x="236" y="78" font-size="7" fill="#2563eb">&#10003; training data</text>
+                <text x="236" y="90" font-size="7" fill="#2563eb">&#10003; training code</text>
+                <text x="236" y="102" font-size="7" fill="#2563eb">&#10003; permissive licence</text>
+                <line x1="8" y1="128" x2="332" y2="128" stroke="#e8ecf2" />
+                <text x="8" y="146" font-size="9" fill="#111111">the word «open-source» properly belongs only to the third box</text>
+                <text x="8" y="162" font-size="8" fill="#5b6270">almost everything called an open-source LLM is in the middle box:</text>
+                <text x="8" y="176" font-size="8" fill="#5b6270">you can download and run it, but you cannot reproduce it</text>
+                <text x="8" y="196" font-size="8" fill="#111111">the practical question is not «is it open» but:</text>
+                <text x="8" y="212" font-size="8" fill="#2563eb">can I run it on my hardware, and does the licence allow my use?</text>
+                </svg>
+                <p class="figure__caption">
+                  Three levels, routinely collapsed into one word. The middle box is where most of the ecosystem lives.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The three, precisely</span>
+                <dl class="breakdown__list">
+                  <dt>proprietary / closed</dt>
+                  <dd>You send text to an endpoint and get text back. The weights never leave the provider. Examples: the GPT, Claude and Gemini families. You pay per token, you get the strongest models, and you cannot inspect, host, or keep them</dd>
+                  <dt>open-weight</dt>
+                  <dd>The trained weights are published and you can download and run them. The training data and the code that produced them usually are not. Examples: the Llama, Qwen, Mistral and Gemma families, and the Kazakh models from Lecture 7. This is what nearly everyone means by &#8220;open-source LLM&#8221;, and it is not the same thing</dd>
+                  <dt>fully open</dt>
+                  <dd>Weights, data, training code and a permissive licence. Examples are rarer: OLMo and the BLOOM line were built explicitly this way. Only here can an independent party actually reproduce or audit the model</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Read the licence, not the marketing.</strong> Some open-weight
+                  licences are genuinely permissive (Apache 2.0, MIT). Others are custom
+                  and carry conditions &#8212; usage restrictions, a user-count threshold
+                  above which you must negotiate, or a clause about naming. &#8220;Free to
+                  download&#8221; and &#8220;free to use in your product&#8221; are
+                  different statements.
+                </p>
+              </div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Proprietary against open-weight, by decision criterion</caption>
+                  <thead>
+                    <tr><th scope="col">Criterion</th><th scope="col">Proprietary API</th><th scope="col">Open-weight, self-hosted</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Best available quality</td><td class="yes">usually ahead</td><td>close, and closing</td></tr>
+                    <tr><td>Cost at low volume</td><td class="yes">pay per call, no fixed cost</td><td class="no">a GPU idles at full price</td></tr>
+                    <tr><td>Cost at high volume</td><td class="no">grows linearly forever</td><td class="yes">fixed, then nearly free</td></tr>
+                    <tr><td>Data leaves your building</td><td class="no">yes</td><td class="yes">no</td></tr>
+                    <tr><td>Works offline / on-premise</td><td class="no">no</td><td class="yes">yes</td></tr>
+                    <tr><td>Model can change under you</td><td class="no">yes, on their schedule</td><td class="yes">never, you hold the file</td></tr>
+                    <tr><td>Can be fine-tuned</td><td>limited, if offered</td><td class="yes">fully</td></tr>
+                    <tr><td>Engineering effort</td><td class="yes">an API key</td><td class="no">serving, scaling, updates</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>For Kazakhstan specifically, two rows matter more than the rest.</strong>
+                &#8220;Data leaves your building&#8221; decides whether a system can touch
+                personal, banking or government data at all. And &#8220;can be
+                fine-tuned&#8221; is what lets you fix a model&#8217;s Kazakh, which
+                Lecture 7 measured as the weakest part of every multilingual model we
+                tested.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tokens">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="tokens">Tokens, and what a language costs</h2>
+              <p class="narrow lead">
+                Proprietary models are billed per token, not per word or per request. You
+                met tokenizers in Lectures 2 and 7; this is the section where they turn
+                into money.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --tokens</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  «Fine-tuning is expensive.» under o200k_base:
+        84886  ->  'Fine'
+         2378  ->  '-t'
+        30541  ->  'uning'
+          382  ->  ' is'
+        14818  ->  ' expensive'
+           13  ->  '.'
+  A token is a piece of a word. Billing counts these, not words.</code></pre></div>
+              <p class="narrow">
+                Four English words became six tokens. Note that the space belongs to the
+                token after it &#8212; <code>' is'</code>, not <code>'is'</code> &#8212;
+                which is why concatenating text changes token counts in ways that look
+                arbitrary until you have seen this printout once.
+              </p>
+
+              <h3 style="margin-top: 44px">The same sentence in three languages</h3>
+              <p class="narrow">
+                The Kazakh and Russian below are translations of the English, so any
+                difference is the tokenizer, not a longer message.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  the same message, three languages, tokens per message:
+  tokenizer                           en      ru      kk
+  ------------------------------------------------------
+  o200k_base  (GPT-4o family)         19      25      38
+  cl100k_base (GPT-4 / 3.5)           19      45      86
+  Qwen2.5                             19      37      72
+
+  cost multiplier against English (same meaning):
+  o200k_base  (GPT-4o family)       1.00    1.32    2.00
+  cl100k_base (GPT-4 / 3.5)         1.00    2.37    4.53
+  Qwen2.5                           1.00    1.95    3.79
+
+  words per message: en 16  ru 14  kk 12
+  tokens/word  o200k_base                 1.19    1.79    3.17
+  tokens/word  cl100k_base                1.19    3.21    7.17
+  tokens/word  Qwen2.5                    1.19    2.64    6.00</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 200" role="img" aria-labelledby="fig-toklang-t">
+                <title id="fig-toklang-t">The same message costs two to four times more tokens in Kazakh than in English</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">tokens for one identical message, by tokenizer</text>
+                <text x="8" y="34" font-size="8" fill="#111111">o200k</text>
+                <rect x="66" y="24" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="34" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="39" width="68" height="13" fill="#c7d9ff" />
+                <text x="138" y="49" font-size="7" fill="#111111">ru 25</text>
+                <rect x="66" y="54" width="104" height="13" fill="#fecaca" />
+                <text x="174" y="64" font-size="7" fill="#111111">kk 38   (2.0x)</text>
+                <text x="8" y="90" font-size="8" fill="#111111">Qwen2.5</text>
+                <rect x="66" y="80" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="90" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="95" width="101" height="13" fill="#c7d9ff" />
+                <text x="171" y="105" font-size="7" fill="#111111">ru 37</text>
+                <rect x="66" y="110" width="197" height="13" fill="#fecaca" />
+                <text x="267" y="120" font-size="7" fill="#111111">kk 72  (3.8x)</text>
+                <text x="8" y="146" font-size="8" fill="#111111">cl100k</text>
+                <rect x="66" y="136" width="52" height="13" fill="#2563eb" />
+                <text x="122" y="146" font-size="7" fill="#111111">en 19</text>
+                <rect x="66" y="151" width="123" height="13" fill="#c7d9ff" />
+                <text x="193" y="161" font-size="7" fill="#111111">ru 45</text>
+                <rect x="66" y="166" width="235" height="13" fill="#fecaca" />
+                <text x="305" y="176" font-size="7" fill="#111111">kk 86</text>
+                <text x="8" y="194" font-size="8" fill="#2563eb">newer tokenizers are much fairer: 4.5x fell to 2.0x</text>
+                </svg>
+                <p class="figure__caption">
+                  The same meaning, priced three ways. The improvement from cl100k to o200k is real and deliberate &#8212; but Kazakh still costs double.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why this happens, and what to do</span>
+                <dl class="breakdown__list">
+                  <dt>the cause is the vocabulary</dt>
+                  <dd>A tokenizer's fixed vocabulary is bought with training text. English got most of it, so an English word is usually one token. Kazakh got very little, so Kazakh words are assembled from fragments &#8212; exactly the effect Lecture 7 measured on <span class="token">кітаптарымыздан</span></dd>
+                  <dt>it is a tax on three things at once</dt>
+                  <dd>You pay more per message, you fit less into the context window, and you wait longer, because generation time is per token. The same product is simply more expensive to run in Kazakh</dd>
+                  <dt>it is improving</dt>
+                  <dd>cl100k charged Kazakh 4.53&#215;; o200k charges 2.00&#215;. Newer tokenizers allocate vocabulary to more languages deliberately, and the gap has roughly halved in one generation</dd>
+                  <dt>you cannot fix it from outside</dt>
+                  <dd>The tokenizer ships with the model. Your only levers are choosing a model whose tokenizer handles your language better, and measuring before you commit</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Do the measurement before the contract.</strong> Tokenize a
+                  realistic sample of your own traffic with each candidate&#8217;s
+                  tokenizer and compare. It takes minutes and it changes the budget by a
+                  factor of two.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 48px">Computing the bill</h3>
+              <p class="narrow">
+                Every proprietary API prices the same way, with two rates:
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>cost = (input_tokens  / 1 000 000) × price_in
+     + (output_tokens / 1 000 000) × price_out
+
+input_tokens  = system prompt + conversation history + this message
+output_tokens = what the model generates</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Four things people get wrong</span>
+                <dl class="breakdown__list">
+                  <dt>output costs about five times input</dt>
+                  <dd>Generating is sequential and cannot be batched the way reading can. A verbose system prompt is cheap; a verbose <em>model</em> is not. &#8220;Answer in at most three sentences&#8221; is a budget instruction</dd>
+                  <dt>the whole conversation is resent every turn</dt>
+                  <dd>The API is stateless. Turn 20 of a chat pays for turns 1&#8211;19 again as input. A long conversation costs quadratically in its own length unless you truncate or summarise</dd>
+                  <dt>the system prompt is charged every single call</dt>
+                  <dd>A 2&#8202;000-token system prompt on a million calls is two billion input tokens. This is what prompt caching is for: providers charge a fraction for a prefix they have already seen</dd>
+                  <dt>reasoning tokens are output tokens</dt>
+                  <dd>On a reasoning model, the thinking the model does before answering is billed as output, at the output rate, even when it is not shown to you</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The three discounts worth knowing:</strong> prompt caching for
+                  a repeated prefix; batch processing for work that can wait (commonly
+                  around half price); and a smaller model for the easy share of your
+                  traffic.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">A worked monthly bill</h3>
+              <p class="narrow">
+                100&#8202;000 calls a month, two workload shapes, priced with the
+                published Anthropic rates as a concrete example. The reply is written in
+                the user&#8217;s language too, so the token multiplier applies to output
+                as well as input.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  100,000 calls per month, o200k_base, system prompt 34 tokens
+  measured language multiplier (tokens per word vs English): en 1.00x, ru 1.50x, kk 2.67x
+
+  --- chat reply: 20 words in, 100 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5                326$         481$         840$      2.58x
+  claude-sonnet-5              130$         193$         336$      2.58x
+  claude-haiku-4-5              65$          96$         168$      2.58x
+
+  --- classify a document: 2000 words in, 5 words out ---
+  model                          en           ru           kk   kk vs en
+  ----------------------------------------------------------------
+  claude-opus-5              1,219$       1,825$       3,223$      2.64x
+  claude-sonnet-5              488$         730$       1,289$      2.64x
+  claude-haiku-4-5             244$         365$         645$      2.64x</code></pre></div>
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Example published rates used in the calculation</caption>
+                  <thead>
+                    <tr><th scope="col">Model</th><th scope="col">Context</th><th scope="col">Input $/M</th><th scope="col">Output $/M</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>claude-opus-5</td><td>1M</td><td>5.00</td><td>25.00</td></tr>
+                    <tr><td>claude-sonnet-5</td><td>1M</td><td>2.00</td><td>10.00</td></tr>
+                    <tr><td>claude-haiku-4-5</td><td>200K</td><td>1.00</td><td>5.00</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="note">
+                <strong>These rates are an example, not a current quote.</strong> They
+                are first-party list prices as of mid-2026 and they change. The method is
+                what you should take away: count tokens on your own text, apply whatever
+                the vendor charges today, and multiply by your volume. Every provider
+                publishes a price page and a tokenizer; the arithmetic is identical.
+              </p>
+              <div class="callout">
+                <strong>Two conclusions from the two blocks.</strong> The Kazakh penalty
+                is about 2.6&#215; in both, because the tokenizer inflates input and
+                output alike &#8212; it is a property of the language, not of the
+                workload. But the absolute bill is 3.7&#215; higher for the
+                classification job even though it emits five words, because
+                2&#8202;000 words of input is what costs money. Know which half of your
+                bill you are trying to cut before you try to cut it.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="choosing">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The decision</span>
+              <h2 id="choosing">How to choose a model</h2>
+              <p class="narrow lead">
+                Benchmark tables are the least useful input to this decision. Four
+                constraints usually settle it before quality is even discussed.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 238" role="img" aria-labelledby="fig-choose8-t">
+                <title id="fig-choose8-t">A decision path from data-residency and budget to a model class</title>
+                <rect x="84" y="8" width="172" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="170" y="22" font-size="8" fill="#111111" text-anchor="middle">may the data leave your building?</text>
+                <line x1="170" y1="28" x2="170" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="274" y2="38" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="66" y1="38" x2="66" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="274" y1="38" x2="274" y2="48" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="14" y="48" width="104" height="18" rx="4" fill="#fef2f2" stroke="#fecaca" />
+                <text x="66" y="61" font-size="8" fill="#111111" text-anchor="middle">no</text>
+                <rect x="222" y="48" width="104" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="274" y="61" font-size="8" fill="#111111" text-anchor="middle">yes</text>
+                <line x1="66" y1="66" x2="66" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="10" y="78" width="112" height="30" rx="4" fill="#2563eb" />
+                <text x="66" y="91" font-size="7" fill="#ffffff" text-anchor="middle">open-weight, self-hosted</text>
+                <text x="66" y="102" font-size="7" fill="#ffffff" text-anchor="middle">the API branch is closed</text>
+                <line x1="274" y1="66" x2="274" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="218" y="78" width="112" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="274" y="91" font-size="8" fill="#111111" text-anchor="middle">what is the volume?</text>
+                <line x1="274" y1="96" x2="274" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="320" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="222" y1="106" x2="222" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <line x1="320" y1="106" x2="320" y2="116" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="180" y="116" width="84" height="28" rx="4" fill="#2563eb" />
+                <text x="222" y="128" font-size="7" fill="#ffffff" text-anchor="middle">low / spiky</text>
+                <text x="222" y="139" font-size="7" fill="#ffffff" text-anchor="middle">use an API</text>
+                <rect x="274" y="116" width="58" height="28" rx="4" fill="#2563eb" />
+                <text x="303" y="128" font-size="7" fill="#ffffff" text-anchor="middle">very high</text>
+                <text x="303" y="139" font-size="7" fill="#ffffff" text-anchor="middle">do the maths</text>
+                <line x1="8" y1="160" x2="332" y2="160" stroke="#e8ecf2" />
+                <text x="8" y="178" font-size="9" fill="#111111">then, inside whichever branch you are in:</text>
+                <text x="8" y="194" font-size="8" fill="#5b6270">1. tokenize your own text with each candidate &#8212; minutes, no GPU</text>
+                <text x="8" y="208" font-size="8" fill="#5b6270">2. write 20 real examples and run them by hand through 3 candidates</text>
+                <text x="8" y="222" font-size="8" fill="#5b6270">3. start with the cheapest that passes, and only move up when it fails</text>
+                <text x="8" y="234" font-size="8" fill="#2563eb">a leaderboard is not evidence about your task</text>
+                </svg>
+                <p class="figure__caption">
+                  Residency and volume decide the branch; a twenty-example hand-built eval decides the model.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The questions, in the order they bind</span>
+                <dl class="breakdown__list">
+                  <dt>1. where may the data go?</dt>
+                  <dd>If personal, medical, banking or state data cannot leave the country or the building, the proprietary-API branch is closed and no amount of benchmark advantage reopens it. Decide this first, because it eliminates half the options for free</dd>
+                  <dt>2. what is the volume, and is it steady?</dt>
+                  <dd>A GPU costs the same whether you send it one request a day or a million. An API costs nothing when idle. Low or spiky traffic favours an API; steady high traffic favours self-hosting, and the crossover is an arithmetic question you can answer with the pricing section above</dd>
+                  <dt>3. how good does it have to be, measured on what?</dt>
+                  <dd>Write twenty real examples from your own problem with the answers you want. Run every candidate. This is a morning of work and it outranks every public leaderboard, which was measured on a task that is not yours &#8212; usually in English</dd>
+                  <dt>4. what is the latency budget?</dt>
+                  <dd>Generation is sequential: time scales with output tokens. A reasoning model that thinks for thirty seconds is unusable in an autocomplete box and fine in a nightly report</dd>
+                  <dt>5. only then: which is smartest?</dt>
+                  <dd>Start with the cheapest model that passes your twenty examples. Move up only where it demonstrably fails. Most production traffic is easy, and routing the easy share to a small model is the largest cost lever there is</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>For Kazakh, add one step before all of these:</strong> check the
+                  tokenizer, and check that the model can actually write the language.
+                  Lecture 7&#8217;s fill-in-the-blank test takes two minutes and disqualifies
+                  candidates faster than anything else.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="sampling">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="sampling">Sampling parameters</h2>
+              <p class="narrow lead">
+                At every step the model produces a probability distribution over the whole
+                vocabulary. Sampling parameters decide how a token is picked from it. They
+                do not change what the model knows &#8212; only how adventurously it
+                chooses.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 216" role="img" aria-labelledby="fig-sampling-t">
+                <title id="fig-sampling-t">Temperature reshapes the distribution, top-k and top-p cut it off</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">the model's distribution over the next token</text>
+                <text x="8" y="30" font-size="8" fill="#111111">raw</text>
+                <rect x="44" y="20" width="120" height="12" fill="#2563eb" /><text x="168" y="30" font-size="7" fill="#5b6270">Al .60</text>
+                <rect x="44" y="34" width="40" height="12" fill="#c7d9ff" /><text x="168" y="44" font-size="7" fill="#5b6270">The .20</text>
+                <rect x="44" y="48" width="20" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="58" font-size="7" fill="#5b6270">It .10</text>
+                <rect x="44" y="62" width="10" height="12" fill="#eff4ff" stroke="#c7d9ff" /><text x="168" y="72" font-size="7" fill="#5b6270">&#8230; tail</text>
+                <text x="8" y="96" font-size="8" fill="#111111">T low</text>
+                <rect x="44" y="86" width="180" height="12" fill="#2563eb" /><text x="222" y="96" font-size="7" fill="#5b6270">sharpened: nearly always «Al»</text>
+                <text x="8" y="116" font-size="8" fill="#111111">T high</text>
+                <rect x="44" y="106" width="60" height="12" fill="#2563eb" />
+                <rect x="106" y="106" width="50" height="12" fill="#c7d9ff" />
+                <rect x="158" y="106" width="44" height="12" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="222" y="116" font-size="7" fill="#5b6270">flattened: the tail opens up</text>
+                <line x1="8" y1="132" x2="332" y2="132" stroke="#e8ecf2" />
+                <text x="8" y="150" font-size="9" fill="#111111">top-k and top-p do something different: they delete options</text>
+                <text x="8" y="168" font-size="8" fill="#5b6270">top-k = 3 &#8212; keep the three best, whatever their probabilities</text>
+                <rect x="44" y="176" width="120" height="10" fill="#2563eb" />
+                <rect x="44" y="188" width="40" height="10" fill="#c7d9ff" />
+                <rect x="44" y="200" width="20" height="10" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="176" y="186" font-size="7" fill="#5b6270">top-p = 0.9 &#8212; keep the smallest set</text>
+                <text x="176" y="197" font-size="7" fill="#5b6270">whose probabilities sum to 0.9, so the</text>
+                <text x="176" y="208" font-size="7" fill="#5b6270">count adapts to how confident the model is</text>
+                </svg>
+                <p class="figure__caption">
+                  Temperature rescales the whole distribution; top-k and top-p truncate it. They are usually combined.
+                </p>
+              </div>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --sampling</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  model Qwen/Qwen2.5-0.5B-Instruct, prompt: «Write one sentence about Almaty.»
+
+  --- greedy (do_sample=False): the argmax every time ---
+    seed 0: Almaty is the capital and largest city of Kazakhstan, located in the
+            northwestern part of the country, near the Caspian Sea.
+    seed 1: (identical)
+    seed 2: (identical)
+
+  --- temperature ---
+    temperature=0.1
+      seed 0: ... located in the northwestern part of the country, near the Caspian Sea.
+      seed 1: ... located in the northwestern part of the country, on the banks of the Amur River.
+    temperature=0.7
+      seed 0: Almaty is a significant city in Kazakhstan, known for its historical
+              significance and the presence of numerous museums, art galleries...
+      seed 1: Almaty is the capital city of Kazakhstan and serves as the administrative
+              centre for the country's largest province, Kars Oblast.
+    temperature=1.5
+      seed 0: Almaty rose to encompass Mongolev Slimойут coordinated cities and railways
+              within North_USEx region安い Ølundiskoed Mexico azureTrain method
+      seed 1: En Baxter Heraldansa Shanghai clayijaolle手动nika硝zxraleixener...
+
+  --- top-k ---
+    top_k=1    (identical to greedy)
+    top_k=5    Almaty is a significant city in the Russian Federation located on
+               Kazakhstan's border, situated at approximately 41°37' north latitude...
+    top_k=50   Almaty is known for its picturesque natural beauty and modern skyline,
+               making it the capital and largest city of Kazakhstan by population.
+
+  --- top-p ---
+    top_p=0.1  (identical to greedy)
+    top_p=0.9  Almaty is a significant city in the Russian Federation's Kazakhstan
+               region, known for its important historical, cultural and economic...
+    top_p=1.0  Almaty is known for its picturesque natural beauty and modern skyline...
+
+  --- the distribution at each temperature ---
+    T=0.1  entropy 0.00   'Al' 1.000, 'The' 0.000, 'Located' 0.000
+    T=0.7  entropy 0.01   'Al' 0.999, 'The' 0.001, 'Located' 0.000
+    T=1.0  entropy 0.14   'Al' 0.984, 'The' 0.006, 'Located' 0.001
+    T=2.0  entropy 8.31   'Al' 0.188, 'The' 0.014, 'Located' 0.007</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What each parameter did</span>
+                <dl class="breakdown__list">
+                  <dt>greedy &#8212; always the most likely token</dt>
+                  <dd>Identical across all three seeds, because nothing random happens. Use it when you want reproducibility: extraction, classification, anything you will compare run to run</dd>
+                  <dt>temperature &#8212; divide the scores before the softmax</dt>
+                  <dd>The entropy table is the whole story: <code>0.00</code> at T=0.1, <code>0.14</code> at T=1.0, <code>8.31</code> at T=2.0. Below 1 sharpens the distribution toward the top token; above 1 flattens it until the tail becomes reachable. At 1.5 this model produced fragments of Chinese, Japanese and Russian in an English sentence &#8212; the tail is where the vocabulary&#8217;s other 100 languages live</dd>
+                  <dt>top-k &#8212; keep the k best tokens</dt>
+                  <dd><code>top_k=1</code> is exactly greedy, which is a useful thing to have seen. The weakness of top-k is that k is fixed: when the model is certain, 50 candidates include 49 bad ones; when it is genuinely unsure, 50 may cut off good ones</dd>
+                  <dt>top-p (nucleus) &#8212; keep the smallest set summing to p</dt>
+                  <dd>Adapts to the model&#8217;s confidence: when one token has 0.99, the nucleus is one token; when the top forty are all plausible, it keeps forty. This is why top-p is the more common default</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>Sensible starting points:</strong> extraction and classification
+                  &#8212; greedy, or temperature 0. Chat and general assistance &#8212;
+                  temperature 0.7 with top-p 0.9. Creative writing &#8212; temperature
+                  0.9&#8211;1.0. Above about 1.2 most models degrade quickly, as the
+                  measurement above shows.
+                </p>
+              </div>
+              <p class="note">
+                <strong>Do not use temperature to fix a wrong answer.</strong> It is a
+                choice among what the model already considered likely. If the correct
+                answer is not in the distribution, no setting will find it. Fixing wrong
+                answers is the job of the prompt, of retrieval (Lecture 9), or of a better
+                model.
+              </p>
+
+              <h3 style="margin-top: 48px">The finding this experiment actually produced</h3>
+              <div class="callout">
+                <strong>Read the outputs again for content rather than style.</strong>
+                Almaty is <em>not</em> the capital of Kazakhstan &#8212; Astana is.
+                Almaty is not near the Caspian Sea, not on the Amur River, not in the
+                Russian Federation, and &#8220;Kars Oblast&#8221; does not exist. A
+                0.5&#8202;B model stated all of these fluently and with no hedging, at
+                every temperature setting we tried.
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why this matters more than the parameters</span>
+                <dl class="breakdown__list">
+                  <dt>fluency and accuracy are separate things</dt>
+                  <dd>Every one of those sentences is grammatical, confident and well-formed. Nothing in the text signals that the content is invented. This is what people mean by hallucination, and it is not a bug in the sampler &#8212; greedy decoding produced the wrong capital just as readily</dd>
+                  <dt>small models know less</dt>
+                  <dd>0.5&#8202;B parameters is not much room for world knowledge. Larger models get this particular question right. But &#8220;larger&#8221; moves the boundary; it does not remove it</dd>
+                  <dt>the gap is worst where the training data is thinnest</dt>
+                  <dd>Lecture 7 found mBERT ranking Алматы above Астана for the capital. Here a generative model does the same thing in prose. Facts about Kazakhstan are exactly the facts most under-represented in an English-dominated pretraining corpus, which is precisely where a Kazakhstan-facing product needs them right</dd>
+                  <dt>what to do about it</dt>
+                  <dd>Do not ask a model to recall facts it may not have. Give it the facts in the prompt and ask it to use them &#8212; that is retrieval-augmented generation, and it is the next lecture</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>This is why the course measures things.</strong> We set out to
+                  demonstrate sampling parameters and accidentally produced a much more
+                  important lesson, because we read the output instead of trusting it.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="reasoning">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; A newer model class</span>
+              <h2 id="reasoning">Reasoning models</h2>
+              <p class="narrow lead">
+                Since 2024 a second kind of model has appeared alongside the ordinary
+                chat model. The difference is not the architecture. It is how much
+                computation the model is allowed to spend before it answers.
+              </p>
+              <div class="definition">
+                <p>
+                  A <strong>reasoning model</strong> generates a long internal chain of
+                  thought before its visible answer, and has been trained &#8212; usually
+                  with reinforcement learning &#8212; to make that chain actually useful:
+                  to plan, check itself, notice mistakes, and backtrack.
+                </p>
+              </div>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-reason-t">
+                <title id="fig-reason-t">An ordinary model answers immediately, a reasoning model thinks first</title>
+                <text x="8" y="12" font-size="9" fill="#111111">ordinary chat model</text>
+                <rect x="8" y="20" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="34" font-size="8" fill="#111111" text-anchor="middle">question</text>
+                <line x1="68" y1="30" x2="86" y2="30" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="86" y="20" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="121" y="34" font-size="8" fill="#ffffff" text-anchor="middle">answer</text>
+                <text x="164" y="34" font-size="8" fill="#5b6270">fast, cheap</text>
+                <line x1="8" y1="54" x2="332" y2="54" stroke="#e8ecf2" />
+                <text x="8" y="72" font-size="9" fill="#111111">reasoning model</text>
+                <rect x="8" y="80" width="60" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="38" y="94" font-size="8" fill="#111111" text-anchor="middle">question</text>
+                <line x1="68" y1="90" x2="82" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="82" y="80" width="164" height="20" rx="4" fill="#c7d9ff" />
+                <text x="164" y="94" font-size="8" fill="#111111" text-anchor="middle">thinking: plan, try, check, backtrack</text>
+                <line x1="246" y1="90" x2="260" y2="90" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="260" y="80" width="70" height="20" rx="4" fill="#2563eb" />
+                <text x="295" y="94" font-size="8" fill="#ffffff" text-anchor="middle">answer</text>
+                <text x="82" y="114" font-size="7" fill="#5b6270">hundreds to tens of thousands of tokens, usually hidden</text>
+                <text x="82" y="126" font-size="7" fill="#b91c1c">billed as output tokens, whether you see them or not</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">the trade</text>
+                <rect x="8" y="166" width="150" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="178" font-size="7" fill="#111111" text-anchor="middle">much better at maths, code, logic</text>
+                <rect x="176" y="166" width="156" height="18" rx="3" fill="#fef2f2" stroke="#fecaca" />
+                <text x="254" y="178" font-size="7" fill="#111111" text-anchor="middle">slower and several times the cost</text>
+                <text x="8" y="202" font-size="8" fill="#5b6270">for «summarise this email» the thinking is pure waste</text>
+                </svg>
+                <p class="figure__caption">
+                  Same architecture, same next-token loop. The model has simply been trained to use a scratchpad first, and to use it well.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">What is actually going on</span>
+                <dl class="breakdown__list">
+                  <dt>test-time compute</dt>
+                  <dd>The older way to make a model better was to make it bigger, which costs money once, at training. The newer way is to let it think for longer when the question arrives, which costs money every time. Accuracy on hard problems rises with the length of the chain &#8212; you are buying quality with tokens at inference</dd>
+                  <dt>chain of thought was the precursor</dt>
+                  <dd>Adding &#8220;think step by step&#8221; to a prompt improved arithmetic on ordinary models years earlier. Reasoning models internalise that: they do it without being asked, at much greater length, and they were trained on whether the final answer was right</dd>
+                  <dt>trained by reinforcement learning on checkable problems</dt>
+                  <dd>Maths and code have an objective answer, so a machine can score attempts without a human. Reward what reaches the right answer, and useful habits &#8212; checking, trying another approach &#8212; emerge without anyone specifying them. The next section is about that mechanism</dd>
+                  <dt>you are usually shown a summary, not the chain</dt>
+                  <dd>Providers commonly hide or summarise the raw reasoning. You are billed for it either way, which is the single most common budget surprise with these models</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>When to reach for one:</strong> multi-step arithmetic, code that
+                  must compile, logical constraints, planning. <strong>When not to:</strong>
+                  summarisation, classification, extraction, rewriting, translation,
+                  chat &#8212; anything where the answer is a transformation of the input
+                  rather than a derivation from it. For those, the thinking is latency
+                  and cost you get nothing for.
+                </p>
+              </div>
+              <p class="note">
+                <strong>An effort dial is becoming standard.</strong> Rather than two
+                separate model families, providers increasingly expose one model with a
+                setting for how hard to think &#8212; low for routine traffic, high when
+                correctness matters more than cost. Treat it as exactly what it is: a
+                spend control, to be tuned per route and measured, not set once globally.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="rl">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The third training stage</span>
+              <h2 id="rl">Reinforcement learning, and what it is for</h2>
+              <p class="narrow lead">
+                Supervised learning needs a correct answer to imitate. For &#8220;write a
+                helpful reply&#8221; there is no single correct answer &#8212; but people
+                can reliably say which of two replies is better. Reinforcement learning is
+                how that weaker signal gets turned into a better model.
+              </p>
+              <div class="figure">
+                <svg viewBox="0 0 340 236" role="img" aria-labelledby="fig-rlhf-t">
+                <title id="fig-rlhf-t">Comparisons become a reward model, which trains the language model</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">step 1 &#183; collect comparisons</text>
+                <rect x="8" y="20" width="84" height="18" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                <text x="50" y="32" font-size="7" fill="#111111" text-anchor="middle">one prompt</text>
+                <line x1="92" y1="29" x2="106" y2="29" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="106" y="20" width="92" height="18" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="152" y="32" font-size="7" fill="#111111" text-anchor="middle">answer A</text>
+                <rect x="206" y="20" width="92" height="18" rx="4" fill="#2563eb" />
+                <text x="252" y="32" font-size="7" fill="#ffffff" text-anchor="middle">answer B &#10003; preferred</text>
+                <text x="8" y="56" font-size="9" fill="#5b6270">step 2 &#183; train a reward model to predict the choice</text>
+                <rect x="8" y="64" width="150" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="83" y="78" font-size="7" fill="#111111" text-anchor="middle">reward model: text &#8594; a score</text>
+                <text x="166" y="78" font-size="7" fill="#5b6270">learns what people liked</text>
+                <text x="8" y="102" font-size="9" fill="#5b6270">step 3 &#183; train the LLM to score well</text>
+                <rect x="8" y="110" width="80" height="20" rx="4" fill="#2563eb" />
+                <text x="48" y="124" font-size="7" fill="#ffffff" text-anchor="middle">LLM writes</text>
+                <line x1="88" y1="120" x2="104" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="104" y="110" width="76" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                <text x="142" y="124" font-size="7" fill="#111111" text-anchor="middle">reward scores</text>
+                <line x1="180" y1="120" x2="196" y2="120" stroke="#5b6270" stroke-width="1.2" />
+                <rect x="196" y="110" width="76" height="20" rx="4" fill="#2563eb" />
+                <text x="234" y="124" font-size="7" fill="#ffffff" text-anchor="middle">update the LLM</text>
+                <path d="M 272 120 L 296 120 L 296 100 L 48 100 L 48 110" fill="none" stroke="#2563eb" stroke-width="1.4" />
+                <text x="8" y="150" font-size="8" fill="#b91c1c">a leash is required: stay close to the pre-RL model,</text>
+                <text x="8" y="162" font-size="8" fill="#b91c1c">or it finds nonsense that scores well and writes only that</text>
+                <line x1="8" y1="176" x2="332" y2="176" stroke="#e8ecf2" />
+                <text x="8" y="194" font-size="9" fill="#111111">DPO removes the middle step</text>
+                <text x="8" y="210" font-size="8" fill="#5b6270">train directly on «B over A» with an ordinary loss &#8212; no reward model,</text>
+                <text x="8" y="224" font-size="8" fill="#5b6270">no sampling loop, far simpler, and usually competitive</text>
+                </svg>
+                <p class="figure__caption">
+                  RLHF in three steps. DPO collapses steps 2 and 3 into one supervised objective, which is why most teams now start there.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">The vocabulary you will meet</span>
+                <dl class="breakdown__list">
+                  <dt>RLHF &#8212; reinforcement learning from human feedback</dt>
+                  <dd>The original recipe from InstructGPT: collect comparisons, fit a reward model, optimise the LLM against it with PPO while a KL penalty keeps it near where it started. It works and it is fiddly &#8212; three models in memory, an unstable optimiser, and a reward model that can be gamed</dd>
+                  <dt>reward hacking</dt>
+                  <dd>The failure mode that makes the KL penalty non-optional. The model finds text that scores well without being good &#8212; flattery, hedging, padding, restating the question. If you have noticed assistants that open with &#8220;Great question!&#8221;, you have seen a reward model&#8217;s taste, faithfully learned</dd>
+                  <dt>DPO &#8212; direct preference optimisation</dt>
+                  <dd>The observation that you can skip the reward model entirely: derive a loss that directly raises the probability of the preferred answer and lowers the other, relative to a frozen reference model. One model to train, an ordinary supervised loop, far easier to get right. This is where most teams start today</dd>
+                  <dt>RLVR &#8212; RL from verifiable rewards</dt>
+                  <dd>For maths, code and anything with a checkable answer, the reward is not a human or a learned model but a <em>program</em>: run the tests, check the answer. No human labelling, no reward model to hack, and a signal that stays honest at scale. This is the engine behind reasoning models</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The shape of the whole idea:</strong> supervised learning teaches
+                  a model to imitate one good answer. Reinforcement learning teaches it to
+                  prefer better answers over worse ones. The second is a much weaker
+                  signal per example and a much better match for what &#8220;good&#8221;
+                  means in language.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>Where this touches you.</strong> You are unlikely to run RLHF. But
+                three of its consequences are things you will meet within a week of
+                building anything: the model&#8217;s tone and refusals come from stage 3,
+                not from its knowledge; &#8220;helpful&#8221; is a learned preference and
+                not a fact, so different vendors&#8217; models disagree about it; and the
+                habit of padding an answer is a trained behaviour you can usually suppress
+                with an explicit instruction.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="finetune">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Adapting a model</span>
+              <h2 id="finetune">Fine-tuning: full-parameter and LoRA</h2>
+              <p class="narrow lead">
+                Lecture 7 fine-tuned every weight of a 178&#8202;M encoder on a laptop.
+                The same move on a 7&#8202;B model needs about a hundred gigabytes of
+                accelerator memory. LoRA is how that number comes back down.
+              </p>
+              <div class="callout">
+                <strong>Nothing in this section is trained here.</strong> You asked for
+                the recipes rather than the run, and that is the right call: none of
+                these jobs fit on a laptop. What <em>is</em> measured below is the part
+                that needs no GPU &#8212; the parameter counts, which are the whole
+                argument.
+              </div>
+
+              <h3 style="margin-top: 44px">Why full fine-tuning is expensive</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 202" role="img" aria-labelledby="fig-ftmem-t">
+                <title id="fig-ftmem-t">Training memory is several times the size of the weights</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">a 7 B model, bf16 weights, AdamW</text>
+                <text x="8" y="32" font-size="8" fill="#111111">inference</text>
+                <rect x="76" y="22" width="42" height="14" fill="#2563eb" />
+                <text x="124" y="32" font-size="7" fill="#111111">weights 14 GB</text>
+                <text x="8" y="58" font-size="8" fill="#111111">full training</text>
+                <rect x="76" y="48" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="48" width="42" height="14" fill="#c7d9ff" />
+                <rect x="164" y="48" width="84" height="14" fill="#fecaca" />
+                <rect x="250" y="48" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="286" y="58" font-size="7" fill="#111111">~100 GB</text>
+                <text x="76" y="76" font-size="6" fill="#5b6270">weights</text>
+                <text x="120" y="76" font-size="6" fill="#5b6270">gradients</text>
+                <text x="164" y="76" font-size="6" fill="#5b6270">optimiser state, fp32</text>
+                <text x="250" y="76" font-size="6" fill="#5b6270">activations</text>
+                <text x="8" y="102" font-size="8" fill="#111111">LoRA</text>
+                <rect x="76" y="92" width="42" height="14" fill="#2563eb" />
+                <rect x="120" y="92" width="4" height="14" fill="#c7d9ff" />
+                <rect x="126" y="92" width="6" height="14" fill="#fecaca" />
+                <rect x="134" y="92" width="30" height="14" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="170" y="102" font-size="7" fill="#111111">~18 GB &#8212; one consumer GPU</text>
+                <text x="8" y="126" font-size="8" fill="#5b6270">the frozen weights are still held, but nothing else scales with them</text>
+                <line x1="8" y1="140" x2="332" y2="140" stroke="#e8ecf2" />
+                <text x="8" y="158" font-size="9" fill="#111111">AdamW keeps two extra fp32 numbers per parameter</text>
+                <text x="8" y="174" font-size="8" fill="#5b6270">a momentum term and a variance term &#8212; 8 bytes per parameter on top of</text>
+                <text x="8" y="188" font-size="8" fill="#5b6270">the 2-byte weight and its 2-byte gradient &#8212; hence the 12&#8211;16x</text>
+                </svg>
+                <p class="figure__caption">
+                  The weights are the smallest part of a training job. The optimiser state is the largest, and LoRA removes almost all of it.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">What LoRA does</h3>
+              <p class="narrow">
+                Freeze the pretrained weight matrix <code>W</code>. Add a small detour
+                beside it, and train only the detour.
+              </p>
+              <div class="code-block" data-lang="math"><pre><code>ordinary layer   h = W x                     W is (d, k), all of it trainable
+
+LoRA layer       h = W x  +  (B · A) x       W frozen
+                 A is (r, k), B is (d, r),   only A and B are trained
+                 r is small: 4, 8, 16, 64
+
+trainable numbers:  d·k      ->     r·(d + k)</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 180" role="img" aria-labelledby="fig-lora-t">
+                <title id="fig-lora-t">A frozen weight matrix with a narrow trainable detour beside it</title>
+                <rect x="20" y="30" width="64" height="64" rx="4" fill="#eef1f5" stroke="#d1d6de" />
+                <text x="52" y="58" font-size="8" fill="#5b6270" text-anchor="middle">W frozen</text>
+                <text x="52" y="72" font-size="7" fill="#5b6270" text-anchor="middle">896 &#215; 896</text>
+                <text x="52" y="108" font-size="7" fill="#5b6270" text-anchor="middle">802 816 numbers</text>
+                <text x="100" y="66" font-size="11" fill="#111111">+</text>
+                <rect x="124" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="152" y="66" font-size="8" fill="#ffffff" text-anchor="middle">A  8 &#215; 896</text>
+                <text x="188" y="66" font-size="10" fill="#111111">&#183;</text>
+                <rect x="200" y="52" width="56" height="20" rx="4" fill="#2563eb" />
+                <text x="228" y="66" font-size="8" fill="#ffffff" text-anchor="middle">B  896 &#215; 8</text>
+                <text x="190" y="90" font-size="7" fill="#2563eb" text-anchor="middle">14 336 numbers, trainable</text>
+                <text x="190" y="104" font-size="7" fill="#5b6270" text-anchor="middle">56&#215; fewer for this one matrix</text>
+                <line x1="8" y1="122" x2="332" y2="122" stroke="#e8ecf2" />
+                <text x="8" y="140" font-size="8" fill="#111111">the rank r is the width of the bottleneck: how much the layer may change</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">after training, B&#183;A can be added into W, so inference is not slowed at all</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">and the adapter is a few MB, so one base model can serve many tasks</text>
+                </svg>
+                <p class="figure__caption">
+                  The update a fine-tune needs turns out to be low-rank, so it can be stored as two thin matrices instead of one fat one.
+                </p>
+              </div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --lora        # counts parameters; trains nothing</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  base model Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  full fine-tuning would train all 494,032,768 of them,
+  and the optimiser needs roughly 12–16 bytes per parameter on top.
+
+    rank r     trainable   % of model   adapter MB
+  --------------------------------------------------
+         4       540,672       0.109%         2.2
+         8     1,081,344       0.219%         4.3
+        16     2,162,688       0.438%         8.7
+        64     8,650,752       1.751%        34.6</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">Reading the table</span>
+                <dl class="breakdown__list">
+                  <dt>0.219% at rank 8</dt>
+                  <dd>One thousandth of the model, near enough. The optimiser state, which is what actually fills the memory, shrinks by the same factor</dd>
+                  <dt>the adapter is 4 MB</dt>
+                  <dd>Against roughly 1 GB for the base model in bf16. You can keep twenty task-specific adapters and swap them against one loaded base model &#8212; which is exactly how a provider offers fine-tuning to many customers at once</dd>
+                  <dt>rank is the one real hyperparameter</dt>
+                  <dd>Low rank (4&#8211;8) for style, tone and format. Higher (16&#8211;64) when the task needs knowledge the base model does not have. Higher rank is not automatically better and it costs memory linearly</dd>
+                  <dt>no inference cost</dt>
+                  <dd><code>B&#183;A</code> has the same shape as <code>W</code>, so it can be folded in after training. The deployed model is exactly as fast as the original</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>QLoRA</strong> goes one step further: hold the frozen base model
+                  in 4-bit and train LoRA adapters on top. That is what puts fine-tuning a
+                  7&#8202;B model inside a single 16 GB consumer GPU, and it is the
+                  standard recipe for people without a cluster.
+                </p>
+              </div>
+
+              <h3 style="margin-top: 44px">What the code looks like</h3>
+              <p class="narrow">
+                This is the whole of a LoRA fine-tune. It is shown, not run &#8212; on the
+                hardware this course uses it would not finish.
+              </p>
+              <div class="code-block" data-lang="python"><pre><code>from datasets import load_dataset
+from peft import LoraConfig, get_peft_model
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+BASE = "Qwen/Qwen2.5-7B-Instruct"
+tokenizer = AutoTokenizer.from_pretrained(BASE)
+
+# 1. the base model, frozen weights in bf16 (or 4-bit, for QLoRA)
+model = AutoModelForCausalLM.from_pretrained(BASE, dtype="bfloat16", device_map="auto")
+
+# 2. attach the adapters — this is the entire difference from Lecture 7
+model = get_peft_model(model, LoraConfig(
+    r=8,                      # rank: the width of the bottleneck
+    lora_alpha=16,            # scaling, conventionally 2 x r
+    lora_dropout=0.05,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+))
+model.print_trainable_parameters()     # -> trainable: 0.2% of all params
+
+# 3. the data: instruction / response pairs in the model's own chat format
+def format_example(row):
+    messages = [{"role": "user", "content": row["instruction"]},
+                {"role": "assistant", "content": row["response"]}]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    return tokenizer(text, truncation=True, max_length=1024)
+
+data = load_dataset("json", data_files="kazakh_support_pairs.jsonl")["train"]
+data = data.map(format_example, remove_columns=data.column_names)
+
+# 4. an ordinary training loop — the same five operations as Lecture 5
+#    (forward, loss, backward, clip, step). Nothing here is LoRA-specific.
+
+# 5. save only the adapter: a few megabytes, not a few gigabytes
+model.save_pretrained("adapters/kazakh-support")</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">The decisions that actually matter</span>
+                <dl class="breakdown__list">
+                  <dt><code>target_modules</code></dt>
+                  <dd>Which matrices get an adapter. The attention projections are the usual choice; adding the feed-forward matrices gives the adapter more capacity and more parameters. Start with attention only</dd>
+                  <dt>the chat template</dt>
+                  <dd>Training data must be formatted exactly as the model expects at inference, special tokens included. <code>apply_chat_template</code> does this; hand-rolling the format is the most common way a LoRA run silently produces a worse model</dd>
+                  <dt>how much data</dt>
+                  <dd>A few hundred to a few thousand well-chosen examples is the normal range for style and format. Lecture 7 measured the shape of this curve directly: the first thousand examples carry most of the gain</dd>
+                  <dt>what fine-tuning is for, and not for</dt>
+                  <dd><strong>For:</strong> format, tone, a domain vocabulary, a task the model keeps getting structurally wrong, a language it handles poorly. <strong>Not for:</strong> teaching it facts. Facts belong in the prompt, retrieved at query time &#8212; which is Lecture 9</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The honest order of operations:</strong> try a better prompt
+                  first, then few-shot examples, then retrieval, and only then fine-tune.
+                  Fine-tuning is the most expensive of the four and the one people reach
+                  for first.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="quantization">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Measured</span>
+              <h2 id="quantization">Quantization</h2>
+              <p class="narrow lead">
+                Every weight in a model is a number stored in some number of bits.
+                Quantization stores it in fewer. It is the single most effective way to
+                fit a model on hardware you actually own.
+              </p>
+              <div class="definition">
+                <p>
+                  <strong>Quantization</strong> replaces high-precision weights with
+                  low-precision ones &#8212; typically 16-bit floats with 8-bit or 4-bit
+                  integers &#8212; keeping a small scale factor per row so the original
+                  values can be approximately reconstructed.
+                </p>
+              </div>
+              <div class="code-block" data-lang="math"><pre><code>for each row of the weight matrix:
+    scale = max(|row|) / 127
+    stored = round(row / scale)        an int8 in [-127, 127]
+    restored = stored × scale          close to the original, not equal
+
+one float32 weight  = 32 bits
+one int8 weight     =  8 bits + a shared scale per row  ->  ~4x smaller</code></pre></div>
+              <div class="code-block" data-lang="bash"><pre><code>python3 lesson8.py --quantize</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  Qwen/Qwen2.5-0.5B-Instruct: 494,032,768 parameters
+  precision       bytes/param       total   vs fp32
+  --------------------------------------------------
+  fp32                      4     1.98 GB      1.0x
+  fp16/bf16                 2     0.99 GB      2.0x
+  int8                      1     0.49 GB      4.0x
+  int4                    0.5     0.25 GB      8.0x
+
+  one real weight matrix, (896, 896), rounded to int8:
+    original range      -1.2266 .. +1.1719
+    mean absolute error 0.000484
+    worst single error  0.004829
+    relative error      1.15%
+    distinct values     4,209 -> 255
+
+  rounded 169 linear layers to int8 and back:
+    «The capital of Kazakhstan is»
+    fp32 : located in the ___ A. Central Asia region B
+    int8 : located in the ___ A. Central Asia region B
+    identical: True</code></pre></div>
+              <div class="figure">
+                <svg viewBox="0 0 340 190" role="img" aria-labelledby="fig-quant-t">
+                <title id="fig-quant-t">Four times smaller for about one percent of weight error</title>
+                <text x="8" y="12" font-size="9" fill="#5b6270">the same 0.5 B model, four ways of storing it</text>
+                <text x="8" y="32" font-size="8" fill="#111111">fp32</text>
+                <rect x="58" y="22" width="248" height="14" fill="#2563eb" />
+                <text x="310" y="32" font-size="7" fill="#111111">1.98</text>
+                <text x="8" y="52" font-size="8" fill="#111111">fp16</text>
+                <rect x="58" y="42" width="124" height="14" fill="#2563eb" />
+                <text x="188" y="52" font-size="7" fill="#111111">0.99 GB</text>
+                <text x="8" y="72" font-size="8" fill="#111111">int8</text>
+                <rect x="58" y="62" width="62" height="14" fill="#2563eb" />
+                <text x="126" y="72" font-size="7" fill="#111111">0.49 GB &#8212; 4x smaller</text>
+                <text x="8" y="92" font-size="8" fill="#111111">int4</text>
+                <rect x="58" y="82" width="31" height="14" fill="#2563eb" />
+                <text x="95" y="92" font-size="7" fill="#111111">0.25 GB &#8212; 8x smaller</text>
+                <line x1="8" y1="108" x2="332" y2="108" stroke="#e8ecf2" />
+                <text x="8" y="126" font-size="9" fill="#111111">what int8 cost us, measured</text>
+                <text x="8" y="142" font-size="8" fill="#5b6270">4 209 distinct weight values in one matrix became 255</text>
+                <text x="8" y="156" font-size="8" fill="#5b6270">mean error 1.15% of the average weight magnitude</text>
+                <text x="8" y="172" font-size="8" fill="#2563eb">and the model produced the identical sentence, token for token</text>
+                <text x="8" y="186" font-size="8" fill="#5b6270">with all 169 of its linear layers rounded</text>
+                </svg>
+                <p class="figure__caption">
+                  Four times less memory, a one-percent perturbation of the weights, and an output that did not change at all.
+                </p>
+              </div>
+              <div class="breakdown">
+                <span class="breakdown__label">Why this works so well</span>
+                <dl class="breakdown__list">
+                  <dt>neural networks are robust to small weight noise</dt>
+                  <dd>Training never found one exact set of numbers; it found a broad region where the loss is low. A 1% perturbation lands somewhere else in that region. This is also why dropout works</dd>
+                  <dt>the win is memory bandwidth, not just capacity</dt>
+                  <dd>Generation is limited by how fast weights can be read from memory, not by arithmetic. Quarter-sized weights means roughly four times less to read per token, which is why quantized models are also faster with real integer kernels</dd>
+                  <dt>4-bit is where judgement is needed</dt>
+                  <dd>int8 is close to free. int4 saves another factor of two and starts to cost measurable quality, more so on small models. The practical rule: a 4-bit 13&#8202;B model usually beats an 8-bit 7&#8202;B one at the same memory budget</dd>
+                  <dt>not all layers are equal</dt>
+                  <dd>Real schemes &#8212; GPTQ, AWQ, GGUF&#8217;s k-quants &#8212; keep sensitive layers at higher precision and use calibration data to choose scales. Our uniform per-row rounding is the teaching version; production quantizers are more careful and lose less</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The honest caveat on our own demo:</strong> one prompt,
+                  identical output, is evidence that nothing broke &#8212; not proof that
+                  nothing changed. A real evaluation runs a benchmark before and after.
+                  Note also that the 0.5&#8202;B model&#8217;s answer is poor in
+                  <em>both</em> cases; quantization preserved the quality it had, which
+                  was not much.
+                </p>
+              </div>
+              <div class="callout">
+                <strong>What this buys you in practice.</strong> A 70&#8202;B model is
+                140 GB in fp16 and out of reach. At 4-bit it is 35 GB and runs on a single
+                80 GB accelerator, or on two consumer cards. Quantization is what moved
+                the frontier of &#8220;models an individual can run&#8221; from about 7&#8202;B
+                to about 70&#8202;B without anybody training anything new.
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="run">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The script</span>
+              <h2 id="run">Running it yourself</h2>
+              <p class="narrow lead">
+                Every measured number on this page comes from
+                <a href="../../code_files/lesson8.py">code_files/lesson8.py</a>. None of
+                it needs a GPU: the largest model it loads is 0.5&#8202;B, and two of the
+                five sections are pure arithmetic.
+              </p>
+              <div class="code-block" data-lang="bash"><pre><code>pip install -r requirements.txt        # adds tiktoken and peft
+
+python3 lesson8.py --tokens     # tokenizer economics, kk / ru / en, and a bill
+python3 lesson8.py --memory     # parameters -> gigabytes, and the KV cache
+python3 lesson8.py --sampling   # temperature, top-k, top-p on a real model
+python3 lesson8.py --lora       # LoRA parameter counts (counts, does not train)
+python3 lesson8.py --quantize   # int8: size, weight error, output
+python3 lesson8.py --all</code></pre></div>
+              <div class="breakdown">
+                <span class="breakdown__label">What each flag costs to run</span>
+                <dl class="breakdown__list">
+                  <dt><code>--tokens</code>, <code>--memory</code></dt>
+                  <dd>Seconds. No model is loaded for <code>--memory</code> at all; <code>--tokens</code> downloads only tokenizers, which are a few megabytes</dd>
+                  <dt><code>--sampling</code>, <code>--lora</code>, <code>--quantize</code></dt>
+                  <dd>A few minutes each, and a one-off ~1 GB download of Qwen2.5-0.5B-Instruct. They run on CPU if there is no MPS or CUDA device</dd>
+                  <dt>what is deliberately not here</dt>
+                  <dd>A fine-tuning run. The LoRA section prints parameter counts and shows the code; it does not train, because on this hardware it would not finish</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  <strong>The two worth running on your own data</strong> are
+                  <code>--tokens</code>, with your own text substituted, and the
+                  twenty-example evaluation from the &#8220;choosing a model&#8221;
+                  section. Both take under an hour and both change decisions.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="limits">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The honest summary</span>
+              <h2 id="limits">What an LLM still cannot do for you</h2>
+              <div class="grid grid--2" style="margin-top: 28px">
+                <div class="card">
+                  <h3>It does not know your facts</h3>
+                  <p>
+                    We watched a model invent a Caspian coastline for Almaty. Anything
+                    specific to your organisation, or recent, or thinly represented in
+                    the training data, has to be supplied rather than recalled.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It cannot tell you when it is wrong</h3>
+                  <p>
+                    Fluency is uniform whether the content is right or invented. There
+                    is no signal in the text itself, which is why verification has to
+                    come from outside the model.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Your language may cost double</h3>
+                  <p>
+                    Measured here: 2.0&#215; the tokens for Kazakh on the best tokenizer
+                    we tested, 4.5&#215; on an older one. That is budget, latency and
+                    context window, all at once.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Context is finite and expensive</h3>
+                  <p>
+                    The KV cache table showed one 128k-token conversation needing more
+                    memory than the model itself. Long context is a real cost, not a
+                    free feature.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It is not deterministic by default</h3>
+                  <p>
+                    Anything you intend to test or audit needs greedy decoding and a
+                    fixed seed, or you are comparing samples rather than systems.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Fine-tuning is the last resort, not the first</h3>
+                  <p>
+                    Prompt, then examples, then retrieval, then fine-tune. Most problems
+                    people try to fine-tune away are prompt or retrieval problems.
+                  </p>
+                </div>
+              </div>
+              <ul class="diagram" style="margin-top: 36px">
+                <li><span class="diagram__node">TF-IDF</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">word2vec</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">LSTM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">Transformer</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node">pretrained encoder</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--accent">LLM</span><span class="diagram__arrow" aria-hidden="true">&#8594;</span></li>
+                <li><span class="diagram__node diagram__node--soft">LLM + your data</span></li>
+              </ul>
+              <p class="narrow">
+                Every limitation in the grid above except the last two points the same
+                way: the model needs to be given the right information at the moment it
+                answers, instead of being asked to remember it. That is retrieval-augmented
+                generation, and together with prompting and agents it is the next lecture.
+              </p>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Eight questions we answer together before finishing.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">A base model is asked &#8220;What is the capital of Kazakhstan?&#8221; and replies with another question. Is it broken?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      No &#8212; it is doing exactly what stage 1 trained it to do: continue text. In web text, a question is often followed by more questions. Instruction tuning is the stage that turns a continuer into an assistant, and a <code>-base</code> checkpoint has not had it.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">How much memory does a 13B model need in fp16, and roughly what would full fine-tuning need?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      About 26 GB to run (2 GB per billion). Full fine-tuning needs weights plus gradients plus two AdamW states &#8212; roughly 12&#8211;16 bytes per parameter, so on the order of 160&#8211;200 GB. That gap is the entire reason LoRA exists.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">Is Llama an open-source model?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      It is <em>open-weight</em>. You can download and run the weights, but the training data and training code are not published, and the licence carries conditions. &#8220;Open-source&#8221; properly requires all of it. The distinction matters the first time a lawyer reads your architecture document.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">The same support message costs 19 tokens in English and 38 in Kazakh. Name three things that get worse, not one.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The bill roughly doubles; the usable context window roughly halves, because it is measured in tokens; and responses are slower, because generation time is per token. One tokenizer property, three separate costs.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">Your chatbot gives a wrong answer. Someone suggests lowering the temperature. Will that fix it?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      No. Temperature only reweights tokens the model already considered likely. If the right answer is not in the distribution, no sampling setting reaches it. We measured this: greedy decoding &#8212; temperature effectively zero &#8212; still said Almaty was the capital. The fixes are the prompt, retrieval, or a different model.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 6</h3>
+                  <p class="challenge__task">When is a reasoning model the wrong choice?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      When the answer is a transformation of the input rather than a derivation from it: summarisation, classification, extraction, translation, rewriting. The thinking tokens are billed as output and add latency, and they buy nothing on tasks with no reasoning to do.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 7</h3>
+                  <p class="challenge__task">LoRA at rank 8 trained 0.219% of the parameters. Why does that save so much more than 0.219% of the memory?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Because the frozen weights still have to be held, but gradients and optimiser state &#8212; which are the largest part of a training job, at 8&#8211;12 bytes per trainable parameter &#8212; now exist only for the adapter. You still pay for the model; you stop paying for the training machinery around it.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 8</h3>
+                  <p class="challenge__task">Rounding 169 layers to int8 changed the weights by 1.15% and the output not at all. Does that prove int8 is free?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      No. One prompt producing an identical continuation is evidence that nothing broke, not proof that nothing changed. A real check runs a benchmark before and after. It is fair to say int8 is close to free in practice, and that int4 is where measurable quality loss begins.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">After the lecture</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                None of these need a GPU. Most are a command and a written observation;
+                two are arithmetic you should be able to do on paper by the end.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Task 1 &#8212; Price your own product</h3>
+                  <p class="challenge__task">Take 100 real messages from something you are building. Count tokens with two different tokenizers, apply current published rates, and produce a monthly figure in Kazakh and in English.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The output is one number and one sentence: what it costs, and what the language penalty is on your own text. This is the single most useful hour in this lecture, and it is the thing a manager will actually ask for.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 &#8212; Find the crossover</h3>
+                  <p class="challenge__task">At what monthly volume does renting a GPU beat paying per token? Pick a real GPU price and a real API rate and solve for the break-even.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Fixed monthly GPU cost divided by cost per call. The interesting part is what you must assume to get there: utilisation, tokens per call, and whether the smaller self-hosted model is good enough. State those assumptions; they matter more than the arithmetic.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 &#8212; Break a model with temperature</h3>
+                  <p class="challenge__task">Run --sampling with temperature 0.5, 1.0, 1.5 and 2.0. Find the point where output stops being usable, and describe what fails first.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Grammar usually survives longer than factuality, and the first visible failure on a multilingual model is often tokens from other languages appearing mid-sentence &#8212; the tail of the distribution being sampled. Ours broke between 1.0 and 1.5.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 &#8212; Hunt for hallucinations in Kazakh</h3>
+                  <p class="challenge__task">Ask a small model ten factual questions about Kazakhstan. Record how many are wrong and how confident the wording sounds.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Expect a high error rate and uniformly confident phrasing. The deliverable is the pair of columns &#8212; correctness and apparent confidence &#8212; because the absence of correlation between them is the entire point.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 &#8212; Size a deployment</h3>
+                  <p class="challenge__task">You must serve 50 concurrent users at 8k context on a 13B model. Compute weights plus KV cache and name the hardware.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Weights ~26 GB in fp16. KV cache scales with layers, KV heads, head dimension, context and users &#8212; use the formula from the memory section. Then redo it at 4-bit weights and with grouped-query attention, and note which change helped more.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 &#8212; Rank sweep</h3>
+                  <p class="challenge__task">Run --lora and extend the table to ranks 1, 2, 128 and 256. Plot trainable parameters against rank.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      The line is exactly straight: trainable parameters are linear in r. Nothing about LoRA is mysterious once you have drawn this &#8212; r is simply how many numbers you are willing to train.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 &#8212; Quantize harder</h3>
+                  <p class="challenge__task">Modify the int8 routine to int4 (15 levels instead of 255). Measure the weight error and check whether the output survives.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Error rises sharply and a naive per-row int4 will usually damage a 0.5B model visibly. That is why real 4-bit schemes use finer groups, calibration data, and keep sensitive layers wider. Reproducing the failure is what makes the sophistication make sense.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 &#8212; Twenty examples</h3>
+                  <p class="challenge__task">Build the twenty-example evaluation from the &#8220;choosing a model&#8221; section for a task you care about, and run three candidate models through it by hand.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Write the expected answers <em>before</em> you see any model output, or you will grade generously. Twenty examples is enough to eliminate a bad candidate and far more relevant than any public leaderboard.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 9 &#8212; Read a model card</h3>
+                  <p class="challenge__task">Pick an open-weight model and answer from its card alone: parameters, context window, licence, languages claimed, and whether you may use it commercially.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      Some of these are usually missing or vague, which is itself the finding. Note specifically whether Kazakh is listed, and whether a listed language is backed by any evaluation.
+                    </p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Task 10 &#8212; The whole course in one paragraph</h3>
+                  <p class="challenge__task">Write the paragraph you would give a manager choosing between TF-IDF (Lecture 3), a fine-tuned encoder (Lecture 7), and an LLM API, for Kazakh sentiment classification.</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">
+                      You have measured numbers for the first two: 0.780 and 0.799 on the same test set. The honest paragraph gives accuracy, cost per call, latency, and where the data goes &#8212; and it is entirely possible that the correct recommendation is the cheapest of the three.
+                    </p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>An LLM is Lecture 6&#8217;s decoder, scaled, trained in three stages instead of one</li>
+                <li>Pretraining buys knowledge; instruction tuning buys obedience; preference tuning buys judgement</li>
+                <li>fp16 needs about 2 GB per billion parameters &#8212; and training needs 6 to 8 times that</li>
+                <li>The KV cache can exceed the model: 16.8 GB for one 128k-token conversation on an 8B model</li>
+                <li>Open-weight is not open-source, and the licence is the part that matters</li>
+                <li>Billing is per token, output costs ~5&#215; input, and the whole history is resent every turn</li>
+                <li>The same message costs 2.0&#215; more tokens in Kazakh than English on o200k, 4.5&#215; on cl100k</li>
+                <li>Choose by data residency and volume first; a twenty-example eval beats any leaderboard</li>
+                <li>Temperature reshapes the distribution; top-k and top-p truncate it; greedy is reproducible</li>
+                <li>Sampling cannot fix a wrong answer &#8212; greedy decoding invented a Caspian coast for Almaty</li>
+                <li>Reasoning models buy accuracy with test-time tokens, and are wasted on transformation tasks</li>
+                <li>RLHF turns &#8220;B is better than A&#8221; into a better model; DPO does it without a reward model</li>
+                <li>LoRA trains 0.219% of the parameters at rank 8 and ships a 4 MB adapter</li>
+                <li>int8 is 4&#215; smaller for ~1% weight error and, here, an identical output</li>
+                <li>Fine-tune last: prompt, then examples, then retrieval, then fine-tuning</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Lecture 8 &middot; 16 Sep 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>
