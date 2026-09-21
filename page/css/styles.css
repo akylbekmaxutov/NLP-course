@@ -1354,7 +1354,9 @@ details.answer p:last-child {
 
 .breakdown__list {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  /* minmax(0, ...) lets the label column shrink when the line is long;
+     without it a long label cannot wrap and pushes the page sideways. */
+  grid-template-columns: minmax(0, max-content) 1fr;
   gap: 10px 20px;
   margin: 0;
   align-items: baseline;
@@ -1369,7 +1371,6 @@ details.answer p:last-child {
   border: 1px solid var(--accent-border);
   border-radius: 5px;
   padding: 2px 8px;
-  white-space: nowrap;
   justify-self: start;
 }
 
@@ -1821,4 +1822,12 @@ details.answer p:last-child {
   * {
     transition: none !important;
   }
+}
+
+/* Long identifiers inside narrow cards must break rather than widen the card. */
+.card code,
+.challenge code,
+.challenge__task,
+.breakdown__list dd code {
+  overflow-wrap: anywhere;
 }

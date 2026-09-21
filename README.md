@@ -257,3 +257,15 @@ Changed:
 - `index.html` — link to Lecture 9
 
 All 30 inline SVGs across the three Lecture 9 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and all 33 code blocks are byte-identical in all three languages
+
+### 21.09.2026 (layout fix)
+
+Fixed, after the Lecture 9 pages were reported as visually broken:
+
+- **`language/*/09-prompting-rag.html` used the wrong markup for the `breakdown` component.** `.breakdown__list` is a CSS grid styled for a `<dl>` with `<dt>`/`<dd>` children; the new pages used `<ul>` with `<li><strong>…</strong><span>…</span></li>`. Every `<li>` therefore became a grid item in the `max-content` column and sized to its full unwrapped width, so text ran outside every panel and the page scrolled sideways: **3 230 px wide in a 1 400 px window**. All 13 lists per language converted to `<dl>`; the page is now exactly viewport width
+- `tools/check-render.py` — a new checker that renders each page in headless Chrome and measures `getBBox()` against the enclosing `<rect>`, plus `scrollWidth` against `clientWidth`. The existing `check-figures.py` estimates text width from character counts, which under-measures Cyrillic and cannot see CSS at all — it reported zero problems on a page that was visibly broken. Run it as `python3 tools/check-render.py --widths 1920,1400,900,420`
+- **43 SVG labels across Lectures 0–8 were spilling out of their boxes** and had never been caught, almost all on the Kazakh and Russian pages. 27 fixed by reducing font-size by 0.5–1.0, 16 by shortening the label (for example `ойлау: жоспар, талпыныс, тексеру, кері қайту` → `ойлау: жоспар, талпыныс, тексеру`)
+- `page/css/styles.css` — `.breakdown__list` now uses `grid-template-columns: minmax(0, max-content) 1fr` and `dt` no longer sets `white-space: nowrap`, so a long label wraps instead of pushing the page sideways. This was making Lecture 7 scroll horizontally at 900 px in Kazakh and Russian. A rule was also added so long identifiers inside narrow cards break rather than widen the card
+- `language/*/05-rnn-lstm.html` — `embedding.weight.requires_grad = False` was bare text in a narrow card and overflowed it in all three languages; now wrapped in `<code>` like every other identifier in the course
+
+Verified: 30 pages × 5 viewport widths (1920, 1400, 900, 620, 420) — **0 label spills, 0 element overflows, 0 pages scrolling horizontally**. All 276 inline SVGs are valid XML, tags balance on every page, and code blocks remain byte-identical across en/kk/ru in Lectures 6–9.

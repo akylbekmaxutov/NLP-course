@@ -234,7 +234,7 @@
                 <path d="M 184 56 L 150 84" fill="none" stroke="#d1d6de" stroke-width="1" />
                 <path d="M 224 56 L 150 84" fill="none" stroke="#2563eb" stroke-width="2.4" />
                 <rect x="96" y="84" width="108" height="22" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="150" y="99" font-size="9" fill="#111111" text-anchor="middle">взвешенная сумма = c&#8324;</text>
+                <text x="150" y="99" font-size="8.5" fill="#111111" text-anchor="middle">взвешенная сумма = c&#8324;</text>
                 <line x1="150" y1="106" x2="150" y2="120" stroke="#5b6270" stroke-width="1.3" />
                 <rect x="96" y="120" width="108" height="22" rx="5" fill="#2563eb" />
                 <text x="150" y="135" font-size="9" fill="#ffffff" text-anchor="middle">шаг 4 decoder</text>
@@ -940,11 +940,11 @@ matches torch's own implementation: True</code></pre></div>
               <span class="section__eyebrow">Теория &#183; Вариант, из которого вырос Transformer</span>
               <h2 id="self">Self-attention</h2>
               <p class="narrow lead">
-                В переводной модели Bahdanau queries приходили из декодера, а keys из энкодера &#8212; две разные последовательности. Self-attention &#8212; это то, что получается, когда вы направляете механизм на одну-единственную последовательность.
+                В переводной модели Bahdanau queries приходили из декодера, а keys из энкодера &#8212; две разные последовательности. Self-attention &#8212; это то, что получается, когда вы направляете механизм на одну-единственную вся строка.
               </p>
               <div class="definition">
                 <p>
-                  <strong>Self-attention</strong> &#8212; это attention, где Q, K и V вычисляются из <em>одной и той же</em> последовательности. Каждый токен спрашивает ту самую последовательность, к которой сам принадлежит, включая себя. Отсюда &#171;self&#187;.
+                  <strong>Self-attention</strong> &#8212; это attention, где Q, K и V вычисляются из <em>одной и той же</em> последовательности. Каждый токен спрашивает ту самую вся строка, к которой сам принадлежит, включая себя. Отсюда &#171;self&#187;.
                 </p>
               </div>
               <div class="example">
@@ -990,7 +990,7 @@ matches torch's own implementation: True</code></pre></div>
                 <text x="43" y="163" font-size="8" fill="#ffffff" text-anchor="middle">строка «she»</text>
                 <text x="86" y="163" font-size="8" fill="#111111">&#8594; 0.58 на «scientist»</text>
                 <rect x="8" y="172" width="70" height="18" rx="4" fill="#2563eb" />
-                <text x="43" y="185" font-size="8" fill="#ffffff" text-anchor="middle">строка «finished»</text>
+                <text x="43" y="185" font-size="7" fill="#ffffff" text-anchor="middle">строка «finished»</text>
                 <text x="86" y="185" font-size="8" fill="#111111">&#8594; 0.44 на «experiments»</text>
                 </svg>
                 <p class="figure__caption">
@@ -1105,7 +1105,7 @@ matches torch's own implementation: True</code></pre></div>
                 <text x="190" y="130" font-size="8" fill="#5b6270">генерация, GPT</text>
                 <line x1="8" y1="144" x2="332" y2="144" stroke="#e8ecf2" />
                 <text x="8" y="162" font-size="10" fill="#111111">cross-attention</text>
-                <text x="8" y="174" font-size="8" fill="#5b6270">одна последовательность читает другую</text>
+                <text x="8" y="174" font-size="8" fill="#5b6270">одна вся строка читает другую</text>
                 <rect x="8" y="182" width="104" height="22" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="60" y="197" font-size="9" fill="#111111" text-anchor="middle">источник: K и V</text>
                 <rect x="8" y="216" width="104" height="22" rx="5" fill="#2563eb" />
@@ -1526,7 +1526,7 @@ somewhere else. One can track negation while another tracks the topic.</code></p
               <span class="section__eyebrow">Архитектура &#183; Поворот</span>
               <h2 id="transformer">От attention к Transformer</h2>
               <p class="narrow lead">
-                До 2017 года attention был <em>дополнением</em> к рекуррентной сети: RNN моделировала последовательность, а attention помогал декодеру оглядываться назад. Потом кто-то задал очевидный вопрос.
+                До 2017 года attention был <em>дополнением</em> к рекуррентной сети: RNN моделировала вся строка, а attention помогал декодеру оглядываться назад. Потом кто-то задал очевидный вопрос.
               </p>
               <div class="definition">
                 <p>
@@ -1675,7 +1675,7 @@ somewhere else. One can track negation while another tracks the topic.</code></p
                 <text x="311" y="81" font-size="7" fill="#111111" text-anchor="middle">2043 &#8230;</text>
                 <text x="8" y="104" font-size="9" fill="#5b6270">3. выборка из таблицы embeddings</text>
                 <rect x="8" y="112" width="86" height="46" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="51" y="130" font-size="8" fill="#111111" text-anchor="middle">таблица embeddings</text>
+                <text x="51" y="130" font-size="7.5" fill="#111111" text-anchor="middle">таблица embeddings</text>
                 <text x="51" y="144" font-size="8" fill="#111111" text-anchor="middle">30000 &#215; 512</text>
                 <line x1="94" y1="134" x2="132" y2="134" stroke="#5b6270" stroke-width="1.2" />
                 <text x="113" y="128" font-size="7" fill="#5b6270" text-anchor="middle">строка 8106</text>
@@ -2236,7 +2236,7 @@ parameters sit in the plain layers around it.</code></pre></div>
               <span class="section__eyebrow">Архитектура &#183; Вторая стопка</span>
               <h2 id="decoder">Decoder block</h2>
               <p class="narrow lead">
-                Декодер выдаёт выходную последовательность по одному токену за раз. В его блоке два подслоя энкодера плюс третий, и третий &#8212; самый интересный.
+                Декодер выдаёт выходную вся строка по одному токену за раз. В его блоке два подслоя энкодера плюс третий, и третий &#8212; самый интересный.
               </p>
               <div class="figure">
                 <svg viewBox="0 0 340 250" role="img" aria-labelledby="fig-decblock-t">
@@ -2582,7 +2582,7 @@ cross-attention   Q = Y W_Q      K = H W_K       V = H W_V
                 <text x="52" y="79" font-size="7" fill="#ffffff" text-anchor="middle">N блоков</text>
                 <text x="52" y="92" font-size="7" fill="#ffffff" text-anchor="middle">bidirectional</text>
                 <rect x="14" y="112" width="76" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
-                <text x="52" y="126" font-size="7" fill="#111111" text-anchor="middle">по вектору на каждый</text>
+                <text x="52" y="126" font-size="7" fill="#111111" text-anchor="middle">вектор на каждый</text>
                 <rect x="14" y="140" width="76" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
                 <text x="52" y="154" font-size="7" fill="#111111" text-anchor="middle">метка</text>
                 <text x="170" y="12" font-size="9" fill="#111111" text-anchor="middle">decoder-only</text>
@@ -2612,7 +2612,7 @@ cross-attention   Q = Y W_Q      K = H W_K       V = H W_V
                 <rect x="252" y="112" width="76" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
                 <text x="290" y="126" font-size="7" fill="#111111" text-anchor="middle">cross-attention</text>
                 <rect x="252" y="140" width="76" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
-                <text x="290" y="154" font-size="7" fill="#111111" text-anchor="middle">последовательность</text>
+                <text x="290" y="154" font-size="7" fill="#111111" text-anchor="middle">вся строка</text>
                 <line x1="8" y1="176" x2="332" y2="176" stroke="#e8ecf2" />
                 <text x="8" y="194" font-size="8" fill="#111111">видит весь вход сразу</text>
                 <text x="8" y="206" font-size="8" fill="#5b6270">encoder-only и энкодерная половина enc&#8211;dec</text>
@@ -2956,7 +2956,7 @@ class MultiHeadAttention(nn.Module):
                   <dt>цикл по блокам</dt>
                   <dd>Каждый блок возвращает ту же форму, которую получил, и поэтому это обычный цикл без всякой бухгалтерии</dd>
                   <dt>усреднение с маской</dt>
-                  <dd>Классификации нужен один вектор на последовательность, а не на токен. Умножение на <code>keep</code> обнуляет padding-строки, а деление на <code>keep.sum(1)</code> делит на реальную длину. BERT вместо этого добавляет <code>[CLS]</code> в начало и читает его строку &#8212; годится и то и другое</dd>
+                  <dd>Классификации нужен один вектор на вся строка, а не на токен. Умножение на <code>keep</code> обнуляет padding-строки, а деление на <code>keep.sum(1)</code> делит на реальную длину. BERT вместо этого добавляет <code>[CLS]</code> в начало и читает его строку &#8212; годится и то и другое</dd>
                   <dt><code>self.out</code></dt>
                   <dd>Для языковой модели это был бы <code>nn.Linear(dim, vocab_size)</code>, применяемый в каждой позиции. Для классификатора это <code>dim &#8594; classes</code>, применяемый один раз. Идея та же, набор целей другой</dd>
                 </dl>
