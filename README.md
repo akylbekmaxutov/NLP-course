@@ -219,3 +219,41 @@ Changed:
 - `index.html` — link to Lecture 8
 
 All 33 inline SVGs across the three Lecture 8 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and all 18 code blocks are byte-identical in all three languages
+
+### 21.09.2026
+
+Added:
+
+- `code_files/lesson9/` — the Lecture 9 package, and the first lecture whose model runs locally rather than being described. `serve.sh` downloads `unsloth/Qwen3.5-4B-GGUF` (Q4_K_M, 2.7 GB) and starts `llama-server` with `--jinja` and `--n-gpu-layers 99`; everything else talks to it through the ordinary OpenAI client at `http://127.0.0.1:8080/v1`, so the same code works against vLLM, Ollama or a paid endpoint with one line changed
+  - `llm.py` — `ask`, `chat`, `stream`, with the reasoning switch passed as `extra_body={"chat_template_kwargs": {"enable_thinking": …}}` and thinking split out of the reply
+  - `techniques.py` + `app.py` — the Gradio lab on port 7860: **Chat** (streaming, thinking in its own panel), **Techniques** (nine prompt-engineering techniques, each run the naive way and the engineered way side by side with tokens and seconds, every prompt editable in the page), **RAG** (retrieval on/off, BM25/dense/hybrid, k, with the retrieved passages shown)
+  - `corpus.py`, `retrieve.py`, `rag.py` — RAG over the course's own pages: 1 924 passages in three languages, BM25 written out in 30 lines, dense embeddings from `multilingual-e5-small`, and reciprocal rank fusion
+  - `prompting.py`, `tasks.py` — optional batch scoring of the same techniques over hundreds of examples
+- `language/en/09-prompting-rag.html`, `language/kk/09-prompting-rag.html`, `language/ru/09-prompting-rag.html` — Lecture 9, Prompt Engineering and RAG. 22 sections and 10 inline SVG figures per language: three places to change a model's behaviour and the order to try them, serving a GGUF, what the chat template actually sends, reasoning on and off, seven measured prompt techniques, then chunking, embedding, three retrievers, the prompt RAG assembles, and what RAG still does not fix
+
+Measured (Apple M4 Pro, Qwen3.5-4B at Q4_K_M, served by llama.cpp):
+
+- **Reasoning on against off**, twelve checkable questions, only `enable_thinking` changing: direct **11/12** at 225 output tokens and 4.0 s; thinking **10/12** at 1 683 output tokens (1 541 of them thinking) and 30.3 s. **7.5× the tokens and 7.6× the time for no gain** on problems the model already solves in one pass. One of the two thinking losses was an *empty* reply, not a wrong one
+- **A prompt with no training ties a fine-tuned encoder.** On the first 400 rows of the exact KazSAnDRA test split Lecture 7 used — same file, same `balance()`, same seed 42 — a bare question scores 0.708, `role + format` **0.790**, `+ rubric` 0.790, `few-shot (8)` 0.795. Lecture 3's TF-IDF got 0.792 and Lecture 7's fine-tuned mBERT 0.799. The bare prompt is the most accurate *per answer* (0.835) and the least usable: **61 of 400 replies could not be parsed at all**, against 0 for the engineered prompt
+- **Stating a JSON schema beats asking for JSON.** Fifteen calls each: "extract it as JSON" gave 0/15 directly parseable replies (all fenced) and **0/15 with valid values** — the model invented topics like `"app update"`; the spelled-out schema gave 15/15 on every column. Adding a worked example on top changed nothing
+- **What a system prompt buys.** Asked in Kazakh, all three prompts answered in Kazakh 8/8 — the system prompt bought *length*, 85 words down to 24. Asked in English or Russian, `0/8` replies contained a Kazakh-specific letter without the instruction and 8/8 with it
+- **Prompt injection**: undefended **5/5 hijacked**, delimited 2/5, delimiters plus an instruction hierarchy **0/5**. Stated on the page as a cost increase, not a boundary
+- **Self-consistency**: five samples, majority vote, 11/12 — *identical* to one sample at 5× the tokens, because the five samples agreed. Published rather than hidden
+- **Retrieval**, 1 924 chunks, ten questions with gold phrases verified to appear in only 3–13 chunks each: at k = 5 all three retrievers score 10/10 and the comparison says nothing; at **k = 1 BM25 gets 5/10 against dense 8/10**, and mean rank is 1.9 / 1.3 / 1.2 for BM25 / dense / hybrid
+- **Closed book 0/10, with retrieval 10/10**, for 60 → 1 639 prompt tokens (**27.1×**). The facts were measured in Lectures 3–8 and exist nowhere else, so 0/10 is the correct closed-book result
+- **Refusal 3/4.** The failure is the teaching moment: asked for the instructor's phone number, the system retrieved Lecture 1's regex example and answered `+7 701 123 45 67` **with a citation**
+
+Fixed, and kept on the page as method:
+
+- `rag.py` — a section named `k` in the `SECTIONS` dict auto-created a `--k` flag that collided with the `-k` value argument, so `args.k` was `False` and **every RAG prompt was built with zero passages**. The whole grounding run scored 0/10 with ten "honest refusals" that were in fact correct behaviour on an empty context. Renamed to `--passages`, with an assertion so the collision cannot come back
+- `retrieve.py` — the evaluation's gold phrases were originally the answers themselves ("6", "2", "0.79"). All three retrievers scored 10/10 because "6" appears in 871 of 1 924 chunks and "2" in 1 294. Replaced with phrases checked to appear in 3–13 chunks, and `--gold-frequency` added so the check is part of the tool
+- Two grader bugs of our own, both reported on the page: a substring match accepted a closed-book reply saying "128 **bytes** per token" for an answer of 128 KB, and one question's expected answer was simply wrong — the entropy without √d scaling is 0.359, not 1.879. Correcting both moved closed book from 1/10 to 0/10 and retrieval from 9/10 to 10/10
+- The reasoning experiment first ran at `max_tokens=2048` and reported 0.58 for thinking against 0.92 for direct. That was truncation, not accuracy: several runs stopped inside `<think>` and returned empty strings. The run now reports how many replies hit the cap, and the page shows the wrong number and the correction
+
+Changed:
+
+- `code_files/requirements.txt` is unchanged; `code_files/lesson9/requirements.txt` adds `openai`, `gradio>=6.0`
+- `page/js/course.js` — Lecture 9 published as "Prompt Engineering and RAG"
+- `index.html` — link to Lecture 9
+
+All 30 inline SVGs across the three Lecture 9 pages are valid XML, `tools/check-figures.py` reports zero layout problems, section and figure counts match across en/kk/ru, and all 33 code blocks are byte-identical in all three languages

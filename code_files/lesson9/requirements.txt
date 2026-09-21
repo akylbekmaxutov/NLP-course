@@ -1,0 +1,14 @@
+# Lecture 9 — prompting and RAG
+#
+# The model server is not a Python package. Install it separately:
+#     macOS   brew install llama.cpp
+#     linux   see https://github.com/ggml-org/llama.cpp
+# then run ./serve.sh, which downloads Qwen3.5-4B (Q4_K_M, 2.7 GB) on first use.
+
+openai>=1.40              # the client; llama-server speaks the same API
+gradio>=6.0                # the browser lab (this code uses the Gradio 6 API)
+huggingface_hub>=0.24     # downloading the GGUF
+transformers>=4.40        # the embedding model for retrieval
+torch>=2.2                # runs the embedding model
+numpy>=1.26               # BM25 scoring and the vector index
+pandas>=2.0               # the KazSAnDRA review files from Lecture 3

@@ -217,16 +217,21 @@ window.NLP_COURSE = {
     {
       id: "prompting-rag-agents",
       num: 9,
-      file: null,
+      file: "09-prompting-rag.html",
       date: {
         en: "21 Sep 2026",
         kk: "21 қыркүйек 2026",
         ru: "21 сентября 2026"
       },
       title: {
-        en: "Prompting, RAG, and Agents",
-        kk: "Prompting, RAG және Agents",
-        ru: "Prompting, RAG и Agents"
+        en: "Prompt Engineering and RAG",
+        kk: "Prompt Engineering және RAG",
+        ru: "Prompt Engineering и RAG"
+      },
+      topics: {
+        en: "Serving · Reasoning · Prompt techniques · Retrieval · RAG",
+        kk: "Serving · Reasoning · Prompt техникалары · Retrieval · RAG",
+        ru: "Serving · Reasoning · Техники prompt · Retrieval · RAG"
       }
     },
     {
