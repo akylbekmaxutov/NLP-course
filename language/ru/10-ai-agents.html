@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agents | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 10: чем agent отличается от pipeline, цикл в двадцати строках, tools как JSON-схемы, настоящий trace от начала до конца, как agent восстанавливается после собственных ошибок, во что обходится цикл в tokens и какие ограждения делают его безопасным."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/10-ai-agents.html" data-lang-link="en">EN</a>
+        <a href="../kk/10-ai-agents.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/10-ai-agents.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">От обработки текста до Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/10-ai-agents.html" data-lang-link="en">EN</a>
+          <a href="../kk/10-ai-agents.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/10-ai-agents.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">Программа курса</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Закрыть содержание" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 10</span>
+              <h1>AI Agents</h1>
+              <p class="hero__subtitle">
+                В Лекции 9 мы давали модели документ, и она отвечала. Здесь мы даём ей набор инструментов и позволяем самой решать, что с ними делать. Это единственное изменение — модель выбирает следующее действие вместо того, чтобы идти по нашему pipeline, — и есть всё, что люди имеют в виду под словом agent. Вместе с ним приходят баги нового рода и счета нового рода.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели обучения</span>
+              <h2 id="goals">К концу этой лекции вы сможете&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Сказать, что такое agent</h3>
+                  <p>И, что полезнее, чем он не является: фиксированный pipeline с моделью внутри — не agent, сколько бы шагов в нём ни было.</p>
+                </div>
+                <div class="card">
+                  <h3>Написать цикл</h3>
+                  <p>Двадцать строк, без фреймворка. Спросить, проверить tool calls, выполнить их, дописать результаты, спросить снова.</p>
+                </div>
+                <div class="card">
+                  <h3>Спроектировать tool</h3>
+                  <p>Функция, JSON-схема и предложение о том, когда его применять. Это предложение — prompt, и именно оно решает, работает ли agent.</p>
+                </div>
+                <div class="card">
+                  <h3>Читать trace</h3>
+                  <p>Отличить модель, которая плохо рассуждала, от инструмента, который дал сбой, и понимать, что из двух чинить.</p>
+                </div>
+                <div class="card">
+                  <h3>Предсказать счёт</h3>
+                  <p>Каждый шаг пересылает всю историю. Понимать, почему семь шагов стоят в пять раз больше двух, а не в три с половиной.</p>
+                </div>
+                <div class="card">
+                  <h3>Поставить ограждения</h3>
+                  <p>Лимит шагов, проверка аргументов, ошибки как данные и никакого <code>eval</code>. Agent — это цикл, который тратит ваши деньги.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Каждый trace на этой странице настоящий.</strong> Agent из <code>code_files/lesson10/</code> был запущен на <code>gpt-4o-mini</code> 24 сентября 2026 года, а шаги, счётчики tokens и тайминги скопированы прямо из этих запусков — включая те, где он ошибся.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Идея</span>
+              <h2 id="what">Pipeline или agent?</h2>
+              <p class="narrow lead">
+                В RAG-системе Лекции 9 было четыре шага, и ни один из них не был решением. Векторизовать вопрос, достать пять фрагментов, собрать prompt, сгенерировать. Каждый вопрос шёл ровно этим путём, потому что этот путь написали мы.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-vs-t">
+                  <title id="fig-vs-t">Pipeline выполняет шаги, которые написали вы; agent выбирает свои сам</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">RAG, Лекция 9 — порядок задали вы</text>
+                  <rect x="8" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="31" font-size="7.5" fill="#111111" text-anchor="middle">вопрос</text>
+                  <line x1="66" y1="28" x2="80" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="109" y="31" font-size="7.5" fill="#111111" text-anchor="middle">retrieve</text>
+                  <line x1="138" y1="28" x2="152" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="152" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="181" y="31" font-size="7.5" fill="#111111" text-anchor="middle">prompt</text>
+                  <line x1="210" y1="28" x2="224" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="224" y="18" width="58" height="20" rx="4" fill="#2563eb" />
+                  <text x="253" y="31" font-size="7.5" fill="#ffffff" text-anchor="middle">ответ</text>
+                  <text x="290" y="31" font-size="7.5" fill="#5b6270">всегда</text>
+
+                  <line x1="8" y1="54" x2="332" y2="54" stroke="#e5e7eb" stroke-width="1" />
+
+                  <text x="8" y="72" font-size="9" fill="#5b6270">agent — модель выбирает</text>
+                  <rect x="8" y="78" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="91" font-size="7.5" fill="#111111" text-anchor="middle">вопрос</text>
+                  <line x1="66" y1="88" x2="80" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="74" width="76" height="28" rx="5" fill="#2563eb" />
+                  <text x="118" y="85" font-size="8" fill="#ffffff" text-anchor="middle">модель</text>
+                  <text x="118" y="95" font-size="7" fill="#dbe7ff" text-anchor="middle">что дальше?</text>
+
+                  <line x1="156" y1="88" x2="172" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="172" y="60" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="71" font-size="7" fill="#111111" text-anchor="middle">geocode</text>
+                  <rect x="172" y="80" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="91" font-size="7" fill="#111111" text-anchor="middle">weather</text>
+                  <rect x="172" y="100" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="111" font-size="7" fill="#111111" text-anchor="middle">wikipedia</text>
+                  <text x="205" y="128" font-size="7" fill="#5b6270" text-anchor="middle">&#8230; или ничего из этого</text>
+
+                  <path d="M238 88 L252 88 L252 122 L118 122 L118 102" fill="none" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="118,102 115.5,107 120.5,107" fill="#5b6270" />
+                  <text x="258" y="91" font-size="7.5" fill="#5b6270">результат</text>
+
+                  <line x1="156" y1="74" x2="166" y2="66" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="262" y="140" width="70" height="20" rx="4" fill="#2563eb" />
+                  <text x="297" y="153" font-size="7.5" fill="#ffffff" text-anchor="middle">ответ</text>
+                  <path d="M118 102 L118 150 L262 150" fill="none" stroke="#5b6270" stroke-width="1.2" stroke-dasharray="3 2" />
+                  <text x="150" y="147" font-size="7" fill="#5b6270">когда сама решит, что готово</text>
+
+                  <rect x="8" y="168" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="182" font-size="8" fill="#111111" text-anchor="middle">измерено ниже: 0, 2, 4, 5 и 7 вызовов на пяти вопросах</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Разница — в цикле. Не в инструментах и не в prompt, а в том, что количество шагов определяется во время выполнения моделью, а не во время написания вами.
+                </figcaption>
+              </div>
+
+              <div class="definition">
+                <p>
+                  <strong>Agent</strong> — это цикл, в котором языковая модель выбирает действие, видит результат и выбирает снова, пока не решит, что закончила. Действия называются <strong>tools</strong>: обычные функции, которые вы ей открываете.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что это даёт и чего стоит</span>
+                <dl class="breakdown__list">
+                  <dt>он может действовать</dt>
+                  <dd>Модель сама по себе производит текст. Модель с инструментами может посмотреть прогноз, конвертировать деньги или отправить письмо. Цена в том, что теперь она может сделать что-то неправильно, а не только сказать неправильно.</dd>
+                  <dt>он подстраивает число шагов</dt>
+                  <dd>Простой вопрос — один вызов, неудобный — семь. Измерено здесь: один и тот же agent ответил на один вопрос вообще без инструментов, а на другой — семью вызовами. Цена в том, что счёт нельзя предсказать по вопросу.</dd>
+                  <dt>он восстанавливается</dt>
+                  <dd>Когда tool возвращает ошибку, он может попробовать иначе — и попробовал, дважды, в запусках ниже. Цена в том, что он может и зациклиться, и что-то должно его останавливать.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Если задача всегда требует одних и тех же трёх шагов, напишите эти три шага. Pipeline, который можно прочитать, стоит больше, чем agent, за которым надо присматривать.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="loop">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Механизм</span>
+              <h2 id="loop">Цикл в двадцати строках</h2>
+              <p class="narrow lead">
+                В этой папке нет фреймворка, и он не нужен. Agent — это цикл <code>while</code> вокруг того же вызова чата, который вы знаете из Лекции 9.
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>messages = [{"role": "system", "content": SYSTEM},
+            {"role": "user",   "content": question}]
+
+for step in range(MAX_STEPS):
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools.openai_tools(),     # the schemas, sent every turn
+        tool_choice="auto",             # the model decides whether to call one
+    )
+    message = response.choices[0].message
+    messages.append(message)            # the assistant turn, verbatim
+
+    if not message.tool_calls:          # plain text = it is finished
+        return message.content
+
+    for call in message.tool_calls:     # it may ask for several at once
+        result = tools.call(call.function.name,
+                            json.loads(call.function.arguments))
+        messages.append({"role": "tool",
+                         "tool_call_id": call.id,
+                         "content": json.dumps(result)})</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Пять вещей, которые здесь важны</span>
+                <dl class="breakdown__list">
+                  <dt>tools=</dt>
+                  <dd>JSON-схемы уходят в <em>каждый</em> запрос, а не только в первый. У модели нет памяти между вызовами; на каждом ходу ей заново сообщают, что она умеет.</dd>
+                  <dt>tool_choice="auto"</dt>
+                  <dd>Модель может вызвать tool, а может ответить сразу. Принудительный вызов через <code>"required"</code> иногда полезен и обычно означает, что задача на самом деле pipeline.</dd>
+                  <dt>дописывать ход assistant дословно</dt>
+                  <dd>Вместе с его <code>tool_calls</code>. Каждый ответ инструмента сопоставляется с вызовом по <code>tool_call_id</code>, и API отклонит следующий запрос, если они не сходятся.</dd>
+                  <dt>нет tool_calls — значит готово</dt>
+                  <dd>Это всё условие остановки. Модель сигнализирует о завершении тем, что просто отвечает текстом.</dd>
+                  <dt>range(MAX_STEPS)</dt>
+                  <dd><code>while True</code> здесь — это счёт без верхней границы. У нас 8.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">Что на самом деле ходит туда и обратно</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-proto-t">
+                  <title id="fig-proto-t">Четыре роли сообщений и как через них протянут один вызов инструмента</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">список messages растёт на две записи за каждый вызов</text>
+
+                  <rect x="8" y="20" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="34" font-size="7.5" fill="#2563eb">system</text>
+                  <text x="60" y="34" font-size="7.5" fill="#111111">ищи всё инструментами; не называй числа, которых не получил</text>
+
+                  <rect x="8" y="46" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="60" font-size="7.5" fill="#2563eb">user</text>
+                  <text x="60" y="60" font-size="7.5" fill="#111111">Астанадан Алматыға дейін қанша шақырым?</text>
+
+                  <rect x="8" y="72" width="324" height="30" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="86" font-size="7.5" fill="#2563eb">assistant</text>
+                  <text x="60" y="86" font-size="7.5" fill="#111111">content: &#8220;&#8221;</text>
+                  <text x="60" y="97" font-size="7.5" fill="#111111">tool_calls: [ id=c0, distance_km(origin=&#8230;, destination=&#8230;) ]</text>
+
+                  <rect x="8" y="106" width="324" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="120" font-size="7.5" fill="#2563eb">tool</text>
+                  <text x="60" y="120" font-size="7.5" fill="#111111">tool_call_id: c0 &#183; {&#8220;straight_line_km&#8221;: 972.7, &#8230;}</text>
+
+                  <path d="M52 92 L44 92 L44 118 L52 118" fill="none" stroke="#15803d" stroke-width="1.2" />
+                  <text x="268" y="70" font-size="7" fill="#15803d">связаны по id</text>
+
+                  <rect x="8" y="132" width="324" height="22" rx="4" fill="#2563eb" />
+                  <text x="14" y="146" font-size="7.5" fill="#ffffff">assistant</text>
+                  <text x="60" y="146" font-size="7.5" fill="#ffffff">972.7 шақырым. Жол қашықтығы 15-30% ұзын&#8230;</text>
+
+                  <rect x="8" y="166" width="324" height="40" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="180" font-size="8" fill="#111111" text-anchor="middle">четвёртое сообщение уходит вместе с первыми тремя</text>
+                  <text x="170" y="192" font-size="8" fill="#5b6270" text-anchor="middle">пятое — вместе со всеми четырьмя, и так далее</text>
+                  <text x="170" y="203" font-size="7.5" fill="#b91c1c" text-anchor="middle">вот куда уходят деньги</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  На сервере нет сессии. Весь диалог, включая результаты инструментов, заново загружается на каждом ходу.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="tools">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Tools</span>
+              <h2 id="tools">Tool состоит из трёх частей</h2>
+              <p class="narrow lead">
+                Функция, схема и предложение. Студенты пишут первое, терпят второе и пропускают третье — а третье и решает, работает ли agent.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-tool-t">
+                  <title id="fig-tool-t">Три части инструмента и кто читает каждую</title>
+                  <rect x="8" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="58" y="31" font-size="8.5" fill="#111111" text-anchor="middle">функция</text>
+                  <text x="58" y="45" font-size="7" fill="#5b6270" text-anchor="middle">def geocode(place):</text>
+                  <text x="58" y="56" font-size="7" fill="#5b6270" text-anchor="middle">вызывает API,</text>
+                  <text x="58" y="67" font-size="7" fill="#5b6270" text-anchor="middle">возвращает dict</text>
+
+                  <rect x="120" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="31" font-size="8.5" fill="#111111" text-anchor="middle">схема</text>
+                  <text x="170" y="45" font-size="7" fill="#5b6270" text-anchor="middle">name, parameters,</text>
+                  <text x="170" y="56" font-size="7" fill="#5b6270" text-anchor="middle">типы, required</text>
+                  <text x="170" y="67" font-size="7" fill="#5b6270" text-anchor="middle">&#8212; валидный JSON</text>
+
+                  <rect x="232" y="16" width="100" height="58" rx="5" fill="#2563eb" />
+                  <text x="282" y="31" font-size="8.5" fill="#ffffff" text-anchor="middle">описание</text>
+                  <text x="282" y="45" font-size="7" fill="#dbe7ff" text-anchor="middle">«применяй всегда,</text>
+                  <text x="282" y="56" font-size="7" fill="#dbe7ff" text-anchor="middle">когда нужны факты о</text>
+                  <text x="282" y="67" font-size="7" fill="#dbe7ff" text-anchor="middle">городе, а не догадки»</text>
+
+                  <text x="58" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">читает Python</text>
+                  <text x="170" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">читает API</text>
+                  <text x="282" y="90" font-size="7.5" fill="#2563eb" text-anchor="middle">читает модель</text>
+
+                  <rect x="8" y="104" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="119" font-size="8.5" fill="#111111" text-anchor="middle">описание — это prompt, и именно его вы будете дорабатывать</text>
+
+                  <text x="170" y="146" font-size="8" fill="#5b6270" text-anchor="middle">инструмент, который модель не выбирает, обычно плохо описан,</text>
+                  <text x="170" y="158" font-size="8" fill="#5b6270" text-anchor="middle">а не плохо реализован</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Всё, что вы узнали о prompt в Лекции 9, применимо к полю описания: будьте конкретны, скажите, когда его <em>не</em> надо применять, и измеряйте вместо того, чтобы верить.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>"geocode": {
+    "fn": geocode,
+    "schema": {
+        "name": "geocode",
+        "description": "Look up a place: coordinates, country, population, "
+                       "elevation and timezone. Use this whenever you need "
+                       "facts about a city rather than guessing them.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "place":   {"type": "string", "description": "City or town name, e.g. Shymkent"},
+                "country": {"type": "string", "description": "Optional ISO country code, e.g. KZ"},
+            },
+            "required": ["place"],
+        },
+    },
+},</code></pre></div>
+
+              <h3 style="margin-top: 44px">Шесть инструментов</h3>
+              <p class="narrow">
+                Agent — это туристический помощник по Казахстану, который <strong>ничего не знает</strong>. Каждый факт в его ответах добывается у вас на глазах. Это и есть agent, и это же означает, что лекция не утверждает о Казахстане ничего, чему не может указать источник.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Шесть инструментов и откуда берутся их данные</caption>
+                  <thead>
+                    <tr><th scope="col">Инструмент</th><th scope="col">Возвращает</th><th scope="col">Источник</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>geocode</code></td><td>координаты, страну, население, высоту, часовой пояс</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>distance_km</code></td><td>расстояние по большому кругу между двумя местами</td><td>вычисляется из предыдущего</td></tr>
+                    <tr><td><code>weather_forecast</code></td><td>дневные максимум, минимум и осадки, до 16 дней</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>wikipedia</code></td><td>краткое изложение и URL, на en / kk / ru</td><td>Wikipedia</td></tr>
+                    <tr><td><code>convert_currency</code></td><td>сегодняшний курс с датой публикации</td><td>open.er-api.com</td></tr>
+                    <tr><td><code>calculate</code></td><td>арифметика, разобранная парсером, а не через <code>eval</code></td><td>стандартная библиотека</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="note">
+                <p style="margin-bottom: 0">
+                  Ни одному из них не нужен API-ключ, поэтому папка запускается где угодно. Модели ключ нужен: положите <code>OPENAI_API_KEY</code> в <code>.env</code> или направьте её на локальный сервер Лекции 9 — <code>llm.py</code> возьмёт то, что доступно, и agent никогда не узнает, что именно ему досталось.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="trace">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Запуск</span>
+              <h2 id="trace">Один вопрос от начала до конца</h2>
+              <p class="narrow lead">
+                Вопрос на казахском, которому нужны два разных инструмента. Никто не говорил agent-у использовать два и какие именно.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 agent.py "Астанадан Алматыға дейін қанша шақырым және Алматыда ауа райы қандай?"</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>[1] distance_km(origin='Астана', destination='Алматы')
+    -> {"from": "Астана", "to": "Алматы", "straight_line_km": 972.7,
+        "note": "straight line, not road distance; a road route is typically 15-30% longer"}
+[2] weather_forecast(place='Алматы', days=7)
+    -> {"place": "Алматы", "unit": "celsius", "days": [
+        {"date": "2026-09-24", "max_c": 26.5, "min_c": 14.3, "precipitation_mm": 0.0}, ...]}
+
+ANSWER
+Астана мен Алматы арасындағы тікелей қашықтық 972.7 шақырым. Жол қашықтығы
+әдетте 15-30% ұзын болады.
+
+Алматыда алдағы 7 күндегі ауа райы:
+- 24 қыркүйек: максималды 26.5°C, минималды 14.3°C, жауын-шашын жоқ.
+- 25 қыркүйек: максималды 23.9°C, минималды 14.2°C, жауын-шашын жоқ.
+...
+
+2 tool calls, 1574 prompt tokens, 327 output tokens, 11.6 s
+prompt tokens per turn: 575 -> 999</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что заметить в одиннадцати секундах работы</span>
+                <dl class="breakdown__list">
+                  <dt>он выбрал days=7</dt>
+                  <dd>Недели никто не просил. В вопросе было «какая погода», в схеме — от 1 до 16; модель выбрала сама. Agents постоянно принимают мелкие незапрошенные решения, и это безобидная разновидность.</dd>
+                  <dt>он ответил по-казахски</dt>
+                  <dd>Результаты инструментов вернулись английским JSON. Перевод на выходе достаётся бесплатно и не потребовал инструкции.</dd>
+                  <dt>он передал примечание дальше</dt>
+                  <dd>Инструмент <code>distance_km</code> возвращает предупреждение, что дорожное расстояние больше, и это предупреждение дошло до пользователя. Поле в результате инструмента — это сообщение модели: пользуйтесь им.</dd>
+                  <dt>575, затем 999</dt>
+                  <dd>Два хода, и второй стоил на 74% больше первого, потому что внутри него заново отправились первый ход и оба результата инструментов.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="recover">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Сбой</span>
+              <h2 id="recover">Когда что-то ломается и чинится само</h2>
+              <p class="narrow lead">
+                Это тот запуск, который оправдывает всю архитектуру. Вопрос на русском, инструмент, не нашедший место, и agent, обошедший собственный сломанный инструмент без подсказки.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Что такое Чарынский каньон и далеко ли он от Алматы?
+
+[1] wikipedia(topic='Чарынский каньон', lang='ru')
+    -> {"title": "Чарынский каньон", "summary": "Чары́нский каньо́н — протянувшийся на 154 км ...
+[2] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. Try the Latin spelling ..."}
+[3] geocode(place='Charyn Canyon', country='KZ')
+    -> {"name": "Charyn Canyon National Park", "latitude": 43.3501, "longitude": 79.0696, ...}
+[4] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. ..."}
+[5] distance_km(origin='Almaty', destination='Charyn Canyon National Park')
+    -> {"from": "Almaty", "to": "Charyn Canyon National Park", "straight_line_km": 175.0, ...}
+
+5 tool calls, 4751 prompt tokens, 321 output tokens, 12.9 s
+prompt tokens per turn: 572 -> 903 -> 1014 -> 1088 -> 1174</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 172" role="img" aria-labelledby="fig-recover-t">
+                  <title id="fig-recover-t">Два сбоя, одна повторённая ошибка и удачный обходной путь</title>
+                  <rect x="8" y="16" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="30" font-size="7.5" fill="#111111" text-anchor="middle">[1] wikipedia</text>
+                  <text x="100" y="30" font-size="7.5" fill="#15803d">ок</text>
+
+                  <rect x="8" y="44" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="58" font-size="7.5" fill="#111111" text-anchor="middle">[2] distance_km</text>
+                  <text x="100" y="58" font-size="7.5" fill="#b91c1c">ошибка: кириллица</text>
+
+                  <rect x="8" y="72" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="86" font-size="7.5" fill="#111111" text-anchor="middle">[3] geocode</text>
+                  <text x="100" y="86" font-size="7.5" fill="#15803d">ок — нашёл латиницей</text>
+
+                  <rect x="8" y="100" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="114" font-size="7.5" fill="#111111" text-anchor="middle">[4] distance_km</text>
+                  <text x="100" y="114" font-size="7.5" fill="#b91c1c">та же ошибка снова</text>
+
+                  <rect x="8" y="128" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="142" font-size="7.5" fill="#111111" text-anchor="middle">[5] distance_km</text>
+                  <text x="100" y="142" font-size="7.5" fill="#15803d">ок — оба имени латиницей</text>
+
+                  <line x1="51" y1="38" x2="51" y2="44" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="66" x2="51" y2="72" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="94" x2="51" y2="100" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="122" x2="51" y2="128" stroke="#5b6270" stroke-width="1.1" />
+
+                  <rect x="232" y="44" width="100" height="78" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="282" y="60" font-size="7.5" fill="#111111" text-anchor="middle">шаг [4] повторил</text>
+                  <text x="282" y="71" font-size="7.5" fill="#111111" text-anchor="middle">сбой, уже виденный</text>
+                  <text x="282" y="82" font-size="7.5" fill="#111111" text-anchor="middle">на шаге [2]</text>
+                  <text x="282" y="99" font-size="7.5" fill="#b91c1c" text-anchor="middle">2.5x tokens</text>
+                  <text x="282" y="110" font-size="7.5" fill="#b91c1c" text-anchor="middle">от чистого запуска</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Восстановление реально, и оно не бесплатно. Пять шагов стоили 4&#8202;751 prompt tokens там, где чистый запуск из двух шагов стоил 1&#8202;574.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Три разных урока в одном trace</span>
+                <dl class="breakdown__list">
+                  <dt>учило сообщение об ошибке</dt>
+                  <dd>Инструмент не просто упал, он сказал: <em>«попробуйте латинское написание, например Almaty, Astana, Shymkent»</em>. Модель это прочитала и на шаге [3] сделала geocode латиницей. Строка ошибки — тоже prompt.</dd>
+                  <dt>он повторил известный сбой</dt>
+                  <dd>Шаг [4] идентичен шагу [2], который уже провалился и всё ещё был виден в истории. Agents так делают, и поэтому лимит шагов не опция.</dd>
+                  <dt>настоящее исправление было в инструменте, а не в модели</dt>
+                  <dd>Первая версия <code>geocode</code> искала только по-английски, поэтому вопрос на казахском тратил четыре шага из восьми на неудачный поиск собственных городов. Теперь она пробует английский, русский и казахский, затем транслитерацию. Та же модель, тот же prompt, вдвое меньше шагов.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Когда trace выглядит плохо, спросите, чья это половина. Здесь — инструмента, и никакой prompt engineering этого бы не исправил.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="refusing">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Сдержанность</span>
+              <h2 id="refusing">Самый дешёвый верный ответ не использует инструментов</h2>
+              <div class="code-block" data-lang="output"><pre><code>Q: What will the weather be in Astana on 1 March next year?
+
+ANSWER
+I can only provide weather forecasts for up to 16 days in advance.
+Unfortunately, I cannot give you the weather for March 1st of next year.
+
+0 tool calls, 572 prompt tokens, 52 output tokens, 2.4 s</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                System prompt говорит, что прогноз доступен примерно на две недели вперёд и что об этом надо сказать, а не выдумывать. Так и вышло, без единого вызова. Умение <em>не</em> действовать — это способность, и именно её не показывают в демонстрациях agents: 572 tokens против 6&#8202;451 у самого дорогого запуска на этой странице.
+              </p>
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  Заметьте и то, чего он не сделал: он не вызвал <code>weather_forecast</code> с выдуманной датой, чтобы потом пересказать, что вернулось. Инструмент, вызванный с бессмыслицей, обычно что-то возвращает, а «что-то» — ровно то, что нужно беглой модели для уверенного неверного ответа.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="parallel">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Эффективность</span>
+              <h2 id="parallel">Четыре вызова за два хода</h2>
+              <p class="narrow lead">
+                Сравнительному вопросу нужны те же два инструмента дважды. Модель запросила все четыре сразу, и это стоит куда меньше, чем спрашивать четыре раза.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Compare Almaty and Shymkent: population, elevation, and the weather this week.
+   Which is warmer?
+
+turn 1  ->  geocode(Almaty), geocode(Shymkent),
+            weather_forecast(Almaty, 7), weather_forecast(Shymkent, 7)
+turn 2  ->  the answer
+
+4 tool calls, 2052 prompt tokens, 418 output tokens, 6.8 s
+prompt tokens per turn: 580 -> 1472</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-parallel-t">
+                  <title id="fig-parallel-t">Независимые вызовы, собранные в один ход, стоят меньше цепочки</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">пакетом — 4 инструмента, 2 хода, 2 052 prompt tokens</text>
+                  <rect x="8" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="28" y="30" font-size="7" fill="#ffffff" text-anchor="middle">ход 1</text>
+                  <rect x="54" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="80" y="30" font-size="6.5" fill="#111111" text-anchor="middle">geocode &#215;2</text>
+                  <rect x="110" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="136" y="30" font-size="6.5" fill="#111111" text-anchor="middle">weather &#215;2</text>
+                  <rect x="168" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="188" y="30" font-size="7" fill="#ffffff" text-anchor="middle">ход 2</text>
+                  <text x="216" y="30" font-size="7" fill="#15803d">ответ</text>
+
+                  <text x="8" y="60" font-size="8.5" fill="#5b6270">цепочкой — 5 инструментов, 5 ходов, 4 751 prompt tokens</text>
+                  <rect x="8" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="25" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х1</text>
+                  <rect x="46" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="63" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х2</text>
+                  <rect x="84" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="101" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х3</text>
+                  <rect x="122" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="139" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х4</text>
+                  <rect x="160" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="177" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х5</text>
+                  <text x="202" y="78" font-size="7" fill="#15803d">ответ</text>
+
+                  <rect x="8" y="98" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="113" font-size="8" fill="#111111" text-anchor="middle">на один инструмент больше, но на три хода больше — и счёт растёт вдвое</text>
+
+                  <text x="170" y="138" font-size="8" fill="#5b6270" text-anchor="middle">платится за ход, а не за вызов — потому что история</text>
+                  <text x="170" y="150" font-size="8" fill="#5b6270" text-anchor="middle">пересылается раз в ход, а не раз в вызов</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Независимые запросы должны идти вместе. Цепочка нужна, только когда шагу два действительно нужен результат шага один.
+                </figcaption>
+              </div>
+
+              <p class="narrow">
+                Вывод, к которому он пришёл, проверяем, и в этом смысл такого подхода: <em>«Шымкент немного теплее Алматы, 26.7&#8201;°C против 26.5&#8201;°C»</em> — два числа, пришедшие из инструмента прогноза, а не из модели.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="cost">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Деньги</span>
+              <h2 id="cost">Во что обходится цикл</h2>
+              <p class="narrow lead">
+                Семь вопросов, один agent, одна модель. Эта таблица — самое полезное на странице, потому что именно этого не ждут до прихода счёта.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Измеренная стоимость семи запусков agent</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Вопрос</th>
+                      <th scope="col">Вызовов</th>
+                      <th scope="col">Ходов</th>
+                      <th scope="col">Prompt tokens</th>
+                      <th scope="col">Вывод</th>
+                      <th scope="col">Секунды</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Погода 1 марта следующего года <span class="token">отказ</span></td><td>0</td><td>1</td><td>572</td><td>52</td><td>2.4</td></tr>
+                    <tr><td>500 USD на 3 дня в Шымкенте</td><td>2</td><td>2</td><td>1 313</td><td>122</td><td>3.0</td></tr>
+                    <tr><td>Два дня в Алматы: что взять с собой</td><td>2</td><td>2</td><td>1 397</td><td>233</td><td>4.5</td></tr>
+                    <tr><td>Расстояние Астана&#8211;Алматы и погода</td><td>2</td><td>2</td><td>1 574</td><td>327</td><td>11.6</td></tr>
+                    <tr><td>Сравнить Алматы и Шымкент</td><td>4</td><td>2</td><td>2 052</td><td>418</td><td>6.8</td></tr>
+                    <tr><td>Чарынский каньон <span class="token">восстановился</span></td><td>5</td><td>5</td><td>4 751</td><td>321</td><td>12.9</td></tr>
+                    <tr><td>300 000 ₸ на 4 дня в Туркестане</td><td>7</td><td>7</td><td>6 451</td><td>194</td><td>17.2</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-cost-t">
+                  <title id="fig-cost-t">Prompt tokens против числа ходов, по семи измеренным запускам</title>
+                  <line x1="34" y1="16" x2="34" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <line x1="34" y1="126" x2="330" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <text x="8" y="20" font-size="7" fill="#5b6270">7k</text>
+                  <text x="8" y="75" font-size="7" fill="#5b6270">3.5k</text>
+                  <text x="8" y="129" font-size="7" fill="#5b6270">0</text>
+                  <text x="182" y="146" font-size="8" fill="#5b6270" text-anchor="middle">ходов в цикле</text>
+
+                  <rect x="46" y="117" width="26" height="9" fill="#2563eb" />
+                  <text x="59" y="136" font-size="7" fill="#5b6270" text-anchor="middle">1</text>
+                  <text x="59" y="113" font-size="6.5" fill="#111111" text-anchor="middle">572</text>
+
+                  <rect x="86" y="105" width="26" height="21" fill="#2563eb" />
+                  <text x="99" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="99" y="101" font-size="6.5" fill="#111111" text-anchor="middle">1313</text>
+
+                  <rect x="126" y="104" width="26" height="22" fill="#2563eb" />
+                  <text x="139" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="139" y="100" font-size="6.5" fill="#111111" text-anchor="middle">1397</text>
+
+                  <rect x="166" y="101" width="26" height="25" fill="#2563eb" />
+                  <text x="179" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="179" y="97" font-size="6.5" fill="#111111" text-anchor="middle">1574</text>
+
+                  <rect x="206" y="94" width="26" height="32" fill="#2563eb" />
+                  <text x="219" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="219" y="90" font-size="6.5" fill="#111111" text-anchor="middle">2052</text>
+
+                  <rect x="246" y="52" width="26" height="74" fill="#b91c1c" />
+                  <text x="259" y="136" font-size="7" fill="#5b6270" text-anchor="middle">5</text>
+                  <text x="259" y="48" font-size="6.5" fill="#111111" text-anchor="middle">4751</text>
+
+                  <rect x="286" y="26" width="26" height="100" fill="#b91c1c" />
+                  <text x="299" y="136" font-size="7" fill="#5b6270" text-anchor="middle">7</text>
+                  <text x="299" y="22" font-size="6.5" fill="#111111" text-anchor="middle">6451</text>
+
+                  <text x="170" y="161" font-size="8" fill="#111111" text-anchor="middle">2 хода стоят ~1.4k что бы ни делали; 7 ходов — 6.5k</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Стоимость следует за ходами, а не за вызовами. Запуск с 4 вызовами за два хода дешевле запуска с 5 вызовами за пять.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Почему стоимость растёт именно так</span>
+                <dl class="breakdown__list">
+                  <dt>каждый ход пересылает всё</dt>
+                  <dd>Ход <em>n</em> несёт system prompt, вопрос и все сообщения assistant и tool до этого момента. Самый длинный запуск шёл 588 → 669 → 728 → 822 → 1 055 → 1 274 → 1 315 tokens.</dd>
+                  <dt>поэтому итог — сумма, а не произведение</dt>
+                  <dd>Примерно <code>шаги × средняя история</code>, причём сама средняя история растёт вместе с шагами. Удвоение шагов увеличивает счёт больше чем вдвое: 2 хода стоят 1 574, 7 ходов — 6 451, то есть 3.5&#215; ходов дают 4.1&#215; tokens.</dd>
+                  <dt>схемы инструментов тоже в каждом ходу</dt>
+                  <dd>Наши шесть схем — около 500 tokens, пересылаемых во всех семи ходах худшего запуска. Двадцать инструментов стоили бы дороже самого диалога.</dd>
+                  <dt>сбой оплачивается дважды</dt>
+                  <dd>Неудачный вызов стоит хода, а затем его сообщение об ошибке лежит в истории и пересылается до конца запуска.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Лекция 8 показала, как посчитать счёт из числа tokens и опубликованного тарифа; арифметика та же. Меняется то, что число tokens больше нельзя предсказать по вопросу, потому что количество ходов выбирает модель.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="disobeyed">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Честность</span>
+              <h2 id="disobeyed">Инструкция, которую он проигнорировал</h2>
+              <p class="narrow lead">
+                В system prompt есть такая строка, по духу капслочная: <em>«Используй calculate для каждой суммы, итога или подённой величины. Не считай в уме.»</em>
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: I have 500 USD for three days in Shymkent. What is that per day in tenge?
+
+[1] convert_currency(amount=500, from_currency='USD', to_currency='KZT')
+    -> {"converted": 222439.02, "rate": 444.878043, "rate_date": "Thu, 24 Sep 2026 ..."}
+[2] calculate(expression='500/3')
+    -> {"result": 166.666667}
+
+ANSWER
+500 USD is approximately 222,439.02 KZT at the exchange rate of 444.88 KZT per USD
+on September 24, 2026.
+
+For three days, that amounts to about 166.67 USD per day, which is approximately
+74,146.34 KZT per day.</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Сосчитайте деления. Он вызвал <code>calculate</code> для <code>500/3</code>, а затем выдал <strong>74&#8202;146.34</strong> — это <code>222439.02 / 3</code> — не вызвав ничего. Второе деление он сделал в уме, прямо вопреки инструкции.
+              </p>
+
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  <strong>И ответ верный.</strong> 222&#8202;439.02 ÷ 3 = 74&#8202;146.34 ровно. Именно поэтому раздел и написан: сбой невидим в выводе. Его видно только в trace, и только если считать. Agent, соблюдающий инструкции в 90% случаев, выглядит точно так же, как соблюдающий их всегда, — пока оставшиеся 10% не попадут туда, где это важно.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что с этим реально делать</span>
+                <dl class="breakdown__list">
+                  <dt>измерить</dt>
+                  <dd>Прогоните двадцать денежных вопросов и посчитайте, сколько ответов приходят к числу без соответствующего вызова <code>calculate</code>. Снова правило Лекции 9: неизмеренное утверждение о prompt — это мнение.</dd>
+                  <dt>сделать инструмент единственным путём</dt>
+                  <dd>Дайте <code>convert_currency</code> аргумент <code>divide_by</code>, чтобы подённая величина приходила из инструмента, у которого это число уже есть. Лучшее лекарство от «он не воспользовался инструментом» — обычно инструмент получше.</dd>
+                  <dt>проверять потом, в коде</dt>
+                  <dd>Вытащите числа из финального ответа и убедитесь, что каждое встречается в каком-нибудь результате инструмента. Десять строк, и они ловят ровно этот случай.</dd>
+                  <dt>не просто кричать в prompt</dt>
+                  <dd>«ВСЕГДА используй инструмент» капслоком — первый рефлекс и самый слабый из четырёх.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="failures">
+            <div class="container">
+              <span class="section__eyebrow">Практика &#183; Надёжность</span>
+              <h2 id="failures">Шесть способов сломать цикл</h2>
+              <p class="narrow lead">
+                Каждый из них покрыт тестом в папке, потому что agent встречает их все в первый же час реальной работы.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Режимы отказа и что получает agent</caption>
+                  <thead>
+                    <tr><th scope="col">Что происходит</th><th scope="col">Что получает agent</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Он выдумывает инструмент: <code>book_a_hotel</code></td><td><code>{"error": "there is no tool called 'book_a_hotel'. Available: geocode, distance_km, …"}</code></td></tr>
+                    <tr><td>Аргументы — не валидный JSON</td><td><code>{"error": "arguments were not valid JSON: '{not json'"}</code></td></tr>
+                    <tr><td>Неверные имена аргументов</td><td><code>{"error": "wrong arguments for distance_km: got an unexpected keyword argument 'city_a'"}</code></td></tr>
+                    <tr><td>API недоступен (настоящий 503 случился прямо во время запуска)</td><td><code>{"error": "could not reach api.open-meteo.com (HTTP Error 503)"}</code></td></tr>
+                    <tr><td><code>calculate("__import__('os').system('echo pwned')")</code></td><td><code>{"error": "only + - * / // % ** and numbers are allowed"}</code></td></tr>
+                    <tr><td>Он не перестаёт вызывать инструменты</td><td>цикл останавливается на <code>MAX_STEPS = 8</code> и сообщает, что успел</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Четыре правила за этой таблицей</span>
+                <dl class="breakdown__list">
+                  <dt>ошибки — данные, а не исключения</dt>
+                  <dd>Каждый инструмент возвращает <code>{"error": ...}</code> вместо того, чтобы бросать исключение. Упавший инструмент убивает цикл и выбрасывает уже оплаченную работу; инструмент, вернувший ошибку, позволяет модели попробовать иначе — что она и сделала на шаге [3] запуска про Чарын.</dd>
+                  <dt>пишите сообщения об ошибках для модели</dt>
+                  <dd><em>«попробуйте латинское написание, например Almaty, Astana, Shymkent»</em> — это не для лог-файла. Это prompt, доставленный ровно в тот момент, когда он нужен, и именно он дал восстановление.</dd>
+                  <dt>никогда не <code>eval</code> для вывода модели</dt>
+                  <dd>Модель — недоверенный источник ровно так же, как пользователь, а в agent-е даже хуже, потому что в неё втекают результаты инструментов из открытого интернета. <code>calculate</code> обходит синтаксическое дерево вручную и принимает числа и шесть операторов.</dd>
+                  <dt>ограничьте число шагов</dt>
+                  <dd>Это не защитное программирование, а арифметика: цикл без предела — это неограниченное списание с вашего счёта, а модели действительно повторяют неудачные вызовы. Мы это наблюдали.</dd>
+                </dl>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-guard-t">
+                  <title id="fig-guard-t">Где стоит каждое ограждение вокруг цикла</title>
+                  <rect x="86" y="42" width="168" height="62" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="60" font-size="8.5" fill="#111111" text-anchor="middle">цикл</text>
+                  <text x="170" y="74" font-size="7.5" fill="#5b6270" text-anchor="middle">модель &#8594; инструмент &#8594; модель</text>
+                  <text x="170" y="88" font-size="7.5" fill="#5b6270" text-anchor="middle">&#8230; пока не остановится</text>
+
+                  <rect x="86" y="14" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">лимит шагов &#183; цикл не может идти вечно</text>
+
+                  <rect x="8" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="43" y="60" font-size="7.5" fill="#111111" text-anchor="middle">проверяйте</text>
+                  <text x="43" y="72" font-size="7" fill="#5b6270" text-anchor="middle">аргументы</text>
+                  <text x="43" y="86" font-size="7" fill="#5b6270" text-anchor="middle">до того, как они</text>
+                  <text x="43" y="96" font-size="7" fill="#5b6270" text-anchor="middle">дойдут до кода</text>
+
+                  <rect x="262" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="297" y="60" font-size="7.5" fill="#111111" text-anchor="middle">ошибки как</text>
+                  <text x="297" y="72" font-size="7.5" fill="#111111" text-anchor="middle">данные</text>
+                  <text x="297" y="86" font-size="7" fill="#5b6270" text-anchor="middle">чтобы он мог</text>
+                  <text x="297" y="96" font-size="7" fill="#5b6270" text-anchor="middle">восстановиться</text>
+
+                  <rect x="86" y="112" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="126" font-size="7.5" fill="#ffffff" text-anchor="middle">проверяйте вывод перед действием</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Ничто из этого не делает модель лучше. Это делает так, чтобы цикл пережил модель, которая иногда ошибается.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="when">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Суждение</span>
+              <h2 id="when">Когда его не надо строить</h2>
+              <p class="narrow lead">
+                Agents — самая переприменяемая идея в области прямо сейчас. Проверка простая: зависит ли число шагов от входных данных по-настоящему?
+              </p>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Пишите pipeline</h3>
+                  <p>
+                    Классифицировать эти отзывы. Суммаризировать этот документ. Перевести эту страницу. Ответить по этим пяти фрагментам. Шаги всегда одни и те же, так напишите их: получите меньшую стоимость, фиксированную latency и программу, которую можно покрыть обычным тестом.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Пишите agent</h3>
+                  <p>
+                    Вопросы, где заранее не известно, что понадобится: один поиск или шесть, этот инструмент или тот, остановиться сейчас или продолжать. Нашему вопросу про бюджет потребовалось семь вызовов; вопросу про прогноз — ни одного. Никакой pipeline не покрывает оба.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 32px">
+                <span class="breakdown__label">Чем вы платите за выбор цикла</span>
+                <dl class="breakdown__list">
+                  <dt>предсказуемой стоимостью</dt>
+                  <dd>Измерено на этой странице: от 572 до 6 451 prompt tokens на вопросах, которые пользователь счёл бы одинаково обычными. Разброс в 11&#215;.</dd>
+                  <dt>предсказуемой задержкой</dt>
+                  <dd>От 2.4 с до 17.2 с. Если человек ждёт, этот разброс и есть продукт.</dd>
+                  <dt>воспроизводимостью</dt>
+                  <dd>Один и тот же вопрос в другой день может пойти другим путём. Ставьте низкую temperature, логируйте каждый trace и принимайте, что запуск — это свидетельство, а не доказательство.</dd>
+                  <dt>простотой тестирования</dt>
+                  <dd>Больше нельзя проверить один вывод assert-ом. Инструменты тестируются отдельно, а цикл — против сценарной модели: именно так шесть режимов отказа выше проверены, не потратив ни цента.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Полезный порядок: prompt, затем retrieval, затем agent, затем fine-tuning. Это порядок Лекции 9 с ещё одной ступенью, и ступени дорожают по мере подъёма.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">В аудитории</span>
+              <h2 id="lab">Лаборатория</h2>
+              <p class="narrow lead">
+                Интерфейс существует ради одного: agent, чьи шаги не видно, — это agent, который нельзя отладить и которому нельзя доверять. Trace и есть главная функция.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code># one of the two, in the repository's .env
+OPENAI_API_KEY=sk-...
+# or reuse Lecture 9's local server instead:  cd ../lesson9 && ./serve.sh
+
+pip install -r requirements.txt
+python3 agent.py --demo                      # the runs on this page, in the terminal
+python3 agent.py "How far is Turkistan from Shymkent?"
+python3 app.py                               # http://127.0.0.1:7861</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Спрашивайте</h3>
+                  <p>На казахском, русском или английском. Agent отвечает на языке вопроса, на каком бы языке ни вернулись результаты инструментов.</p>
+                </div>
+                <div class="card">
+                  <h3>Смотрите</h3>
+                  <p>Каждый вызов инструмента с аргументами и результатом, зелёным если сработало и красным если нет. Именно на эту колонку надо смотреть во время демонстрации.</p>
+                </div>
+                <div class="card">
+                  <h3>Считайте</h3>
+                  <p>Вызовы инструментов, prompt tokens, output tokens, секунды и рост tokens по ходам, напечатанный снизу. Стоимость цикла вживую.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <code>llm.py</code> читает <code>.env</code> и выбирает backend: OpenAI, если задан ключ, иначе локальный <code>llama-server</code> из Лекции 9. Код agent-а так и не узнаёт, что ему досталось, — в этом практический смысл фразы «agent — это цикл, а не продукт».
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">В аудитории</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">Восемь вопросов, на которые мы отвечаем вместе перед завершением.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Коллега говорит, что его RAG-система — «agent», потому что в ней четыре шага. Прав ли он?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Нет. Шаги — не решения. Если каждый вопрос идёт одними и теми же четырьмя шагами, путь выбрал программист, и это pipeline. Проверка в том, меняется ли число шагов от входа: у нас было 0, 2, 4, 5 и 7 вызовов на пяти вопросах.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">Как цикл понимает, что agent закончил?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Модель отвечает текстом и без <code>tool_calls</code>. Это всё условие остановки — никакого особого сигнала «готово» не существует. Поэтому и нужен лимит шагов: ничто не гарантирует, что модель вообще решит остановиться.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Один запуск сделал 4 вызова и стоил 2 052 prompt tokens. Другой — 5 вызовов и 4 751. Почему один лишний вызов стоит вдвое дороже?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Потому что платятся не вызовы, а ходы. Запуск с 4 вызовами запросил все четыре сразу, так что ходов было два. Запуск с 5 вызовами выстроил их цепочкой, так что ходов было пять, а каждый ход пересылает всю историю плюс все шесть схем инструментов. Собирайте независимые запросы в пакет; цепочку стройте, только когда шагу два нужен результат шага один.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">Инструмент бросает исключение Python вместо возврата <code>{"error": ...}</code>. Что ломается?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Цикл умирает, все потраченные до этого tokens пропадают, пользователь получает stack trace, а модель лишается шанса восстановиться. Наш запуск про Чарын — обратный пример: ошибка пришла данными, модель прочитала в ней подсказку, перешла на латиницу и закончила.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Agent-у велели использовать <code>calculate</code> для каждой суммы. Он поделил 222 439.02 на 3 в уме и получил верный ответ. Есть ли проблема?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Да, и проблема именно в том, что ответ верный. Инструкция нарушена молча; в выводе этого не видно. В следующий раз число будет сложнее, и ответ будет неверным ровно тем же уверенным тоном. Чинить лучшим инструментом (пусть конвертация принимает <code>divide_by</code>) или проверкой в коде, что каждое число ответа встречается в каком-нибудь результате инструмента.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 6</h3>
+                  <p class="challenge__task">Почему <code>calculate</code> написан на обходе AST, а не через <code>eval</code>?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Потому что выражение пишет модель, а модель читает текст из Wikipedia и публичных API. Это недоверенная цепочка, заканчивающаяся в вашем процессе. На просьбу выполнить <code>__import__('os').system('echo pwned')</code> инструмент отвечает <code>only + - * / // % ** and numbers are allowed</code>. С <code>eval</code> он бы это выполнил.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 7</h3>
+                  <p class="challenge__task">Agent ответил на вопрос о погоде в марте следующего года, не вызвав ни одного инструмента. Это провал?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Нет — это лучший запуск на странице. System prompt говорил, что прогноз достаёт примерно на две недели и что об этом надо сказать, а не выдумывать, — так и вышло, за 572 tokens и 2.4 с. Бояться надо обратного: вызвать инструмент с бессмысленной датой, что-то получить и уверенно это пересказать.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 8</h3>
+                  <p class="challenge__task">Agent постоянно спотыкался на казахских названиях городов. Помог бы тут лучший prompt?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Нет. <code>geocode</code> искал в справочнике только по-английски, так что «Алматы» для инструмента буквально не существовала, и четыре шага из восьми ушли на неудачные поиски. Исправление было в инструменте: пробовать английский, русский и казахский, затем транслитерацию. Когда trace выглядит плохо, сначала решите, плохо ли рассуждала модель или плохо ответил инструмент.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Практика</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Работайте в <code>code_files/lesson10/</code>. Здесь всё — одна команда или одна небольшая правка.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Задание 1 — Воспроизведите таблицу</h3>
+                  <p class="challenge__task">Запустите <code>python3 agent.py --demo</code> и сравните свои числа вызовов и tokens с таблицей выше. Они не совпадут точно. Напишите одно предложение о том, почему это ожидаемо, а не баг.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 2 — Сломайте описание</h3>
+                  <p class="challenge__task">В <code>tools.py</code> замените описание <code>geocode</code> на просто «Looks up a place.» Задайте три вопроса, где нужны числа населения. Он всё ещё вызывает инструмент или начинает угадывать? Вы только что измерили, чего стоит описание.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 3 — Заставьте считать инструментом</h3>
+                  <p class="challenge__task">Добавьте аргумент <code>divide_by</code> в <code>convert_currency</code>, чтобы подённая величина приходила из инструмента. Перезапустите вопрос про 500 USD. Исчезло ли деление без источника?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 4 — Снизьте лимит</h3>
+                  <p class="challenge__task">Поставьте <code>--max-steps 2</code> и задайте вопрос о бюджете на Туркестан, которому нужно было семь. Прочитайте, что вернётся. Затем решите, что должен делать настоящий продукт при достижении лимита: извиниться, ответить частично или эскалировать?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 5 — Добавьте инструмент</h3>
+                  <p class="challenge__task">Напишите <code>timezone_difference(place_a, place_b)</code>, используя часовой пояс, который <code>geocode</code> и так возвращает. Зарегистрируйте его и найдите вопрос, на котором agent выберет его сам, без подсказки.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 6 — Проверьте ссылки на источники</h3>
+                  <p class="challenge__task">Напишите скрипт, который вытаскивает каждое число из финального ответа и проверяет, что оно встречается в результатах инструментов этого запуска. Прогоните по семи демо-вопросам. Сколько чисел без источника вы найдёте, кроме описанного на этой странице?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 7 — Два backend-а</h3>
+                  <p class="challenge__task">Прогоните один и тот же вопрос через OpenAI и через локальную модель 4&#8202;B из Лекции 9. Сравните выбор инструментов, число шагов и общее число tokens. Какие части «агентности» переживают модель поменьше?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 8 — Инструмент, который врёт</h3>
+                  <p class="challenge__task">Сделайте так, чтобы <code>convert_currency</code> возвращал курс в десять раз больше. Задайте вопрос о бюджете. Замечает ли agent, что что-то не так? Напишите два предложения о том, что это означает для доверия к выводу инструментов.</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы узнали</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Agent — это цикл, в котором модель выбирает следующее действие; одни лишь шаги не превращают pipeline в agent</li>
+                <li>Цикл — около двадцати строк: спросить с инструментами, выполнить запрошенное, дописать результаты, спросить снова</li>
+                <li>Он останавливается, когда модель отвечает текстом без tool calls, — поэтому лимит шагов обязателен</li>
+                <li>Tool — это функция, JSON-схема и описание; описание является prompt и решает, воспользуются ли инструментом вообще</li>
+                <li>Наш agent ничего не знает о Казахстане: каждое расстояние, прогноз, курс и описание добывались во время выполнения</li>
+                <li>Один и тот же agent сделал 0, 2, 4, 5 и 7 вызовов на пяти обычных вопросах — путь нельзя предсказать по вопросу</li>
+                <li>Платятся ходы, а не вызовы: 4 вызова за 2 хода стоили 2 052 tokens; 5 вызовов за 5 ходов — 4 751</li>
+                <li>Стоимость выросла с 572 до 6 451 prompt tokens на семи вопросах — разброс 11&#215;, а задержка с 2.4 с до 17.2 с</li>
+                <li>Ошибки должны быть данными, а не исключениями — именно это позволило agent-у восстановиться после неудачного поиска</li>
+                <li>Пишите сообщения об ошибках для модели: «попробуйте латинское написание» и дало восстановление</li>
+                <li>Agents повторяют неудачные вызовы: наш переотправил идентичный падающий вызов, который всё ещё видел в своей истории</li>
+                <li>Никогда не <code>eval</code> для вывода модели; <code>calculate</code> отверг <code>__import__('os').system(...)</code></li>
+                <li>Он нарушил собственную инструкцию использовать <code>calculate</code> и всё равно получил верный ответ — видно только в trace</li>
+                <li>Лучший запуск на странице не вызвал ни одного инструмента, потому что честным ответом было «я не могу этого знать»</li>
+                <li>Плохой trace был виной инструмента, а не модели: исправление казахских названий вдвое сократило число шагов</li>
+                <li>Prompt, затем retrieval, затем agent, затем fine-tuning — именно в таком порядке, потому что каждая ступень дороже</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Лекция 10 &middot; 24 сентября 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

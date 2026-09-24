@@ -237,21 +237,21 @@ window.NLP_COURSE = {
     {
       id: "advanced-nlp",
       num: 10,
-      file: null,
+      file: "10-ai-agents.html",
       date: {
-        en: "23 Sep 2026",
-        kk: "23 қыркүйек 2026",
-        ru: "23 сентября 2026"
+        en: "24 Sep 2026",
+        kk: "24 қыркүйек 2026",
+        ru: "24 сентября 2026"
       },
       title: {
-        en: "Advanced NLP",
-        kk: "Advanced NLP",
-        ru: "Advanced NLP"
+        en: "AI Agents",
+        kk: "AI Agents",
+        ru: "AI Agents"
       },
       topics: {
-        en: "Large Language Models · LLM Fine-tuning",
-        kk: "Large Language Models · LLM Fine-tuning",
-        ru: "Large Language Models · LLM Fine-tuning"
+        en: "Tools · The loop · Traces · Cost · Guardrails",
+        kk: "Tools · Цикл · Trace · Құны · Қоршаулар",
+        ru: "Tools · Цикл · Trace · Стоимость · Ограждения"
       }
     },
     {

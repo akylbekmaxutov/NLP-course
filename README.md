@@ -269,3 +269,47 @@ Fixed, after the Lecture 9 pages were reported as visually broken:
 - `language/*/05-rnn-lstm.html` — `embedding.weight.requires_grad = False` was bare text in a narrow card and overflowed it in all three languages; now wrapped in `<code>` like every other identifier in the course
 
 Verified: 30 pages × 5 viewport widths (1920, 1400, 900, 620, 420) — **0 label spills, 0 element overflows, 0 pages scrolling horizontally**. All 276 inline SVGs are valid XML, tags balance on every page, and code blocks remain byte-identical across en/kk/ru in Lectures 6–9.
+
+### 24.09.2026
+
+Added:
+
+- `code_files/lesson10/` — the Lecture 10 agent: a travel assistant for Kazakhstan that **knows nothing**. Every distance, forecast, exchange rate and description in its answers is fetched with a tool at run time, from public APIs that need no key — which is both what an agent is and how the lecture avoids stating a single unsourced fact about Kazakhstan
+  - `tools.py` — six tools with JSON schemas and a dispatcher: `geocode`, `distance_km`, `weather_forecast`, `wikipedia` (en/kk/ru), `convert_currency`, `calculate`. Sources: Open-Meteo geocoding and forecast, Wikipedia REST, open.er-api.com
+  - `agent.py` — the loop in about twenty lines, plus a trace, a step limit (`MAX_STEPS = 8`) and per-turn token accounting
+  - `llm.py` — reads `.env` and picks the backend: OpenAI when `OPENAI_API_KEY` is set, Lecture 9's local `llama-server` otherwise. The agent code never learns which it got
+  - `app.py` — Gradio on port 7861, with the trace shown beside the answer, green for a tool that worked and red for one that failed
+- `language/en/10-ai-agents.html`, `language/kk/10-ai-agents.html`, `language/ru/10-ai-agents.html` — Lecture 10, AI Agents. 16 sections and 7 inline SVG figures per language: pipeline against agent, the loop, the message protocol, a tool as function + schema + description, a full trace, recovery from a failed tool, refusal, parallel calls, what a loop costs, the instruction the agent ignored, six failure modes, guardrails, and when not to build one
+
+Measured (`gpt-4o-mini`, 24 September 2026, seven real runs):
+
+| question | tool calls | turns | prompt tokens | seconds |
+|---|---|---|---|---|
+| weather on 1 March next year (refused) | 0 | 1 | 572 | 2.4 |
+| 500 USD for 3 days in Shymkent | 2 | 2 | 1 313 | 3.0 |
+| two days in Almaty, what to pack | 2 | 2 | 1 397 | 4.5 |
+| Astana–Almaty distance and weather | 2 | 2 | 1 574 | 11.6 |
+| compare Almaty and Shymkent | 4 | 2 | 2 052 | 6.8 |
+| Charyn Canyon (recovered from 2 failures) | 5 | 5 | 4 751 | 12.9 |
+| 300 000 ₸ for 4 days in Turkestan | 7 | 7 | 6 451 | 17.2 |
+
+- **The same agent used 0, 2, 4, 5 and 7 tool calls** on five ordinary questions. That unpredictability *is* the definition — and it means an 11× spread in cost and a 2.4 s to 17.2 s spread in latency for questions a user would consider equivalent
+- **Turns cost, not calls.** 4 calls batched into 2 turns cost 2 052 prompt tokens; 5 calls chained across 5 turns cost 4 751. The history is resent once per turn, so the longest run went 588 → 669 → 728 → 822 → 1 055 → 1 274 → 1 315
+- **It recovered from its own broken tool.** Asked about Чарынский каньон, `distance_km` failed on the Cyrillic name; the model read the error message — *"try the Latin spelling, for example Almaty, Astana, Shymkent"* — geocoded in Latin and finished. It also reissued an identical failing call it could still see in its own history, which is why the step limit exists
+- **The cheapest correct answer used no tools at all.** Asked for a forecast five months out it refused, in 572 tokens, instead of calling the tool with a nonsense date and paraphrasing whatever came back
+- **It disobeyed its own system prompt, and the answer was still right.** Told to use `calculate` for every sum, it called the tool for `500/3` and then produced 74 146.34 — `222439.02 / 3` — in its head. Correct to the cent, and invisible outside the trace. Written up as its own section, because a silent instruction failure is the one you ship
+
+Fixed, and kept on the page as method:
+
+- `tools.py` — the first `geocode` searched the gazetteer in **English only**, so a Kazakh question spent four of eight steps failing to find its own cities (`Астана`, `Алматы`, `Нұр-Сұлтан` all returned "not found"). It now tries English, Russian and Kazakh, then transliterates Kazakh-specific letters, then consults a small alias table, and prefers populated places over airports and mountain peaks. Same model, same prompt, half the steps. The page uses this to make the point that a bad trace is often the tool's fault, not the model's
+- `tools.py` — added retries on 429/5xx after a real Open-Meteo 503 landed mid-run
+- `llm.py` — `.env` is now searched in three places (`lesson10/`, `code_files/`, repo root) instead of only the repo root, which is where the key actually was
+
+Tested without spending anything: the six tools against the live APIs, and the loop against a scripted model covering parallel calls, a hallucinated tool name, malformed JSON arguments, wrong argument names, the step limit, and `calculate("__import__('os').system('echo pwned')")` — refused with `only + - * / // % ** and numbers are allowed`, because the expression is parsed by an AST walker and never `eval`-ed.
+
+Changed:
+
+- `page/js/course.js` — slot 10 published as "AI Agents" (was a placeholder for "Advanced NLP", whose LLM and fine-tuning material is already covered by Lectures 7 and 8)
+- `index.html` — link to Lecture 10
+
+All 21 inline SVGs across the three Lecture 10 pages are valid XML, `tools/check-figures.py` and `tools/check-render.py` both report zero problems at 1920, 1400, 900 and 420 px, section and figure counts match across en/kk/ru, and all 9 code blocks are byte-identical in all three languages.

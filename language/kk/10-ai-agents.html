@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agents | NLP Course</title>
+    <meta
+      name="description"
+      content="10-дәріс: agent пен pipeline айырмасы, жиырма жолдағы цикл, JSON схемалары ретіндегі tools, басынан аяғына дейінгі нақты trace, agent өз қателерінен қалай қалпына келеді, цикл tokens бойынша неге тұрады және оны қауіпсіз ететін қоршаулар."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/10-ai-agents.html" data-lang-link="en">EN</a>
+        <a href="../kk/10-ai-agents.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/10-ai-agents.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">Мәтінді өңдеуден Large Language Models-ке дейін</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/10-ai-agents.html" data-lang-link="en">EN</a>
+          <a href="../kk/10-ai-agents.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/10-ai-agents.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс бағдарламасы</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Мазмұнды жабу" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">10-дәріс</span>
+              <h1>AI Agents</h1>
+              <p class="hero__subtitle">
+                9-дәрісте біз модельге құжат бердік, ол жауап берді. Мұнда біз оған құралдар жинағын беріп, олармен не істеу керегін өзі шешуіне жол береміз. Осы жалғыз өзгеріс — модель біздің pipeline-ды орындаудың орнына келесі әрекетті өзі таңдауы — адамдар agent деп атайтынның бәрі. Онымен бірге жаңа түрдегі баг пен жаңа түрдегі шот келеді.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістің соңында сіз&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Agent дегеннің не екенін айта аласыз</h3>
+                  <p>Одан да пайдалысы — оның не емес екенін: ішінде модель тұрған тұрақты pipeline қанша қадамнан тұрса да agent емес.</p>
+                </div>
+                <div class="card">
+                  <h3>Циклді жаза аласыз</h3>
+                  <p>Жиырма жол, фреймворксіз. Сұра, tool calls бар ма деп тексер, оларды орында, нәтижелерін қос, қайта сұра.</p>
+                </div>
+                <div class="card">
+                  <h3>Tool жобалай аласыз</h3>
+                  <p>Функция, JSON схемасы және оны қашан қолдану керегін айтатын сөйлем. Сол сөйлем — prompt, және дәл ол agent жұмыс істей ме, жоқ па, соны шешеді.</p>
+                </div>
+                <div class="card">
+                  <h3>Trace оқи аласыз</h3>
+                  <p>Нашар пайымдаған модельді істен шыққан құралдан ажыратып, екеуінің қайсысын жөндеу керегін білесіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Шотты болжай аласыз</h3>
+                  <p>Әр қадам бүкіл тарихты қайта жібереді. Жеті қадам неге екі қадамнан үш жарым емес, бес есе қымбат екенін білесіз.</p>
+                </div>
+                <div class="card">
+                  <h3>Оған қоршау қоя аласыз</h3>
+                  <p>Қадам шегі, аргументтерді тексеру, қателер дерек ретінде және ешқашан <code>eval</code> жоқ. Agent — сіздің ақшаңызды жұмсайтын цикл.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Бұл беттегі әр trace нақты.</strong> <code>code_files/lesson10/</code> ішіндегі agent 2026 жылғы 24 қыркүйекте <code>gpt-4o-mini</code> үстінде іске қосылды, ал қадамдар, tokens сандары мен уақыттар сол жүгірістерден тікелей көшірілген — оның ішінде қателескендері де.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Идея</span>
+              <h2 id="what">Pipeline ма, agent пе?</h2>
+              <p class="narrow lead">
+                9-дәрістегі RAG жүйесінде төрт қадам болды, және олардың бірде-бірі шешім емес еді. Сұрақты векторлау, бес үзінді алу, prompt құрастыру, генерациялау. Әр сұрақ дәл сол жолмен жүрді, өйткені сол жолды біз жаздық.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-vs-t">
+                  <title id="fig-vs-t">Pipeline сіз жазған қадамдарды орындайды; agent өз қадамдарын өзі таңдайды</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">RAG, 9-дәріс — ретті сіз жаздыңыз</text>
+                  <rect x="8" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="31" font-size="7.5" fill="#111111" text-anchor="middle">сұрақ</text>
+                  <line x1="66" y1="28" x2="80" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="109" y="31" font-size="7.5" fill="#111111" text-anchor="middle">retrieve</text>
+                  <line x1="138" y1="28" x2="152" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="152" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="181" y="31" font-size="7.5" fill="#111111" text-anchor="middle">prompt</text>
+                  <line x1="210" y1="28" x2="224" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="224" y="18" width="58" height="20" rx="4" fill="#2563eb" />
+                  <text x="253" y="31" font-size="7.5" fill="#ffffff" text-anchor="middle">жауап</text>
+                  <text x="290" y="31" font-size="7.5" fill="#5b6270">әрқашан</text>
+
+                  <line x1="8" y1="54" x2="332" y2="54" stroke="#e5e7eb" stroke-width="1" />
+
+                  <text x="8" y="72" font-size="9" fill="#5b6270">agent — модель таңдайды</text>
+                  <rect x="8" y="78" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="91" font-size="7.5" fill="#111111" text-anchor="middle">сұрақ</text>
+                  <line x1="66" y1="88" x2="80" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="74" width="76" height="28" rx="5" fill="#2563eb" />
+                  <text x="118" y="85" font-size="8" fill="#ffffff" text-anchor="middle">модель</text>
+                  <text x="118" y="95" font-size="7" fill="#dbe7ff" text-anchor="middle">енді не?</text>
+
+                  <line x1="156" y1="88" x2="172" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="172" y="60" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="71" font-size="7" fill="#111111" text-anchor="middle">geocode</text>
+                  <rect x="172" y="80" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="91" font-size="7" fill="#111111" text-anchor="middle">weather</text>
+                  <rect x="172" y="100" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="111" font-size="7" fill="#111111" text-anchor="middle">wikipedia</text>
+                  <text x="205" y="128" font-size="7" fill="#5b6270" text-anchor="middle">&#8230; немесе ешқайсысы</text>
+
+                  <path d="M238 88 L252 88 L252 122 L118 122 L118 102" fill="none" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="118,102 115.5,107 120.5,107" fill="#5b6270" />
+                  <text x="258" y="91" font-size="7.5" fill="#5b6270">нәтиже</text>
+
+                  <line x1="156" y1="74" x2="166" y2="66" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="262" y="140" width="70" height="20" rx="4" fill="#2563eb" />
+                  <text x="297" y="153" font-size="7.5" fill="#ffffff" text-anchor="middle">жауап</text>
+                  <path d="M118 102 L118 150 L262 150" fill="none" stroke="#5b6270" stroke-width="1.2" stroke-dasharray="3 2" />
+                  <text x="150" y="147" font-size="7" fill="#5b6270">дайын деп өзі шешкенде</text>
+
+                  <rect x="8" y="168" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="182" font-size="8" fill="#111111" text-anchor="middle">төменде өлшенген: бес сұраққа 0, 2, 4, 5 және 7 шақыру</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Айырмашылық циклде. Құралдарда да, prompt-та да емес, ал қадам санын жазу кезінде сіз емес, орындалу кезінде модель шешетінінде.
+                </figcaption>
+              </div>
+
+              <div class="definition">
+                <p>
+                  <strong>Agent</strong> — тілдік модель әрекет таңдап, нәтижесін көріп, бітті деп шешкенше қайта таңдай беретін цикл. Әрекеттер <strong>tools</strong> деп аталады: сіз оған ашатын кәдімгі функциялар.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл нені береді және әрқайсысы неге тұрады</span>
+                <dl class="breakdown__list">
+                  <dt>ол әрекет ете алады</dt>
+                  <dd>Модель өздігінен мәтін шығарады. Құралдары бар модель болжамды қарай алады, ақша айырбастай алады немесе хат жібере алады. Бағасы — енді ол дұрыс емес нәрсе айтып қана қоймай, дұрыс емес нәрсе <em>істей</em> алады.</dd>
+                  <dt>ол қадам санын бейімдейді</dt>
+                  <dd>Оңай сұраққа бір шақыру, қолайсызына жеті. Мұнда өлшенген: сол agent бір сұраққа құралсыз жауап берді, екіншісіне жеті шақыру жұмсады. Бағасы — шотты сұраққа қарап болжай алмайсыз.</dd>
+                  <dt>ол қалпына келеді</dt>
+                  <dd>Tool қате қайтарғанда ол басқаша көруі мүмкін — және төмендегі жүгірістерде екі рет солай істеді. Бағасы — ол циклге де түсіп кетуі мүмкін, ал оны бірдеңе тоқтатуға тиіс.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Егер тапсырма әрқашан сол үш қадамды қажет етсе, сол үш қадамды жазыңыз. Оқуға болатын pipeline қадағалап отыруға тура келетін agent-тен қымбат тұрады.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="loop">
+            <div class="container">
+              <span class="section__eyebrow">Тәжірибе &#183; Механизм</span>
+              <h2 id="loop">Жиырма жолдағы цикл</h2>
+              <p class="narrow lead">
+                Бұл қалтада фреймворк жоқ, әрі қажет те емес. Agent — 9-дәрістен таныс чат шақыруының айналасындағы <code>while</code> циклі.
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>messages = [{"role": "system", "content": SYSTEM},
+            {"role": "user",   "content": question}]
+
+for step in range(MAX_STEPS):
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools.openai_tools(),     # the schemas, sent every turn
+        tool_choice="auto",             # the model decides whether to call one
+    )
+    message = response.choices[0].message
+    messages.append(message)            # the assistant turn, verbatim
+
+    if not message.tool_calls:          # plain text = it is finished
+        return message.content
+
+    for call in message.tool_calls:     # it may ask for several at once
+        result = tools.call(call.function.name,
+                            json.loads(call.function.arguments))
+        messages.append({"role": "tool",
+                         "tool_call_id": call.id,
+                         "content": json.dumps(result)})</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Мұнда маңызды бес нәрсе</span>
+                <dl class="breakdown__list">
+                  <dt>tools=</dt>
+                  <dd>JSON схемалары тек біріншісіне емес, <em>әр</em> сұранысқа кіреді. Модельдің шақырулар арасында жады жоқ; әр ходта оған не істей алатыны қайтадан айтылады.</dd>
+                  <dt>tool_choice="auto"</dt>
+                  <dd>Модель tool шақыруы да, бірден жауап беруі де мүмкін. <code>"required"</code> арқылы мәжбүрлеу кейде пайдалы, әдетте тапсырманың шын мәнінде pipeline екенінің белгісі.</dd>
+                  <dt>assistant ходын сөзбе-сөз қосу</dt>
+                  <dd>Оның <code>tool_calls</code> бөлігімен қоса. Әр құрал жауабы шақыруға <code>tool_call_id</code> арқылы сәйкестендіріледі, ал олар сәйкес келмесе API келесі сұранысты қабылдамайды.</dd>
+                  <dt>tool_calls жоқ — демек бітті</dt>
+                  <dd>Тоқтау шарты осы ғана. Модель аяқтағанын жай ғана мәтінмен жауап беру арқылы білдіреді.</dd>
+                  <dt>range(MAX_STEPS)</dt>
+                  <dd>Мұндағы <code>while True</code> — жоғарғы шегі жоқ шот. Бізде ол 8.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">Шын мәнінде не жүріп-келеді</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-proto-t">
+                  <title id="fig-proto-t">Хабарламаның төрт рөлі және бір құрал шақыруы солар арқылы қалай тартылады</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">messages тізімі әр құрал шақыруына екі жазбадан өседі</text>
+
+                  <rect x="8" y="20" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="34" font-size="7.5" fill="#2563eb">system</text>
+                  <text x="60" y="34" font-size="7.5" fill="#111111">бәрін құралмен ізде; алмаған санды айтпа</text>
+
+                  <rect x="8" y="46" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="60" font-size="7.5" fill="#2563eb">user</text>
+                  <text x="60" y="60" font-size="7.5" fill="#111111">Астанадан Алматыға дейін қанша шақырым?</text>
+
+                  <rect x="8" y="72" width="324" height="30" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="86" font-size="7.5" fill="#2563eb">assistant</text>
+                  <text x="60" y="86" font-size="7.5" fill="#111111">content: &#8220;&#8221;</text>
+                  <text x="60" y="97" font-size="7.5" fill="#111111">tool_calls: [ id=c0, distance_km(origin=&#8230;, destination=&#8230;) ]</text>
+
+                  <rect x="8" y="106" width="324" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="120" font-size="7.5" fill="#2563eb">tool</text>
+                  <text x="60" y="120" font-size="7.5" fill="#111111">tool_call_id: c0 &#183; {&#8220;straight_line_km&#8221;: 972.7, &#8230;}</text>
+
+                  <path d="M52 92 L44 92 L44 118 L52 118" fill="none" stroke="#15803d" stroke-width="1.2" />
+                  <text x="268" y="70" font-size="7" fill="#15803d">id бойынша</text>
+
+                  <rect x="8" y="132" width="324" height="22" rx="4" fill="#2563eb" />
+                  <text x="14" y="146" font-size="7.5" fill="#ffffff">assistant</text>
+                  <text x="60" y="146" font-size="7.5" fill="#ffffff">972.7 шақырым. Жол қашықтығы 15-30% ұзын&#8230;</text>
+
+                  <rect x="8" y="166" width="324" height="40" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="180" font-size="8" fill="#111111" text-anchor="middle">төртінші хабарлама алғашқы үшеуімен бірге жіберіледі</text>
+                  <text x="170" y="192" font-size="8" fill="#5b6270" text-anchor="middle">бесіншісі — бәрі төртеуімен бірге, әрі қарай солай</text>
+                  <text x="170" y="203" font-size="7.5" fill="#b91c1c" text-anchor="middle">ақша дәл осы жерде кетеді</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Серверде сессия жоқ. Бүкіл әңгіме, құрал нәтижелерімен қоса, әр ходта қайта жүктеледі.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="tools">
+            <div class="container">
+              <span class="section__eyebrow">Тәжірибе &#183; Tools</span>
+              <h2 id="tools">Tool үш нәрседен тұрады</h2>
+              <p class="narrow lead">
+                Функция, схема және сөйлем. Студенттер біріншісін жазады, екіншісіне шыдайды, үшіншісін өткізіп жібереді — ал agent жұмыс істей ме дегенді дәл үшіншісі шешеді.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-tool-t">
+                  <title id="fig-tool-t">Құралдың үш бөлігі және әрқайсысын кім оқиды</title>
+                  <rect x="8" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="58" y="31" font-size="8.5" fill="#111111" text-anchor="middle">функция</text>
+                  <text x="58" y="45" font-size="7" fill="#5b6270" text-anchor="middle">def geocode(place):</text>
+                  <text x="58" y="56" font-size="7" fill="#5b6270" text-anchor="middle">API шақырады,</text>
+                  <text x="58" y="67" font-size="7" fill="#5b6270" text-anchor="middle">dict қайтарады</text>
+
+                  <rect x="120" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="31" font-size="8.5" fill="#111111" text-anchor="middle">схема</text>
+                  <text x="170" y="45" font-size="7" fill="#5b6270" text-anchor="middle">name, parameters,</text>
+                  <text x="170" y="56" font-size="7" fill="#5b6270" text-anchor="middle">типтер, required</text>
+                  <text x="170" y="67" font-size="7" fill="#5b6270" text-anchor="middle">&#8212; жарамды JSON</text>
+
+                  <rect x="232" y="16" width="100" height="58" rx="5" fill="#2563eb" />
+                  <text x="282" y="31" font-size="8.5" fill="#ffffff" text-anchor="middle">сипаттама</text>
+                  <text x="282" y="45" font-size="7" fill="#dbe7ff" text-anchor="middle">«қала туралы болжам</text>
+                  <text x="282" y="56" font-size="7" fill="#dbe7ff" text-anchor="middle">емес, факт керек</text>
+                  <text x="282" y="67" font-size="7" fill="#dbe7ff" text-anchor="middle">болғанда қолдан»</text>
+
+                  <text x="58" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">Python оқиды</text>
+                  <text x="170" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">API оқиды</text>
+                  <text x="282" y="90" font-size="7.5" fill="#2563eb" text-anchor="middle">модель оқиды</text>
+
+                  <rect x="8" y="104" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="119" font-size="8.5" fill="#111111" text-anchor="middle">сипаттама — prompt, әрі дәл соны пысықтап отырасыз</text>
+
+                  <text x="170" y="146" font-size="8" fill="#5b6270" text-anchor="middle">модель ешқашан таңдамайтын құрал әдетте нашар сипатталған,</text>
+                  <text x="170" y="158" font-size="8" fill="#5b6270" text-anchor="middle">нашар жазылған емес</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  9-дәрісте prompt туралы білгеніңіздің бәрі сипаттама өрісіне қатысты: нақты болыңыз, оны қашан қолдану <em>керек емес</em> екенін айтыңыз және сенудің орнына өлшеңіз.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>"geocode": {
+    "fn": geocode,
+    "schema": {
+        "name": "geocode",
+        "description": "Look up a place: coordinates, country, population, "
+                       "elevation and timezone. Use this whenever you need "
+                       "facts about a city rather than guessing them.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "place":   {"type": "string", "description": "City or town name, e.g. Shymkent"},
+                "country": {"type": "string", "description": "Optional ISO country code, e.g. KZ"},
+            },
+            "required": ["place"],
+        },
+    },
+},</code></pre></div>
+
+              <h3 style="margin-top: 44px">Алты құрал</h3>
+              <p class="narrow">
+                Agent — Қазақстан бойынша <strong>ештеңе білмейтін</strong> саяхат көмекшісі. Оның жауабындағы әр факт сіздің көз алдыңызда алынады. Agent деген осы, әрі бұл дәріс Қазақстан туралы дереккөзін көрсете алмайтын ештеңе айтпайтынын білдіреді.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Алты құрал және олардың дерегі қайдан келеді</caption>
+                  <thead>
+                    <tr><th scope="col">Құрал</th><th scope="col">Не қайтарады</th><th scope="col">Дереккөз</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>geocode</code></td><td>координаттар, ел, халық саны, биіктік, уақыт белдеуі</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>distance_km</code></td><td>екі жер арасындағы үлкен шеңбер бойынша қашықтық</td><td>жоғарыдағыдан есептеледі</td></tr>
+                    <tr><td><code>weather_forecast</code></td><td>күндік максимум, минимум және жауын-шашын, 16 күнге дейін</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>wikipedia</code></td><td>қысқаша мазмұн және URL, en / kk / ru тілдерінде</td><td>Wikipedia</td></tr>
+                    <tr><td><code>convert_currency</code></td><td>бүгінгі бағам, жарияланған күнімен</td><td>open.er-api.com</td></tr>
+                    <tr><td><code>calculate</code></td><td>арифметика, <code>eval</code> емес, талдағышпен өңделген</td><td>стандартты кітапхана</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="note">
+                <p style="margin-bottom: 0">
+                  Бұлардың ешқайсысына API кілт керек емес, сондықтан қалта кез келген жерде жұмыс істейді. Модельге керек: <code>OPENAI_API_KEY</code> кілтін <code>.env</code> ішіне қойыңыз немесе оны 9-дәрістің жергілікті серверіне бағыттаңыз — <code>llm.py</code> қолжетімдісін алады, ал agent өзіне қайсысы тигенін ешқашан білмейді.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="trace">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Жүгіріс</span>
+              <h2 id="trace">Бір сұрақ, басынан аяғына дейін</h2>
+              <p class="narrow lead">
+                Екі түрлі құралды қажет ететін қазақша сұрақ. Agent-ке екеуін қолдан деп те, қайсысын деп те ешкім айтқан жоқ.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 agent.py "Астанадан Алматыға дейін қанша шақырым және Алматыда ауа райы қандай?"</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>[1] distance_km(origin='Астана', destination='Алматы')
+    -> {"from": "Астана", "to": "Алматы", "straight_line_km": 972.7,
+        "note": "straight line, not road distance; a road route is typically 15-30% longer"}
+[2] weather_forecast(place='Алматы', days=7)
+    -> {"place": "Алматы", "unit": "celsius", "days": [
+        {"date": "2026-09-24", "max_c": 26.5, "min_c": 14.3, "precipitation_mm": 0.0}, ...]}
+
+ANSWER
+Астана мен Алматы арасындағы тікелей қашықтық 972.7 шақырым. Жол қашықтығы
+әдетте 15-30% ұзын болады.
+
+Алматыда алдағы 7 күндегі ауа райы:
+- 24 қыркүйек: максималды 26.5°C, минималды 14.3°C, жауын-шашын жоқ.
+- 25 қыркүйек: максималды 23.9°C, минималды 14.2°C, жауын-шашын жоқ.
+...
+
+2 tool calls, 1574 prompt tokens, 327 output tokens, 11.6 s
+prompt tokens per turn: 575 -> 999</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Он бір секундтық жұмыста нені байқау керек</span>
+                <dl class="breakdown__list">
+                  <dt>ол days=7 таңдады</dt>
+                  <dd>Аптаны ешкім сұраған жоқ. Сұрақта «ауа райы қандай» деген, схемада 1-ден 16-ға дейін деген; модель өзі таңдады. Agents ұсақ сұралмаған шешімдерді үнемі қабылдайды, ал бұл — зиянсыз түрі.</dd>
+                  <dt>ол қазақша жауап берді</dt>
+                  <dd>Құрал нәтижелері ағылшын тіліндегі JSON болып қайтты. Шығыстағы аударма тегін әрі нұсқаусыз орындалды.</dd>
+                  <dt>ол ескертпені әрі қарай жеткізді</dt>
+                  <dd><code>distance_km</code> құралы жол қашықтығы ұзынырақ екені туралы ескерту қайтарады, және сол ескерту пайдаланушыға жетті. Құрал нәтижесіндегі өріс — модельге арналған хабарлама: пайдаланыңыз.</dd>
+                  <dt>575, содан соң 999</dt>
+                  <dd>Екі ход, әрі екіншісі біріншіден 74% қымбат болды, өйткені оның ішінде бірінші ход пен екі құрал нәтижесі қайта жіберілді.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="recover">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Ақау</span>
+              <h2 id="recover">Бұзылып, өзін өзі жөндегенде</h2>
+              <p class="narrow lead">
+                Бүкіл архитектураны ақтайтын жүгіріс осы. Орысша сұрақ, жерді таба алмаған құрал және өзінің сынық құралын айналып өткен agent — оған қалай істеу керегін ешкім айтқан жоқ.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Что такое Чарынский каньон и далеко ли он от Алматы?
+
+[1] wikipedia(topic='Чарынский каньон', lang='ru')
+    -> {"title": "Чарынский каньон", "summary": "Чары́нский каньо́н — протянувшийся на 154 км ...
+[2] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. Try the Latin spelling ..."}
+[3] geocode(place='Charyn Canyon', country='KZ')
+    -> {"name": "Charyn Canyon National Park", "latitude": 43.3501, "longitude": 79.0696, ...}
+[4] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. ..."}
+[5] distance_km(origin='Almaty', destination='Charyn Canyon National Park')
+    -> {"from": "Almaty", "to": "Charyn Canyon National Park", "straight_line_km": 175.0, ...}
+
+5 tool calls, 4751 prompt tokens, 321 output tokens, 12.9 s
+prompt tokens per turn: 572 -> 903 -> 1014 -> 1088 -> 1174</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 172" role="img" aria-labelledby="fig-recover-t">
+                  <title id="fig-recover-t">Екі ақау, бір қайталанған қате және сәтті айналма жол</title>
+                  <rect x="8" y="16" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="30" font-size="7.5" fill="#111111" text-anchor="middle">[1] wikipedia</text>
+                  <text x="100" y="30" font-size="7.5" fill="#15803d">ok</text>
+
+                  <rect x="8" y="44" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="58" font-size="7.5" fill="#111111" text-anchor="middle">[2] distance_km</text>
+                  <text x="100" y="58" font-size="7.5" fill="#b91c1c">қате: кириллица</text>
+
+                  <rect x="8" y="72" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="86" font-size="7.5" fill="#111111" text-anchor="middle">[3] geocode</text>
+                  <text x="100" y="86" font-size="7.5" fill="#15803d">ok — латынша тапты</text>
+
+                  <rect x="8" y="100" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="114" font-size="7.5" fill="#111111" text-anchor="middle">[4] distance_km</text>
+                  <text x="100" y="114" font-size="7.5" fill="#b91c1c">дәл сол қате қайта</text>
+
+                  <rect x="8" y="128" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="142" font-size="7.5" fill="#111111" text-anchor="middle">[5] distance_km</text>
+                  <text x="100" y="142" font-size="7.5" fill="#15803d">ok — екі атау да латынша</text>
+
+                  <line x1="51" y1="38" x2="51" y2="44" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="66" x2="51" y2="72" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="94" x2="51" y2="100" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="122" x2="51" y2="128" stroke="#5b6270" stroke-width="1.1" />
+
+                  <rect x="232" y="44" width="100" height="78" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="282" y="60" font-size="7.5" fill="#111111" text-anchor="middle">[4]-қадам [2]-де</text>
+                  <text x="282" y="71" font-size="7.5" fill="#111111" text-anchor="middle">көрген ақауды</text>
+                  <text x="282" y="82" font-size="7.5" fill="#111111" text-anchor="middle">қайталады</text>
+                  <text x="282" y="99" font-size="7.5" fill="#b91c1c" text-anchor="middle">таза жүгірістен</text>
+                  <text x="282" y="110" font-size="7.5" fill="#b91c1c" text-anchor="middle">2.5x tokens</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Қалпына келу нақты, әрі ол тегін емес. Бес қадам 4&#8202;751 prompt tokens тұрды, ал таза екі қадамдық жүгіріс 1&#8202;574.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Бір trace ішіндегі үш бөлек сабақ</span>
+                <dl class="breakdown__list">
+                  <dt>үйреткен — қате туралы хабарлама</dt>
+                  <dd>Құрал жай құлаған жоқ, ол: <em>«латынша жазуды көріңіз, мысалы Almaty, Astana, Shymkent»</em> деді. Модель мұны оқып, [3]-қадамда латынша geocode жасады. Қате жолы да — prompt.</dd>
+                  <dt>ол таныс ақауды қайталады</dt>
+                  <dd>[4]-қадам [2]-қадаммен бірдей, ал ол әлдеқашан құлаған және тарихта әлі көрініп тұрған еді. Agents осылай істейді, сондықтан қадам шегі міндетті.</dd>
+                  <dt>нағыз түзету модельде емес, құралда болды</dt>
+                  <dd><code>geocode</code> алғашқы нұсқасы тек ағылшынша іздеді, сондықтан қазақша сұрақ сегіз қадамның төртеуін өз қалаларын таба алмауға жұмсады. Енді ол ағылшын, орыс және қазақ тілдерін, содан соң транслитерацияны көреді. Сол модель, сол prompt, екі есе аз қадам.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Trace нашар көрінсе, қай жағы кінәлі екенін сұраңыз. Мұнда — құрал, және мұны ешқандай prompt engineering түзетпес еді.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="refusing">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Ұстамдылық</span>
+              <h2 id="refusing">Ең арзан дұрыс жауап құралсыз болады</h2>
+              <div class="code-block" data-lang="output"><pre><code>Q: What will the weather be in Astana on 1 March next year?
+
+ANSWER
+I can only provide weather forecasts for up to 16 days in advance.
+Unfortunately, I cannot give you the weather for March 1st of next year.
+
+0 tool calls, 572 prompt tokens, 52 output tokens, 2.4 s</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                System prompt болжам шамамен екі аптаға ғана жететінін және мұны ойдан шығармай айту керегін жазады. Солай болды да, бірде-бір шақырусыз. Әрекет <em>етпеуді</em> білу — қабілет, әрі agent демонстрациялары ешқашан көрсетпейтіні дәл осы: 572 tokens, ал бұл беттегі ең қымбат жүгіріс 6&#8202;451.
+              </p>
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  Ол не істемегенін де байқаңыз: ол <code>weather_forecast</code>-ты ойдан шығарылған күнмен шақырып, қайтқанын қайталап айтпады. Мағынасыз шақырылған құрал әдетте бірдеңе қайтарады, ал «бірдеңе» — еркін сөйлейтін модельге сенімді әрі қате жауап құру үшін керегінің дәл өзі.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="parallel">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Тиімділік</span>
+              <h2 id="parallel">Екі ходта төрт шақыру</h2>
+              <p class="narrow lead">
+                Салыстыру сұрағына сол екі құрал екі реттен керек. Модель төртеуін бірден сұрады, ал бұл төрт рет сұраудан әлдеқайда арзан.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Compare Almaty and Shymkent: population, elevation, and the weather this week.
+   Which is warmer?
+
+turn 1  ->  geocode(Almaty), geocode(Shymkent),
+            weather_forecast(Almaty, 7), weather_forecast(Shymkent, 7)
+turn 2  ->  the answer
+
+4 tool calls, 2052 prompt tokens, 418 output tokens, 6.8 s
+prompt tokens per turn: 580 -> 1472</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-parallel-t">
+                  <title id="fig-parallel-t">Бір ходқа жиналған тәуелсіз шақырулар тізбектен арзан</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">топтап — 4 құрал, 2 ход, 2 052 prompt tokens</text>
+                  <rect x="8" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="28" y="30" font-size="7" fill="#ffffff" text-anchor="middle">1-ход</text>
+                  <rect x="54" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="80" y="30" font-size="6.5" fill="#111111" text-anchor="middle">geocode &#215;2</text>
+                  <rect x="110" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="136" y="30" font-size="6.5" fill="#111111" text-anchor="middle">weather &#215;2</text>
+                  <rect x="168" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="188" y="30" font-size="7" fill="#ffffff" text-anchor="middle">2-ход</text>
+                  <text x="216" y="30" font-size="7" fill="#15803d">жауап</text>
+
+                  <text x="8" y="60" font-size="8.5" fill="#5b6270">тізбектеп — 5 құрал, 5 ход, 4 751 prompt tokens</text>
+                  <rect x="8" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="25" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х1</text>
+                  <rect x="46" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="63" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х2</text>
+                  <rect x="84" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="101" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х3</text>
+                  <rect x="122" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="139" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х4</text>
+                  <rect x="160" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="177" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">х5</text>
+                  <text x="202" y="78" font-size="7" fill="#15803d">жауап</text>
+
+                  <rect x="8" y="98" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="113" font-size="8" fill="#111111" text-anchor="middle">бір құрал артық, бірақ үш ход артық — шот екі еседен көп өседі</text>
+
+                  <text x="170" y="138" font-size="8" fill="#5b6270" text-anchor="middle">шығын ход үшін, шақыру үшін емес — өйткені тарих</text>
+                  <text x="170" y="150" font-size="8" fill="#5b6270" text-anchor="middle">әр шақыруда емес, әр ходта қайта жіберіледі</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Тәуелсіз іздеулер бірге кетуі керек. Тізбек екінші қадамға бірінші қадамның нәтижесі шынымен керек болғанда ғана қажет.
+                </figcaption>
+              </div>
+
+              <p class="narrow">
+                Ол келген қорытынды тексерілетін, ал осылай істеудің мәні де сонда: <em>«Шымкент Алматыдан сәл жылырақ, 26.7&#8201;°C-қа қарсы 26.5&#8201;°C»</em> — модельден емес, болжам құралынан шыққан екі сан.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="cost">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Ақша</span>
+              <h2 id="cost">Цикл неге тұрады</h2>
+              <p class="narrow lead">
+                Жеті сұрақ, бір agent, бір модель. Бұл кесте — беттегі ең пайдалы нәрсе, өйткені шот келгенше мұны ешкім күтпейді.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Жеті agent жүгірісінің өлшенген құны</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Сұрақ</th>
+                      <th scope="col">Шақыру</th>
+                      <th scope="col">Ход</th>
+                      <th scope="col">Prompt tokens</th>
+                      <th scope="col">Шығыс</th>
+                      <th scope="col">Секунд</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Келесі жылғы 1 наурыздағы ауа райы <span class="token">бас тартты</span></td><td>0</td><td>1</td><td>572</td><td>52</td><td>2.4</td></tr>
+                    <tr><td>Шымкентте 3 күнге 500 USD</td><td>2</td><td>2</td><td>1 313</td><td>122</td><td>3.0</td></tr>
+                    <tr><td>Алматыда екі күн: не алу керек</td><td>2</td><td>2</td><td>1 397</td><td>233</td><td>4.5</td></tr>
+                    <tr><td>Астана&#8211;Алматы қашықтығы және ауа райы</td><td>2</td><td>2</td><td>1 574</td><td>327</td><td>11.6</td></tr>
+                    <tr><td>Алматы мен Шымкентті салыстыру</td><td>4</td><td>2</td><td>2 052</td><td>418</td><td>6.8</td></tr>
+                    <tr><td>Шарын каньоны <span class="token">қалпына келді</span></td><td>5</td><td>5</td><td>4 751</td><td>321</td><td>12.9</td></tr>
+                    <tr><td>Түркістанда 4 күнге 300 000 ₸</td><td>7</td><td>7</td><td>6 451</td><td>194</td><td>17.2</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-cost-t">
+                  <title id="fig-cost-t">Жеті өлшенген жүгіріс бойынша prompt tokens пен ход саны</title>
+                  <line x1="34" y1="16" x2="34" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <line x1="34" y1="126" x2="330" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <text x="8" y="20" font-size="7" fill="#5b6270">7k</text>
+                  <text x="8" y="75" font-size="7" fill="#5b6270">3.5k</text>
+                  <text x="8" y="129" font-size="7" fill="#5b6270">0</text>
+                  <text x="182" y="146" font-size="8" fill="#5b6270" text-anchor="middle">циклдегі ход саны</text>
+
+                  <rect x="46" y="117" width="26" height="9" fill="#2563eb" />
+                  <text x="59" y="136" font-size="7" fill="#5b6270" text-anchor="middle">1</text>
+                  <text x="59" y="113" font-size="6.5" fill="#111111" text-anchor="middle">572</text>
+
+                  <rect x="86" y="105" width="26" height="21" fill="#2563eb" />
+                  <text x="99" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="99" y="101" font-size="6.5" fill="#111111" text-anchor="middle">1313</text>
+
+                  <rect x="126" y="104" width="26" height="22" fill="#2563eb" />
+                  <text x="139" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="139" y="100" font-size="6.5" fill="#111111" text-anchor="middle">1397</text>
+
+                  <rect x="166" y="101" width="26" height="25" fill="#2563eb" />
+                  <text x="179" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="179" y="97" font-size="6.5" fill="#111111" text-anchor="middle">1574</text>
+
+                  <rect x="206" y="94" width="26" height="32" fill="#2563eb" />
+                  <text x="219" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="219" y="90" font-size="6.5" fill="#111111" text-anchor="middle">2052</text>
+
+                  <rect x="246" y="52" width="26" height="74" fill="#b91c1c" />
+                  <text x="259" y="136" font-size="7" fill="#5b6270" text-anchor="middle">5</text>
+                  <text x="259" y="48" font-size="6.5" fill="#111111" text-anchor="middle">4751</text>
+
+                  <rect x="286" y="26" width="26" height="100" fill="#b91c1c" />
+                  <text x="299" y="136" font-size="7" fill="#5b6270" text-anchor="middle">7</text>
+                  <text x="299" y="22" font-size="6.5" fill="#111111" text-anchor="middle">6451</text>
+
+                  <text x="170" y="161" font-size="8" fill="#111111" text-anchor="middle">2 ход не істесе де ~1.4k тұрады; 7 ход — 6.5k</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Құн шақыруға емес, ходқа байланысты. Екі ходтағы 4 шақыру бес ходтағы 5 шақырудан арзан.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Құн неге дәл осылай өседі</span>
+                <dl class="breakdown__list">
+                  <dt>әр ход бәрін қайта жібереді</dt>
+                  <dd><em>n</em>-ход system prompt-ты, сұрақты және осы кезге дейінгі барлық assistant пен tool хабарламасын алып жүреді. Ең ұзын жүгіріс 588 → 669 → 728 → 822 → 1 055 → 1 274 → 1 315 tokens болды.</dd>
+                  <dt>сондықтан жиыны — көбейтінді емес, қосынды</dt>
+                  <dd>Шамамен <code>қадам × орташа тарих</code>, әрі орташа тарихтың өзі қадаммен бірге өседі. Қадамды екі есе көбейту шотты екі еседен артық өсіреді: 2 ход 1 574 тұрады, 7 ход — 6 451, яғни 3.5&#215; ход 4.1&#215; tokens береді.</dd>
+                  <dt>құрал схемалары да әр ходта</dt>
+                  <dd>Біздің алты схема шамамен 500 tokens, ең ауыр жүгірістің жеті ходының бәрінде қайта жіберіледі. Жиырма құрал әңгіменің өзінен қымбат тұрар еді.</dd>
+                  <dt>ақау екі рет төленеді</dt>
+                  <dd>Сәтсіз шақыру бір ходқа тұрады, содан соң оның қате туралы хабарламасы тарихта жатып, жүгіріс соңына дейін қайта жіберіледі.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  8-дәріс tokens саны мен жарияланған тарифтен шотты қалай есептеуді көрсетті; арифметика сол күйі. Өзгеретіні — tokens санын енді сұраққа қарап болжай алмайсыз, өйткені ход санын модель шешеді.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="disobeyed">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Адалдық</span>
+              <h2 id="disobeyed">Ол елемеген нұсқау</h2>
+              <p class="narrow lead">
+                System prompt-та мынадай жол бар, рухы жағынан бас әріппен: <em>«Әр қосынды, жиынтық немесе күндік шама үшін calculate қолдан. Ойша есептеме.»</em>
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: I have 500 USD for three days in Shymkent. What is that per day in tenge?
+
+[1] convert_currency(amount=500, from_currency='USD', to_currency='KZT')
+    -> {"converted": 222439.02, "rate": 444.878043, "rate_date": "Thu, 24 Sep 2026 ..."}
+[2] calculate(expression='500/3')
+    -> {"result": 166.666667}
+
+ANSWER
+500 USD is approximately 222,439.02 KZT at the exchange rate of 444.88 KZT per USD
+on September 24, 2026.
+
+For three days, that amounts to about 166.67 USD per day, which is approximately
+74,146.34 KZT per day.</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Бөлулерді санаңыз. Ол <code>500/3</code> үшін <code>calculate</code> шақырды, содан соң <strong>74&#8202;146.34</strong> шығарды — бұл <code>222439.02 / 3</code> — ештеңе шақырмай. Екінші бөлуді ол өз нұсқауына тікелей қайшы, ойша жасады.
+              </p>
+
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  <strong>Әрі жауап дұрыс.</strong> 222&#8202;439.02 ÷ 3 = 74&#8202;146.34 дәл солай. Бөлімнің жазылу себебі де осы: ақау шығыста көрінбейді. Оны тек trace-тен және тек санасаң ғана көресің. Нұсқауларын 90% жағдайда орындайтын agent әрқашан орындайтынмен бірдей көрінеді — қалған 10% маңызды жерге түскенше.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Онымен шын мәнінде не істер едіңіз</span>
+                <dl class="breakdown__list">
+                  <dt>өлшеу</dt>
+                  <dd>Жиырма ақша сұрағын жүгіртіп, қаншауы сәйкес <code>calculate</code> шақыруынсыз санға келетінін санаңыз. Тағы да 9-дәрістің ережесі: prompt туралы өлшенбеген тұжырым — пікір.</dd>
+                  <dt>құралды жалғыз жол ету</dt>
+                  <dd><code>convert_currency</code> құралына <code>divide_by</code> аргументін беріңіз, сонда күндік шама сол саны бар құралдан қайтады. «Ол құралды қолданбады» дегеннің ең жақсы емі әдетте жақсырақ құрал.</dd>
+                  <dt>кейін кодта тексеру</dt>
+                  <dd>Соңғы жауаптан сандарды алып, әрқайсысы қандай да бір құрал нәтижесінде кездесетінін тексеріңіз. Он жол, әрі дәл осы жағдайды ұстайды.</dd>
+                  <dt>prompt-та жай айқайламау</dt>
+                  <dd>Бас әріппен «ӘРҚАШАН құралды қолдан» — бірінші рефлекс және төртеуінің ең әлсізі.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="failures">
+            <div class="container">
+              <span class="section__eyebrow">Тәжірибе &#183; Беріктік</span>
+              <h2 id="failures">Циклді бұзудың алты жолы</h2>
+              <p class="narrow lead">
+                Олардың әрқайсысы қалтада тестпен қамтылған, өйткені agent бәрін нақты жұмыстың алғашқы сағатында кездестіреді.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Ақау түрлері және agent не алады</caption>
+                  <thead>
+                    <tr><th scope="col">Не болады</th><th scope="col">Agent не алады</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Ол құрал ойлап табады: <code>book_a_hotel</code></td><td><code>{"error": "there is no tool called 'book_a_hotel'. Available: geocode, distance_km, …"}</code></td></tr>
+                    <tr><td>Аргументтер жарамды JSON емес</td><td><code>{"error": "arguments were not valid JSON: '{not json'"}</code></td></tr>
+                    <tr><td>Аргумент атаулары қате</td><td><code>{"error": "wrong arguments for distance_km: got an unexpected keyword argument 'city_a'"}</code></td></tr>
+                    <tr><td>API істен шыққан (жүгіріс кезінде нақты 503 болды)</td><td><code>{"error": "could not reach api.open-meteo.com (HTTP Error 503)"}</code></td></tr>
+                    <tr><td><code>calculate("__import__('os').system('echo pwned')")</code></td><td><code>{"error": "only + - * / // % ** and numbers are allowed"}</code></td></tr>
+                    <tr><td>Ол құрал шақыруды тоқтатпайды</td><td>цикл <code>MAX_STEPS = 8</code> кезінде тоқтап, тапқанын хабарлайды</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Сол кестенің артындағы төрт ереже</span>
+                <dl class="breakdown__list">
+                  <dt>қателер — дерек, ешқашан ерекшелік емес</dt>
+                  <dd>Әр құрал ерекшелік тастаудың орнына <code>{"error": ...}</code> қайтарады. Ерекшелік тастайтын құрал циклді өлтіріп, әлдеқашан төленген жұмысты лақтырып тастайды; қате қайтаратын құрал модельге басқаша көруге мүмкіндік береді — Шарын жүгірісінің [3]-қадамында дәл солай болды.</dd>
+                  <dt>қате туралы хабарламаны модельге арнап жазыңыз</dt>
+                  <dd><em>«латынша жазуды көріңіз, мысалы Almaty, Astana, Shymkent»</em> — бұл лог файлға арналмаған. Бұл дәл керек сәтте жеткізілген prompt, және қалпына келуді дәл сол туғызды.</dd>
+                  <dt>модель шығысына ешқашан <code>eval</code> жоқ</dt>
+                  <dd>Модель — пайдаланушы сияқты сенімсіз дереккөз, ал agent ішінде одан да жаман, өйткені оған ашық интернеттен келген құрал нәтижелері ағып кіреді. <code>calculate</code> синтаксис ағашын қолмен аралап, сандар мен алты операторды ғана қабылдайды.</dd>
+                  <dt>қадам санын шектеңіз</dt>
+                  <dd>Бұл қорғаныш бағдарламалау емес, арифметика: шегі жоқ цикл — шотыңыздан шексіз есептен шығару, ал модельдер сәтсіз шақыруларды шынымен қайталайды. Біз мұны көрдік.</dd>
+                </dl>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-guard-t">
+                  <title id="fig-guard-t">Әр қоршау циклдің айналасында қай жерде тұр</title>
+                  <rect x="86" y="42" width="168" height="62" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="60" font-size="8.5" fill="#111111" text-anchor="middle">цикл</text>
+                  <text x="170" y="74" font-size="7.5" fill="#5b6270" text-anchor="middle">модель &#8594; құрал &#8594; модель</text>
+                  <text x="170" y="88" font-size="7.5" fill="#5b6270" text-anchor="middle">&#8230; тоқтағанша</text>
+
+                  <rect x="86" y="14" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">қадам шегі &#183; цикл мәңгі жүре алмайды</text>
+
+                  <rect x="8" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="43" y="60" font-size="7.5" fill="#111111" text-anchor="middle">аргументтерді</text>
+                  <text x="43" y="72" font-size="7" fill="#5b6270" text-anchor="middle">кодқа жетпей</text>
+                  <text x="43" y="86" font-size="7" fill="#5b6270" text-anchor="middle">тұрып</text>
+                  <text x="43" y="96" font-size="7" fill="#5b6270" text-anchor="middle">тексеріңіз</text>
+
+                  <rect x="262" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="297" y="60" font-size="7.5" fill="#111111" text-anchor="middle">қателер</text>
+                  <text x="297" y="72" font-size="7.5" fill="#111111" text-anchor="middle">дерек ретінде</text>
+                  <text x="297" y="86" font-size="7" fill="#5b6270" text-anchor="middle">қалпына келе</text>
+                  <text x="297" y="96" font-size="7" fill="#5b6270" text-anchor="middle">алуы үшін</text>
+
+                  <rect x="86" y="112" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="126" font-size="7.5" fill="#ffffff" text-anchor="middle">әрекет алдында шығысты тексеріңіз</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Бұлардың ешқайсысы модельді жақсартуға қатысты емес. Бұлар циклдің кейде қателесетін модельден аман шығуы үшін.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="when">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Пайымдау</span>
+              <h2 id="when">Оны қашан құрмау керек</h2>
+              <p class="narrow lead">
+                Agents — қазіргі саладағы ең артық қолданылатын идея. Тексеру қарапайым: қадам саны кіріс деректерге шынымен тәуелді ме?
+              </p>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Pipeline жазыңыз</h3>
+                  <p>
+                    Бұл пікірлерді классификациялау. Бұл құжатты қысқарту. Бұл бетті аудару. Осы бес үзінді бойынша жауап беру. Қадамдар әрқашан бірдей, ендеше соларды жазыңыз: құны төмен, latency тұрақты, әрі кәдімгі тестпен тексерілетін бағдарлама аласыз.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Agent жазыңыз</h3>
+                  <p>
+                    Не керек болатынын алдын ала білу мүмкін емес сұрақтар: бір іздеу ме, алты ма, бұл құрал ма, анау ма, қазір тоқтау ма, жалғастыру ма. Бюджет туралы сұрағымызға жеті шақыру керек болды; болжам сұрағына бірде-бірі. Екеуін де қамтитын pipeline жоқ.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 32px">
+                <span class="breakdown__label">Циклді таңдап нені қиясыз</span>
+                <dl class="breakdown__list">
+                  <dt>болжамды құнды</dt>
+                  <dd>Осы бетте өлшенген: пайдаланушы бірдей қарапайым деп санайтын сұрақтарға 572-ден 6 451 prompt tokens-ке дейін. 11&#215; шашырау.</dd>
+                  <dt>болжамды кідірісті</dt>
+                  <dd>2.4 с-тан 17.2 с-қа дейін. Адам күтіп тұрса, сол ауқым өнімнің өзі.</dd>
+                  <dt>қайталанымдылықты</dt>
+                  <dd>Сол сұрақ басқа күні басқа жолмен жүруі мүмкін. Temperature-ді төмен бекітіңіз, әр trace-ті логтаңыз және жүгіріс дәлел емес, айғақ екенін қабылдаңыз.</dd>
+                  <dt>оңай тестілеуді</dt>
+                  <dd>Бір шығысты assert-пен тексеру енді мүмкін емес. Құралдар бөлек тестіленеді, ал цикл сценарийлі модельге қарсы — жоғарыдағы алты ақау түрі дәл осылай, бір тиын жұмсамай тексерілген.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Пайдалы рет: prompt, содан соң retrieval, содан соң agent, содан соң fine-tuning. Бұл 9-дәрістің реті, тағы бір басқышпен, әрі басқыш сайын қымбаттайды.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">Аудиторияда</span>
+              <h2 id="lab">Зертхана</h2>
+              <p class="narrow lead">
+                Интерфейс бір нәрсе үшін бар: қадамдары көрінбейтін agent — жөндеуге де, сенуге де болмайтын agent. Trace — басты мүмкіндік.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code># one of the two, in the repository's .env
+OPENAI_API_KEY=sk-...
+# or reuse Lecture 9's local server instead:  cd ../lesson9 && ./serve.sh
+
+pip install -r requirements.txt
+python3 agent.py --demo                      # the runs on this page, in the terminal
+python3 agent.py "How far is Turkistan from Shymkent?"
+python3 app.py                               # http://127.0.0.1:7861</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Сұраңыз</h3>
+                  <p>Қазақша, орысша немесе ағылшынша. Құрал нәтижелері қай тілде келсе де, agent сұрақтың тілінде жауап береді.</p>
+                </div>
+                <div class="card">
+                  <h3>Қараңыз</h3>
+                  <p>Әр құрал шақыруы аргументтерімен және нәтижесімен, сәтті болса жасыл, болмаса қызыл. Демонстрация кезінде осы бағанға қарау керек.</p>
+                </div>
+                <div class="card">
+                  <h3>Санаңыз</h3>
+                  <p>Құрал шақырулары, prompt tokens, output tokens, секундтар және астында басылатын ходтар бойынша tokens өсімі. Циклдің құны нақты уақытта.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <code>llm.py</code> <code>.env</code> файлын оқып, backend таңдайды: кілт берілсе OpenAI, әйтпесе 9-дәрістің жергілікті <code>llama-server</code>-і. Agent коды өзіне қайсысы тигенін ешқашан білмейді — «agent деген цикл, өнім емес» дегеннің практикалық мәні осы.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Аудиторияда</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">Аяқтамас бұрын бірге жауап беретін сегіз сұрақ.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">Әріптесіңіз өзінің RAG жүйесін «agent» дейді, өйткені онда төрт қадам бар. Ол дұрыс айта ма?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Жоқ. Қадам — шешім емес. Егер әр сұрақ сол төрт қадаммен жүрсе, жолды бағдарламашы таңдаған, демек бұл pipeline. Тексеру — қадам саны кіріске қарай өзгере ме: бізде бес сұраққа 0, 2, 4, 5 және 7 шақыру болды.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">Цикл agent-тің бітіргенін қайдан біледі?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Модель мәтінмен және <code>tool_calls</code>-сыз жауап береді. Тоқтау шарты осы ғана — арнайы «дайын» сигналы жоқ. Сондықтан да қадам шегі керек: модельдің тоқтауды таңдайтынына ешнәрсе кепілдік бермейді.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">Бір жүгіріс 4 шақыру жасап 2 052 prompt tokens тұрды. Екіншісі 5 шақыру жасап 4 751. Неге бір артық шақыру екі еседен қымбат?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Өйткені шақырулар емес, ходтар төленеді. 4 шақырулық жүгіріс төртеуін бірден сұрады, сондықтан ход екеу болды. 5 шақырулық жүгіріс оларды тізбектеді, сондықтан ход бесеу болды, ал әр ход бүкіл тарихты және алты құрал схемасын қайта жібереді. Тәуелсіз іздеулерді топтаңыз; тізбекті екінші қадамға біріншінің нәтижесі керек болғанда ғана құрыңыз.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Құрал <code>{"error": ...}</code> қайтарудың орнына Python ерекшелігін тастайды. Не бұзылады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Цикл өледі, оған дейін жұмсалған барлық tokens босқа кетеді, пайдаланушы stack trace көреді, ал модель қалпына келу мүмкіндігінен айырылады. Шарын жүгірісі — қарама-қарсы мысал: қате дерек болып келді, модель ондағы нұсқауды оқыды, латыншаға көшті де аяқтады.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">Agent-ке әр қосынды үшін <code>calculate</code> қолдану айтылған еді. Ол 222 439.02-ні 3-ке ойша бөліп, дұрыс жауап алды. Мұнда мәселе бар ма?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Иә, әрі жауаптың дұрыс болуы — дәл сол мәселе. Нұсқау үнсіз бұзылды; шығыста бұл көрінбейді. Келесі жолы сан күрделірек болады да, жауап дәл сол сенімді үнмен қате болады. Жақсырақ құралмен (айырбастау <code>divide_by</code> қабылдасын) немесе жауаптағы әр сан қандай да бір құрал нәтижесінде бар ма деп кодта тексерумен түзетіңіз.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-сұрақ</h3>
+                  <p class="challenge__task"><code>calculate</code> неге <code>eval</code> емес, AST аралаумен жазылған?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Өйткені өрнекті модель жазады, ал модель Wikipedia мен ашық API-лардан мәтін оқиды. Бұл — сіздің процесіңізде аяқталатын сенімсіз тізбек. <code>__import__('os').system('echo pwned')</code> орындауды сұрағанда құрал <code>only + - * / // % ** and numbers are allowed</code> деп жауап береді. <code>eval</code>-мен ол мұны орындар еді.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-сұрақ</h3>
+                  <p class="challenge__task">Agent келесі жылғы наурыздағы ауа райы туралы сұраққа бірде-бір құрал шақырмай жауап берді. Бұл сәтсіздік пе?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Жоқ — бұл беттегі ең жақсы жүгіріс. System prompt болжам шамамен екі аптаға жететінін және мұны ойдан шығармай айту керегін жазған, солай болды да, 572 tokens және 2.4 с. Қорқатыны — керісінші: құралды мағынасыз күнмен шақырып, бірдеңе алып, оны сеніммен қайталап айту.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-сұрақ</h3>
+                  <p class="challenge__task">Agent қазақ қала атауларында үнемі сүрінді. Мұнда жақсырақ prompt көмектесер ме еді?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Жоқ. <code>geocode</code> анықтамалықтан тек ағылшынша іздеді, сондықтан «Алматы» құрал үшін тура мағынасында жоқ еді, әрі сегіз қадамның төртеуі сәтсіз іздеуге кетті. Түзету құралда болды: ағылшын, орыс және қазақ тілдерін, содан соң транслитерацияны көру. Trace нашар көрінгенде, әуелі модель нашар пайымдады ма әлде құрал нашар жауап берді ме, соны шешіңіз.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Тәжірибе</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                <code>code_files/lesson10/</code> ішінде жұмыс істеңіз. Мұндағының бәрі — бір команда немесе бір шағын түзету.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-тапсырма — Кестені қайталаңыз</h3>
+                  <p class="challenge__task"><code>python3 agent.py --demo</code> жүгіртіп, өз шақыру сандарыңыз бен tokens жиынын жоғарыдағы кестемен салыстырыңыз. Олар дәл сәйкес келмейді. Бұл неге баг емес, күтілетін нәрсе екенін бір сөйлеммен жазыңыз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>2-тапсырма — Сипаттаманы бұзыңыз</h3>
+                  <p class="challenge__task"><code>tools.py</code> ішінде <code>geocode</code> сипаттамасын жай ғана «Looks up a place.» деп өзгертіңіз. Халық саны керек үш сұрақ қойыңыз. Ол әлі де құралды шақыра ма, әлде болжай бастай ма? Сіз сипаттаманың неге тұратынын өлшеп шықтыңыз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>3-тапсырма — Арифметиканы мәжбүрлеңіз</h3>
+                  <p class="challenge__task"><code>convert_currency</code> құралына <code>divide_by</code> аргументін қосып, күндік шама құралдан қайтатын етіңіз. 500 USD сұрағын қайта жүгіртіңіз. Дереккөзсіз бөлу жоғала ма?</p>
+                </article>
+                <article class="challenge">
+                  <h3>4-тапсырма — Шекті төмендетіңіз</h3>
+                  <p class="challenge__task"><code>--max-steps 2</code> қойып, жеті қадам керек болған Түркістан бюджеті сұрағын қойыңыз. Не қайтатынын оқыңыз. Содан соң шекке жеткенде нағыз өнім не істеуі керегін шешіңіз: кешірім сұрау, ішінара жауап беру немесе эскалациялау?</p>
+                </article>
+                <article class="challenge">
+                  <h3>5-тапсырма — Құрал қосыңыз</h3>
+                  <p class="challenge__task"><code>geocode</code> әлдеқашан қайтаратын уақыт белдеуін пайдаланып <code>timezone_difference(place_a, place_b)</code> жазыңыз. Тіркеңіз де, agent оны айтқызбай-ақ таңдайтын сұрақ табыңыз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>6-тапсырма — Дереккөздерді тексеріңіз</h3>
+                  <p class="challenge__task">Соңғы жауаптан әр санды алып, ол сол жүгірістің құрал нәтижелерінде кездесетінін тексеретін скрипт жазыңыз. Жеті демо-сұраққа жүгіртіңіз. Осы беттегіден басқа қанша дереккөзсіз сан табасыз?</p>
+                </article>
+                <article class="challenge">
+                  <h3>7-тапсырма — Екі backend</h3>
+                  <p class="challenge__task">Бір сұрақты OpenAI арқылы және 9-дәрістің жергілікті 4&#8202;B моделі арқылы жүгіртіңіз. Құрал таңдауын, қадам санын және жалпы tokens-ті салыстырыңыз. «Агенттіктің» қай бөліктері кішірек модельде де сақталады?</p>
+                </article>
+                <article class="challenge">
+                  <h3>8-тапсырма — Өтірік айтатын құрал</h3>
+                  <p class="challenge__task"><code>convert_currency</code> бағамды он есе үлкен қайтаратын етіңіз. Бюджет туралы сұрақ қойыңыз. Agent бірдеңе дұрыс емес екенін байқай ма? Бұл құрал шығысына сену туралы нені білдіретінін екі сөйлеммен жазыңыз.</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Қорытынды</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Agent — модель келесі әрекетті өзі таңдайтын цикл; тек қадамдар pipeline-ды agent-ке айналдырмайды</li>
+                <li>Цикл шамамен жиырма жол: құралдармен сұра, сұралғанын орында, нәтижелерін қос, қайта сұра</li>
+                <li>Ол модель мәтінмен әрі tool calls-сыз жауап бергенде тоқтайды — сондықтан қадам шегі міндетті</li>
+                <li>Tool — функция, JSON схемасы және сипаттама; сипаттама prompt болып табылады және құралдың мүлдем қолданылатынын шешеді</li>
+                <li>Біздің agent Қазақстан туралы ештеңе білмейді: әр қашықтық, болжам, бағам және сипаттама орындалу кезінде алынды</li>
+                <li>Сол agent бес қарапайым сұраққа 0, 2, 4, 5 және 7 шақыру жасады — жолды сұраққа қарап болжай алмайсыз</li>
+                <li>Шақыру емес, ход төленеді: 2 ходтағы 4 шақыру 2 052 tokens тұрды; 5 ходтағы 5 шақыру — 4 751</li>
+                <li>Құн жеті сұрақта 572-ден 6 451 prompt tokens-ке дейін өсті, 11&#215; шашырау, ал кідіріс 2.4 с-тан 17.2 с-қа дейін</li>
+                <li>Қателер ерекшелік емес, дерек болуға тиіс — agent-тің сәтсіз іздеуден кейін қалпына келуіне дәл осы мүмкіндік берді</li>
+                <li>Қате туралы хабарламаны модельге арнап жазыңыз: «латынша жазуды көріңіз» дегеннің өзі қалпына келуді туғызды</li>
+                <li>Agents сәтсіз шақыруларды қайталайды: біздікі өз тарихында әлі көріп тұрған бірдей құлайтын шақыруды қайта жіберді</li>
+                <li>Модель шығысына ешқашан <code>eval</code> жоқ; <code>calculate</code> <code>__import__('os').system(...)</code> дегеннен бас тартты</li>
+                <li>Ол <code>calculate</code> қолдану туралы өз нұсқауын бұзып, бәрібір дұрыс жауап алды — бұл тек trace-те көрінеді</li>
+                <li>Беттегі ең жақсы жүгіріс бірде-бір құрал шақырмады, өйткені адал жауап «мен мұны біле алмаймын» еді</li>
+                <li>Нашар trace модельдің емес, құралдың кінәсі болды: қазақ атауларын түзету қадам санын екі есе азайтты</li>
+                <li>Prompt, содан соң retrieval, содан соң agent, содан соң fine-tuning — дәл осы ретпен, өйткені әр басқыш қымбаттау</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; 10-дәріс &middot; 2026 жылғы 24 қыркүйек</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

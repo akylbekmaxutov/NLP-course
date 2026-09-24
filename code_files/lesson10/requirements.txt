@@ -1,0 +1,16 @@
+# Lecture 10 — AI agents
+#
+# The agent needs a model that supports tool calling. Either:
+#   OpenAI   put  OPENAI_API_KEY=sk-...  in the repository's .env file
+#   local    start Lecture 9's server:  cd ../lesson9 && ./serve.sh
+# The code is identical for both; only the base URL changes.
+
+openai>=1.40      # the client, for both backends
+gradio>=6.0       # the browser interface
+
+# The six tools use only the standard library and these public APIs,
+# none of which need a key:
+#   geocoding-api.open-meteo.com   places
+#   api.open-meteo.com             weather
+#   xx.wikipedia.org               descriptions, in en / kk / ru
+#   open.er-api.com                exchange rates

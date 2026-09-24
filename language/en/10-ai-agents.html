@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agents | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 10: what makes a program an agent rather than a pipeline, the loop in twenty lines, tools as JSON schemas, a real trace end to end, how agents recover from their own mistakes, what a loop costs in tokens, and the guardrails that keep one safe."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/10-ai-agents.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/10-ai-agents.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/10-ai-agents.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/10-ai-agents.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/10-ai-agents.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/10-ai-agents.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 10</span>
+              <h1>AI Agents</h1>
+              <p class="hero__subtitle">
+                In Lecture 9 we handed the model a document and it answered. Here
+                we hand it a set of tools and let it decide what to do with them.
+                That one change &#8212; the model choosing the next action instead
+                of following our pipeline &#8212; is the whole of what people mean
+                by an agent, and it brings a new kind of bug and a new kind of bill.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Say what an agent is</h3>
+                  <p>And, more usefully, what it is not: a fixed pipeline with a model in it is not an agent, however many steps it has.</p>
+                </div>
+                <div class="card">
+                  <h3>Write the loop</h3>
+                  <p>Twenty lines, no framework. Ask, check for tool calls, run them, append the results, ask again.</p>
+                </div>
+                <div class="card">
+                  <h3>Design a tool</h3>
+                  <p>A function, a JSON schema, and a sentence saying when to use it. The sentence is a prompt and it decides whether the agent works.</p>
+                </div>
+                <div class="card">
+                  <h3>Read a trace</h3>
+                  <p>Tell a model that reasoned badly from a tool that failed, and know which of the two to fix.</p>
+                </div>
+                <div class="card">
+                  <h3>Predict the bill</h3>
+                  <p>Every step resends the whole history. Know why seven steps cost five times what two steps cost, not three and a half.</p>
+                </div>
+                <div class="card">
+                  <h3>Put guardrails on it</h3>
+                  <p>Step limits, argument validation, errors as data, and never <code>eval</code>. An agent is a loop that spends your money.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Every trace on this page is real.</strong> The agent in
+                  <code>code_files/lesson10/</code> was run against
+                  <code>gpt-4o-mini</code> on 24 September 2026 and the steps,
+                  token counts and timings are copied out of those runs &#8212;
+                  including the ones where it got things wrong.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="what">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The idea</span>
+              <h2 id="what">Pipeline, or agent?</h2>
+              <p class="narrow lead">
+                Lecture 9&#8217;s RAG system had four steps and not one of them was
+                a decision. Embed the question, fetch five passages, build the
+                prompt, generate. Every question took exactly that path, because
+                we wrote that path.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-vs-t">
+                  <title id="fig-vs-t">A pipeline runs the steps you wrote; an agent chooses its own</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">RAG, Lecture 9 &#8212; you wrote the order</text>
+                  <rect x="8" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="31" font-size="7.5" fill="#111111" text-anchor="middle">question</text>
+                  <line x1="66" y1="28" x2="80" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="109" y="31" font-size="7.5" fill="#111111" text-anchor="middle">retrieve</text>
+                  <line x1="138" y1="28" x2="152" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="152" y="18" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="181" y="31" font-size="7.5" fill="#111111" text-anchor="middle">prompt</text>
+                  <line x1="210" y1="28" x2="224" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="224" y="18" width="58" height="20" rx="4" fill="#2563eb" />
+                  <text x="253" y="31" font-size="7.5" fill="#ffffff" text-anchor="middle">answer</text>
+                  <text x="290" y="31" font-size="7.5" fill="#5b6270">always</text>
+
+                  <line x1="8" y1="54" x2="332" y2="54" stroke="#e5e7eb" stroke-width="1" />
+
+                  <text x="8" y="72" font-size="9" fill="#5b6270">an agent &#8212; the model picks</text>
+                  <rect x="8" y="78" width="58" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="91" font-size="7.5" fill="#111111" text-anchor="middle">question</text>
+                  <line x1="66" y1="88" x2="80" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="80" y="74" width="76" height="28" rx="5" fill="#2563eb" />
+                  <text x="118" y="85" font-size="8" fill="#ffffff" text-anchor="middle">the model</text>
+                  <text x="118" y="95" font-size="7" fill="#dbe7ff" text-anchor="middle">what next?</text>
+
+                  <line x1="156" y1="88" x2="172" y2="88" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="172" y="60" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="71" font-size="7" fill="#111111" text-anchor="middle">geocode</text>
+                  <rect x="172" y="80" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="91" font-size="7" fill="#111111" text-anchor="middle">weather</text>
+                  <rect x="172" y="100" width="66" height="16" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="205" y="111" font-size="7" fill="#111111" text-anchor="middle">wikipedia</text>
+                  <text x="205" y="128" font-size="7" fill="#5b6270" text-anchor="middle">&#8230; or none of them</text>
+
+                  <path d="M238 88 L252 88 L252 122 L118 122 L118 102" fill="none" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="118,102 115.5,107 120.5,107" fill="#5b6270" />
+                  <text x="258" y="91" font-size="7.5" fill="#5b6270">result</text>
+
+                  <line x1="156" y1="74" x2="166" y2="66" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="262" y="140" width="70" height="20" rx="4" fill="#2563eb" />
+                  <text x="297" y="153" font-size="7.5" fill="#ffffff" text-anchor="middle">answer</text>
+                  <path d="M118 102 L118 150 L262 150" fill="none" stroke="#5b6270" stroke-width="1.2" stroke-dasharray="3 2" />
+                  <text x="150" y="147" font-size="7" fill="#5b6270">when it decides it is done</text>
+
+                  <rect x="8" y="168" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="182" font-size="8" fill="#111111" text-anchor="middle">measured below: 0, 2, 4, 5 and 7 tool calls on five questions</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  The loop is the difference. Not the tools, not the prompt
+                  &#8212; the fact that the number of steps is decided at run time
+                  by the model rather than at write time by you.
+                </figcaption>
+              </div>
+
+              <div class="definition">
+                <p>
+                  An <strong>agent</strong> is a loop in which a language model
+                  chooses an action, sees the result, and chooses again, until it
+                  decides it is finished. The actions are called <strong>tools</strong>:
+                  ordinary functions you expose to it.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Three things this buys, and what each one costs</span>
+                <dl class="breakdown__list">
+                  <dt>it can do things</dt>
+                  <dd>A model on its own produces text. A model with tools can look up a forecast, convert money, or send an email. The cost is that it can now do something wrong, not merely say something wrong.</dd>
+                  <dt>it adapts the number of steps</dt>
+                  <dd>Easy question, one call; awkward question, seven. Measured here: the same agent answered one question with no tools at all and another with seven calls. The cost is that you cannot predict the bill from the question.</dd>
+                  <dt>it recovers</dt>
+                  <dd>When a tool returns an error, it can try something else &#8212; and it did, twice, in the runs below. The cost is that it can also loop, and something has to stop it.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  If your task always needs the same three steps, write the three
+                  steps. A pipeline you can read is worth more than an agent you
+                  have to supervise.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="loop">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; The mechanism</span>
+              <h2 id="loop">The loop, in twenty lines</h2>
+              <p class="narrow lead">
+                There is no framework in this folder and there does not need to
+                be. An agent is a <code>while</code> loop around the chat call
+                you already know from Lecture 9.
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>messages = [{"role": "system", "content": SYSTEM},
+            {"role": "user",   "content": question}]
+
+for step in range(MAX_STEPS):
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools.openai_tools(),     # the schemas, sent every turn
+        tool_choice="auto",             # the model decides whether to call one
+    )
+    message = response.choices[0].message
+    messages.append(message)            # the assistant turn, verbatim
+
+    if not message.tool_calls:          # plain text = it is finished
+        return message.content
+
+    for call in message.tool_calls:     # it may ask for several at once
+        result = tools.call(call.function.name,
+                            json.loads(call.function.arguments))
+        messages.append({"role": "tool",
+                         "tool_call_id": call.id,
+                         "content": json.dumps(result)})</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">The five things that matter here</span>
+                <dl class="breakdown__list">
+                  <dt>tools=</dt>
+                  <dd>The JSON schemas go in <em>every</em> request, not just the first. The model has no memory between calls; each turn it is told afresh what it can do.</dd>
+                  <dt>tool_choice="auto"</dt>
+                  <dd>The model may call a tool or answer directly. Forcing a call with <code>"required"</code> is occasionally useful and usually a sign the task is a pipeline.</dd>
+                  <dt>append the assistant turn verbatim</dt>
+                  <dd>Including its <code>tool_calls</code>. Each tool reply is matched to a call by <code>tool_call_id</code>, and the API rejects the next request if they do not line up.</dd>
+                  <dt>no tool_calls means done</dt>
+                  <dd>That is the whole stopping condition. The model signals completion by simply replying with text.</dd>
+                  <dt>range(MAX_STEPS)</dt>
+                  <dd>A <code>while True</code> here is a bill with no upper bound. Ours is 8.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">What actually travels back and forth</h3>
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-proto-t">
+                  <title id="fig-proto-t">Four message roles, and how one tool call is threaded through them</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">the messages list grows by two entries per tool call</text>
+
+                  <rect x="8" y="20" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="34" font-size="7.5" fill="#2563eb">system</text>
+                  <text x="60" y="34" font-size="7.5" fill="#111111">look everything up; never state a number you did not fetch</text>
+
+                  <rect x="8" y="46" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="60" font-size="7.5" fill="#2563eb">user</text>
+                  <text x="60" y="60" font-size="7.5" fill="#111111">Астанадан Алматыға дейін қанша шақырым?</text>
+
+                  <rect x="8" y="72" width="324" height="30" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="86" font-size="7.5" fill="#2563eb">assistant</text>
+                  <text x="60" y="86" font-size="7.5" fill="#111111">content: &#8220;&#8221;</text>
+                  <text x="60" y="97" font-size="7.5" fill="#111111">tool_calls: [ id=c0, distance_km(origin=&#8230;, destination=&#8230;) ]</text>
+
+                  <rect x="8" y="106" width="324" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="120" font-size="7.5" fill="#2563eb">tool</text>
+                  <text x="60" y="120" font-size="7.5" fill="#111111">tool_call_id: c0 &#183; {&#8220;straight_line_km&#8221;: 972.7, &#8230;}</text>
+
+                  <path d="M52 92 L44 92 L44 118 L52 118" fill="none" stroke="#15803d" stroke-width="1.2" />
+                  <text x="268" y="70" font-size="7" fill="#15803d">matched by id</text>
+
+                  <rect x="8" y="132" width="324" height="22" rx="4" fill="#2563eb" />
+                  <text x="14" y="146" font-size="7.5" fill="#ffffff">assistant</text>
+                  <text x="60" y="146" font-size="7.5" fill="#ffffff">972.7 шақырым. Жол қашықтығы 15-30% ұзын&#8230;</text>
+
+                  <rect x="8" y="166" width="324" height="40" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="180" font-size="8" fill="#111111" text-anchor="middle">the fourth message is sent together with the first three</text>
+                  <text x="170" y="192" font-size="8" fill="#5b6270" text-anchor="middle">and the fifth with all four, and so on</text>
+                  <text x="170" y="203" font-size="7.5" fill="#b91c1c" text-anchor="middle">this is where the money goes</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  There is no session on the server. The entire conversation,
+                  tool results included, is re-uploaded on every turn.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="tools">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Tools</span>
+              <h2 id="tools">A tool is three things</h2>
+              <p class="narrow lead">
+                A function, a schema, and a sentence. Students write the first,
+                tolerate the second, and skip the third &#8212; and the third is
+                the one that decides whether the agent works.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-tool-t">
+                  <title id="fig-tool-t">The three parts of a tool and who reads each one</title>
+                  <rect x="8" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="58" y="31" font-size="8.5" fill="#111111" text-anchor="middle">the function</text>
+                  <text x="58" y="45" font-size="7" fill="#5b6270" text-anchor="middle">def geocode(place):</text>
+                  <text x="58" y="56" font-size="7" fill="#5b6270" text-anchor="middle">calls an API,</text>
+                  <text x="58" y="67" font-size="7" fill="#5b6270" text-anchor="middle">returns a dict</text>
+
+                  <rect x="120" y="16" width="100" height="58" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="31" font-size="8.5" fill="#111111" text-anchor="middle">the schema</text>
+                  <text x="170" y="45" font-size="7" fill="#5b6270" text-anchor="middle">name, parameters,</text>
+                  <text x="170" y="56" font-size="7" fill="#5b6270" text-anchor="middle">types, required</text>
+                  <text x="170" y="67" font-size="7" fill="#5b6270" text-anchor="middle">&#8212; valid JSON</text>
+
+                  <rect x="232" y="16" width="100" height="58" rx="5" fill="#2563eb" />
+                  <text x="282" y="31" font-size="8.5" fill="#ffffff" text-anchor="middle">the description</text>
+                  <text x="282" y="45" font-size="7" fill="#dbe7ff" text-anchor="middle">&#8220;use this whenever</text>
+                  <text x="282" y="56" font-size="7" fill="#dbe7ff" text-anchor="middle">you need facts about</text>
+                  <text x="282" y="67" font-size="7" fill="#dbe7ff" text-anchor="middle">a city, not guesses&#8221;</text>
+
+                  <text x="58" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">read by Python</text>
+                  <text x="170" y="90" font-size="7.5" fill="#5b6270" text-anchor="middle">read by the API</text>
+                  <text x="282" y="90" font-size="7.5" fill="#2563eb" text-anchor="middle">read by the model</text>
+
+                  <rect x="8" y="104" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="119" font-size="8.5" fill="#111111" text-anchor="middle">the description is a prompt, and it is the part you will iterate on</text>
+
+                  <text x="170" y="146" font-size="8" fill="#5b6270" text-anchor="middle">a tool the model never picks is usually described badly,</text>
+                  <text x="170" y="158" font-size="8" fill="#5b6270" text-anchor="middle">not implemented badly</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Everything you learned about prompts in Lecture 9 applies to
+                  the description field: be specific, say when <em>not</em> to use
+                  it, and measure rather than believe.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>"geocode": {
+    "fn": geocode,
+    "schema": {
+        "name": "geocode",
+        "description": "Look up a place: coordinates, country, population, "
+                       "elevation and timezone. Use this whenever you need "
+                       "facts about a city rather than guessing them.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "place":   {"type": "string", "description": "City or town name, e.g. Shymkent"},
+                "country": {"type": "string", "description": "Optional ISO country code, e.g. KZ"},
+            },
+            "required": ["place"],
+        },
+    },
+},</code></pre></div>
+
+              <h3 style="margin-top: 44px">The six tools</h3>
+              <p class="narrow">
+                The agent is a travel assistant for Kazakhstan that
+                <strong>knows nothing</strong>. Every fact in its answers is
+                fetched while you watch. That is what an agent is, and it also
+                means this lecture states nothing about Kazakhstan it cannot
+                source.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">The six tools and where their data comes from</caption>
+                  <thead>
+                    <tr><th scope="col">Tool</th><th scope="col">Returns</th><th scope="col">Source</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><code>geocode</code></td><td>coordinates, country, population, elevation, timezone</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>distance_km</code></td><td>great-circle distance between two places</td><td>computed from the above</td></tr>
+                    <tr><td><code>weather_forecast</code></td><td>daily high, low and rainfall, up to 16 days</td><td>Open-Meteo</td></tr>
+                    <tr><td><code>wikipedia</code></td><td>a summary and its URL, in en / kk / ru</td><td>Wikipedia</td></tr>
+                    <tr><td><code>convert_currency</code></td><td>today&#8217;s rate, with the date it was published</td><td>open.er-api.com</td></tr>
+                    <tr><td><code>calculate</code></td><td>arithmetic, parsed rather than <code>eval</code>-ed</td><td>standard library</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="note">
+                <p style="margin-bottom: 0">
+                  None of these needs an API key, which is why the folder runs
+                  anywhere. The model does: put <code>OPENAI_API_KEY</code> in
+                  <code>.env</code>, or point it at Lecture 9&#8217;s local server
+                  instead &#8212; <code>llm.py</code> picks whichever is available
+                  and the agent never learns which it got.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="trace">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; A run</span>
+              <h2 id="trace">One question, all the way through</h2>
+              <p class="narrow lead">
+                A Kazakh question that needs two different tools. Nothing told
+                the agent to use two, or which two.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code>python3 agent.py "Астанадан Алматыға дейін қанша шақырым және Алматыда ауа райы қандай?"</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>[1] distance_km(origin='Астана', destination='Алматы')
+    -> {"from": "Астана", "to": "Алматы", "straight_line_km": 972.7,
+        "note": "straight line, not road distance; a road route is typically 15-30% longer"}
+[2] weather_forecast(place='Алматы', days=7)
+    -> {"place": "Алматы", "unit": "celsius", "days": [
+        {"date": "2026-09-24", "max_c": 26.5, "min_c": 14.3, "precipitation_mm": 0.0}, ...]}
+
+ANSWER
+Астана мен Алматы арасындағы тікелей қашықтық 972.7 шақырым. Жол қашықтығы
+әдетте 15-30% ұзын болады.
+
+Алматыда алдағы 7 күндегі ауа райы:
+- 24 қыркүйек: максималды 26.5°C, минималды 14.3°C, жауын-шашын жоқ.
+- 25 қыркүйек: максималды 23.9°C, минималды 14.2°C, жауын-шашын жоқ.
+...
+
+2 tool calls, 1574 prompt tokens, 327 output tokens, 11.6 s
+prompt tokens per turn: 575 -> 999</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What to notice in eleven seconds of work</span>
+                <dl class="breakdown__list">
+                  <dt>it chose days=7</dt>
+                  <dd>Nobody asked for a week. The question said &#8220;what is the weather&#8221; and the schema said 1 to 16; the model picked. Agents make small unrequested decisions constantly, and this is the benign kind.</dd>
+                  <dt>it answered in Kazakh</dt>
+                  <dd>The tool results came back in English JSON. Translation on the way out is free and needed no instruction.</dd>
+                  <dt>it passed the note through</dt>
+                  <dd>The <code>distance_km</code> tool returns a warning that road distance is longer, and that warning reached the user. A field in a tool result is a message to the model: use it.</dd>
+                  <dt>575 then 999</dt>
+                  <dd>Two turns, and the second cost 74% more than the first, because the first turn plus both tool results were re-sent inside it.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="recover">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Failure</span>
+              <h2 id="recover">When it goes wrong, and fixes itself</h2>
+              <p class="narrow lead">
+                This is the run that justifies the whole architecture. A Russian
+                question, a tool that could not find the place, and an agent that
+                worked around its own broken tool without being told how.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Что такое Чарынский каньон и далеко ли он от Алматы?
+
+[1] wikipedia(topic='Чарынский каньон', lang='ru')
+    -> {"title": "Чарынский каньон", "summary": "Чары́нский каньо́н — протянувшийся на 154 км ...
+[2] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. Try the Latin spelling ..."}
+[3] geocode(place='Charyn Canyon', country='KZ')
+    -> {"name": "Charyn Canyon National Park", "latitude": 43.3501, "longitude": 79.0696, ...}
+[4] distance_km(origin='Алматы', destination='Чарынский каньон')
+    -> {"error": "no place called 'Чарынский каньон' was found. ..."}
+[5] distance_km(origin='Almaty', destination='Charyn Canyon National Park')
+    -> {"from": "Almaty", "to": "Charyn Canyon National Park", "straight_line_km": 175.0, ...}
+
+5 tool calls, 4751 prompt tokens, 321 output tokens, 12.9 s
+prompt tokens per turn: 572 -> 903 -> 1014 -> 1088 -> 1174</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 172" role="img" aria-labelledby="fig-recover-t">
+                  <title id="fig-recover-t">Two failures, one repeated mistake, and a successful workaround</title>
+                  <rect x="8" y="16" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="30" font-size="7.5" fill="#111111" text-anchor="middle">[1] wikipedia</text>
+                  <text x="100" y="30" font-size="7.5" fill="#15803d">ok</text>
+
+                  <rect x="8" y="44" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="58" font-size="7.5" fill="#111111" text-anchor="middle">[2] distance_km</text>
+                  <text x="100" y="58" font-size="7.5" fill="#b91c1c">error: Cyrillic name</text>
+
+                  <rect x="8" y="72" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="86" font-size="7.5" fill="#111111" text-anchor="middle">[3] geocode</text>
+                  <text x="100" y="86" font-size="7.5" fill="#15803d">ok &#8212; found it in Latin</text>
+
+                  <rect x="8" y="100" width="86" height="22" rx="4" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="51" y="114" font-size="7.5" fill="#111111" text-anchor="middle">[4] distance_km</text>
+                  <text x="100" y="114" font-size="7.5" fill="#b91c1c">same error again</text>
+
+                  <rect x="8" y="128" width="86" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="51" y="142" font-size="7.5" fill="#111111" text-anchor="middle">[5] distance_km</text>
+                  <text x="100" y="142" font-size="7.5" fill="#15803d">ok &#8212; both names in Latin</text>
+
+                  <line x1="51" y1="38" x2="51" y2="44" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="66" x2="51" y2="72" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="94" x2="51" y2="100" stroke="#5b6270" stroke-width="1.1" />
+                  <line x1="51" y1="122" x2="51" y2="128" stroke="#5b6270" stroke-width="1.1" />
+
+                  <rect x="232" y="44" width="100" height="78" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="282" y="60" font-size="7.5" fill="#111111" text-anchor="middle">step [4] repeated a</text>
+                  <text x="282" y="71" font-size="7.5" fill="#111111" text-anchor="middle">failure it had already</text>
+                  <text x="282" y="82" font-size="7.5" fill="#111111" text-anchor="middle">seen at step [2]</text>
+                  <text x="282" y="99" font-size="7.5" fill="#b91c1c" text-anchor="middle">2.5x the tokens</text>
+                  <text x="282" y="110" font-size="7.5" fill="#b91c1c" text-anchor="middle">of a clean run</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Recovery is real and it is not free. Five steps cost 4&#8202;751
+                  prompt tokens where a clean two-step run cost 1&#8202;574.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Three separate lessons in one trace</span>
+                <dl class="breakdown__list">
+                  <dt>the error message did the teaching</dt>
+                  <dd>The tool did not just fail, it said <em>&#8220;try the Latin spelling, for example Almaty, Astana, Shymkent&#8221;</em>. The model read that and geocoded in Latin at step [3]. An error string is a prompt too.</dd>
+                  <dt>it repeated a known failure</dt>
+                  <dd>Step [4] is identical to step [2], which had already failed and was still visible in the history. Agents do this, and it is why a step limit is not optional.</dd>
+                  <dt>the real fix was in the tool, not the model</dt>
+                  <dd>The first version of <code>geocode</code> only searched in English, so a Kazakh question spent four of eight steps failing to find its own cities. It now tries English, Russian and Kazakh, then transliterates. Same model, same prompt, half the steps.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  When a trace looks bad, ask which half is at fault. Here it was
+                  the tool, and no amount of prompt engineering would have fixed it.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="refusing">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Restraint</span>
+              <h2 id="refusing">The cheapest correct answer uses no tools</h2>
+              <div class="code-block" data-lang="output"><pre><code>Q: What will the weather be in Astana on 1 March next year?
+
+ANSWER
+I can only provide weather forecasts for up to 16 days in advance.
+Unfortunately, I cannot give you the weather for March 1st of next year.
+
+0 tool calls, 572 prompt tokens, 52 output tokens, 2.4 s</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                The system prompt says forecasts only reach about two weeks ahead
+                and that the agent should say so rather than invent one. It did,
+                without calling anything. Knowing when <em>not</em> to act is a
+                capability, and it is the one most agent demos never show: 572
+                tokens against 6&#8202;451 for the most expensive run on this page.
+              </p>
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  Notice also what it did not do: it did not call
+                  <code>weather_forecast</code> with a made-up date and then
+                  paraphrase whatever came back. A tool that is called with
+                  nonsense usually returns something, and something is exactly
+                  what a fluent model needs to produce a confident wrong answer.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="parallel">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Efficiency</span>
+              <h2 id="parallel">Four calls in two turns</h2>
+              <p class="narrow lead">
+                A comparison question needs the same two tools twice. The model
+                asked for all four at once, and that costs far less than asking
+                four times.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: Compare Almaty and Shymkent: population, elevation, and the weather this week.
+   Which is warmer?
+
+turn 1  ->  geocode(Almaty), geocode(Shymkent),
+            weather_forecast(Almaty, 7), weather_forecast(Shymkent, 7)
+turn 2  ->  the answer
+
+4 tool calls, 2052 prompt tokens, 418 output tokens, 6.8 s
+prompt tokens per turn: 580 -> 1472</code></pre></div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-parallel-t">
+                  <title id="fig-parallel-t">Independent calls batched into one turn cost less than a chain</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">batched &#8212; 4 tools, 2 turns, 2 052 prompt tokens</text>
+                  <rect x="8" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="28" y="30" font-size="7" fill="#ffffff" text-anchor="middle">turn 1</text>
+                  <rect x="54" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="80" y="30" font-size="6.5" fill="#111111" text-anchor="middle">geocode &#215;2</text>
+                  <rect x="110" y="18" width="52" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="136" y="30" font-size="6.5" fill="#111111" text-anchor="middle">weather &#215;2</text>
+                  <rect x="168" y="18" width="40" height="18" rx="4" fill="#2563eb" />
+                  <text x="188" y="30" font-size="7" fill="#ffffff" text-anchor="middle">turn 2</text>
+                  <text x="216" y="30" font-size="7" fill="#15803d">answer</text>
+
+                  <text x="8" y="60" font-size="8.5" fill="#5b6270">chained &#8212; 5 tools, 5 turns, 4 751 prompt tokens</text>
+                  <rect x="8" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="25" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">t1</text>
+                  <rect x="46" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="63" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">t2</text>
+                  <rect x="84" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="101" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">t3</text>
+                  <rect x="122" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="139" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">t4</text>
+                  <rect x="160" y="66" width="34" height="18" rx="4" fill="#2563eb" />
+                  <text x="177" y="78" font-size="6.5" fill="#ffffff" text-anchor="middle">t5</text>
+                  <text x="202" y="78" font-size="7" fill="#15803d">answer</text>
+
+                  <rect x="8" y="98" width="324" height="24" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="113" font-size="8" fill="#111111" text-anchor="middle">one more tool but three more turns, and the bill more than doubles</text>
+
+                  <text x="170" y="138" font-size="8" fill="#5b6270" text-anchor="middle">a turn is what costs, not a tool call &#8212; because the history</text>
+                  <text x="170" y="150" font-size="8" fill="#5b6270" text-anchor="middle">is resent once per turn, not once per call</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Independent lookups should go together. Only chain when step
+                  two genuinely needs the result of step one.
+                </figcaption>
+              </div>
+
+              <p class="narrow">
+                The conclusion it reached is checkable, which is the point of
+                doing it this way: <em>&#8220;Shymkent is slightly warmer than
+                Almaty, 26.7&#8201;°C against 26.5&#8201;°C&#8221;</em> &#8212; two
+                numbers that came out of the forecast tool, not out of the model.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="cost">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Money</span>
+              <h2 id="cost">What a loop costs</h2>
+              <p class="narrow lead">
+                Seven questions, one agent, one model. This table is the single
+                most useful thing on the page, because it is the part people do
+                not expect until the invoice arrives.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Measured cost of seven agent runs</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Question</th>
+                      <th scope="col">Tool calls</th>
+                      <th scope="col">Turns</th>
+                      <th scope="col">Prompt tokens</th>
+                      <th scope="col">Output</th>
+                      <th scope="col">Seconds</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Weather on 1 March next year <span class="token">refused</span></td><td>0</td><td>1</td><td>572</td><td>52</td><td>2.4</td></tr>
+                    <tr><td>500 USD for 3 days in Shymkent</td><td>2</td><td>2</td><td>1 313</td><td>122</td><td>3.0</td></tr>
+                    <tr><td>Two days in Almaty: what to pack</td><td>2</td><td>2</td><td>1 397</td><td>233</td><td>4.5</td></tr>
+                    <tr><td>Astana&#8211;Almaty distance and weather</td><td>2</td><td>2</td><td>1 574</td><td>327</td><td>11.6</td></tr>
+                    <tr><td>Compare Almaty and Shymkent</td><td>4</td><td>2</td><td>2 052</td><td>418</td><td>6.8</td></tr>
+                    <tr><td>Charyn Canyon <span class="token">recovered</span></td><td>5</td><td>5</td><td>4 751</td><td>321</td><td>12.9</td></tr>
+                    <tr><td>300 000 ₸ for 4 days in Turkestan</td><td>7</td><td>7</td><td>6 451</td><td>194</td><td>17.2</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 168" role="img" aria-labelledby="fig-cost-t">
+                  <title id="fig-cost-t">Prompt tokens against number of turns, from the seven measured runs</title>
+                  <line x1="34" y1="16" x2="34" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <line x1="34" y1="126" x2="330" y2="126" stroke="#5b6270" stroke-width="1" />
+                  <text x="8" y="20" font-size="7" fill="#5b6270">7k</text>
+                  <text x="8" y="75" font-size="7" fill="#5b6270">3.5k</text>
+                  <text x="8" y="129" font-size="7" fill="#5b6270">0</text>
+                  <text x="182" y="146" font-size="8" fill="#5b6270" text-anchor="middle">turns in the loop</text>
+
+                  <rect x="46" y="117" width="26" height="9" fill="#2563eb" />
+                  <text x="59" y="136" font-size="7" fill="#5b6270" text-anchor="middle">1</text>
+                  <text x="59" y="113" font-size="6.5" fill="#111111" text-anchor="middle">572</text>
+
+                  <rect x="86" y="105" width="26" height="21" fill="#2563eb" />
+                  <text x="99" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="99" y="101" font-size="6.5" fill="#111111" text-anchor="middle">1313</text>
+
+                  <rect x="126" y="104" width="26" height="22" fill="#2563eb" />
+                  <text x="139" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="139" y="100" font-size="6.5" fill="#111111" text-anchor="middle">1397</text>
+
+                  <rect x="166" y="101" width="26" height="25" fill="#2563eb" />
+                  <text x="179" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="179" y="97" font-size="6.5" fill="#111111" text-anchor="middle">1574</text>
+
+                  <rect x="206" y="94" width="26" height="32" fill="#2563eb" />
+                  <text x="219" y="136" font-size="7" fill="#5b6270" text-anchor="middle">2</text>
+                  <text x="219" y="90" font-size="6.5" fill="#111111" text-anchor="middle">2052</text>
+
+                  <rect x="246" y="52" width="26" height="74" fill="#b91c1c" />
+                  <text x="259" y="136" font-size="7" fill="#5b6270" text-anchor="middle">5</text>
+                  <text x="259" y="48" font-size="6.5" fill="#111111" text-anchor="middle">4751</text>
+
+                  <rect x="286" y="26" width="26" height="100" fill="#b91c1c" />
+                  <text x="299" y="136" font-size="7" fill="#5b6270" text-anchor="middle">7</text>
+                  <text x="299" y="22" font-size="6.5" fill="#111111" text-anchor="middle">6451</text>
+
+                  <text x="170" y="161" font-size="8" fill="#111111" text-anchor="middle">2 turns cost ~1.4k whatever they do; 7 turns cost 6.5k</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Cost tracks turns, not tool calls. The 4-call run in two turns
+                  is cheaper than the 5-call run in five.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Why it grows the way it does</span>
+                <dl class="breakdown__list">
+                  <dt>each turn resends everything</dt>
+                  <dd>Turn <em>n</em> carries the system prompt, the question, and every assistant and tool message so far. The longest run went 588 → 669 → 728 → 822 → 1 055 → 1 274 → 1 315 tokens.</dd>
+                  <dt>so the total is a sum, not a product</dt>
+                  <dd>Roughly <code>steps × average history</code>, and the average history itself grows with steps. Doubling the steps more than doubles the bill: 2 turns cost 1 574, 7 turns cost 6 451 &#8212; 3.5&#215; the turns for 4.1&#215; the tokens.</dd>
+                  <dt>the tool schemas are in every turn too</dt>
+                  <dd>Our six schemas are about 500 tokens, resent on all seven turns of the worst run. Twenty tools would have cost more than the conversation.</dd>
+                  <dt>a failure is charged twice</dt>
+                  <dd>The failed call costs a turn, and its error message then sits in the history being resent for the rest of the run.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Lecture 8 showed how to compute a bill from a token count and a
+                  published rate; the arithmetic is unchanged here. What changes
+                  is that you can no longer predict the token count from the
+                  question, because the model decides how many turns to take.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="disobeyed">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Honesty</span>
+              <h2 id="disobeyed">The instruction it ignored</h2>
+              <p class="narrow lead">
+                The system prompt contains this line, in capital-letter spirit if
+                not in capitals: <em>&#8220;Use calculate for every sum, total or
+                per-day figure. Do not do arithmetic in your head.&#8221;</em>
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>Q: I have 500 USD for three days in Shymkent. What is that per day in tenge?
+
+[1] convert_currency(amount=500, from_currency='USD', to_currency='KZT')
+    -> {"converted": 222439.02, "rate": 444.878043, "rate_date": "Thu, 24 Sep 2026 ..."}
+[2] calculate(expression='500/3')
+    -> {"result": 166.666667}
+
+ANSWER
+500 USD is approximately 222,439.02 KZT at the exchange rate of 444.88 KZT per USD
+on September 24, 2026.
+
+For three days, that amounts to about 166.67 USD per day, which is approximately
+74,146.34 KZT per day.</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Count the divisions. It called <code>calculate</code> for
+                <code>500/3</code> and then produced <strong>74&#8202;146.34</strong>
+                &#8212; which is <code>222439.02 / 3</code> &#8212; without calling
+                anything. It did the second division in its head, in direct
+                contradiction of its instructions.
+              </p>
+
+              <div class="callout">
+                <p style="margin-bottom: 0">
+                  <strong>And the answer is correct.</strong>
+                  222&#8202;439.02 ÷ 3 = 74&#8202;146.34 exactly. That is what makes
+                  this worth a section: the failure is invisible in the output.
+                  You only see it in the trace, and only if you count. An agent
+                  that follows its instructions 90% of the time looks identical
+                  to one that follows them always, until the 10% lands somewhere
+                  that matters.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What you would actually do about it</span>
+                <dl class="breakdown__list">
+                  <dt>measure it</dt>
+                  <dd>Run twenty money questions and count how many arrive at a number with no matching <code>calculate</code> call. Lecture 9&#8217;s rule again: an unmeasured claim about a prompt is an opinion.</dd>
+                  <dt>make the tool the only path</dt>
+                  <dd>Give <code>convert_currency</code> a <code>divide_by</code> argument, so the per-day figure comes back from the tool that already has the number. The best fix for &#8220;it did not use the tool&#8221; is usually a better tool.</dd>
+                  <dt>check afterwards, in code</dt>
+                  <dd>Pull the numbers out of the final answer and verify each one appears in some tool result. Ten lines, and it catches exactly this.</dd>
+                  <dt>do not just shout in the prompt</dt>
+                  <dd>&#8220;ALWAYS use the tool&#8221; in bold capitals is the reflex, and it is the weakest of the four.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="failures">
+            <div class="container">
+              <span class="section__eyebrow">Practice &#183; Robustness</span>
+              <h2 id="failures">Six ways the loop breaks</h2>
+              <p class="narrow lead">
+                Every one of these is tested in the folder, because an agent
+                meets all of them in its first hour of real use.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Failure modes and what the agent receives</caption>
+                  <thead>
+                    <tr><th scope="col">What happens</th><th scope="col">What the agent gets back</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>It invents a tool: <code>book_a_hotel</code></td><td><code>{"error": "there is no tool called 'book_a_hotel'. Available: geocode, distance_km, …"}</code></td></tr>
+                    <tr><td>Arguments are not valid JSON</td><td><code>{"error": "arguments were not valid JSON: '{not json'"}</code></td></tr>
+                    <tr><td>Wrong argument names</td><td><code>{"error": "wrong arguments for distance_km: got an unexpected keyword argument 'city_a'"}</code></td></tr>
+                    <tr><td>The API is down (a real 503 happened mid-run)</td><td><code>{"error": "could not reach api.open-meteo.com (HTTP Error 503)"}</code></td></tr>
+                    <tr><td><code>calculate("__import__('os').system('echo pwned')")</code></td><td><code>{"error": "only + - * / // % ** and numbers are allowed"}</code></td></tr>
+                    <tr><td>It never stops calling tools</td><td>the loop halts at <code>MAX_STEPS = 8</code> and reports what it has</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">The four rules behind that table</span>
+                <dl class="breakdown__list">
+                  <dt>errors are data, never exceptions</dt>
+                  <dd>Every tool returns <code>{"error": ...}</code> instead of raising. A tool that raises kills the loop and throws away the work already paid for; a tool that returns an error lets the model try something else, which is what it did at step [3] of the Charyn run.</dd>
+                  <dt>write error messages for the model</dt>
+                  <dd><em>&#8220;try the Latin spelling, for example Almaty, Astana, Shymkent&#8221;</em> is not for a log file. It is a prompt delivered at the exact moment it is needed, and it is what produced the recovery.</dd>
+                  <dt>never <code>eval</code> model output</dt>
+                  <dd>The model is an untrusted source in exactly the way a user is &#8212; and in an agent it is worse, because tool results from the open internet flow into it. <code>calculate</code> walks the syntax tree by hand and accepts numbers and six operators.</dd>
+                  <dt>cap the steps</dt>
+                  <dd>Not defensive programming, arithmetic: a loop with no limit is an unbounded charge on your account, and models do repeat failed calls. We watched one do it.</dd>
+                </dl>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 150" role="img" aria-labelledby="fig-guard-t">
+                  <title id="fig-guard-t">Where each guardrail sits around the loop</title>
+                  <rect x="86" y="42" width="168" height="62" rx="6" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="60" font-size="8.5" fill="#111111" text-anchor="middle">the loop</text>
+                  <text x="170" y="74" font-size="7.5" fill="#5b6270" text-anchor="middle">model &#8594; tool &#8594; model</text>
+                  <text x="170" y="88" font-size="7.5" fill="#5b6270" text-anchor="middle">&#8230; until it stops</text>
+
+                  <rect x="86" y="14" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">step limit &#183; the loop cannot run forever</text>
+
+                  <rect x="8" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="43" y="60" font-size="7.5" fill="#111111" text-anchor="middle">validate</text>
+                  <text x="43" y="72" font-size="7" fill="#5b6270" text-anchor="middle">arguments</text>
+                  <text x="43" y="86" font-size="7" fill="#5b6270" text-anchor="middle">before they</text>
+                  <text x="43" y="96" font-size="7" fill="#5b6270" text-anchor="middle">reach code</text>
+
+                  <rect x="262" y="42" width="70" height="62" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="297" y="60" font-size="7.5" fill="#111111" text-anchor="middle">errors as</text>
+                  <text x="297" y="72" font-size="7.5" fill="#111111" text-anchor="middle">data</text>
+                  <text x="297" y="86" font-size="7" fill="#5b6270" text-anchor="middle">so it can</text>
+                  <text x="297" y="96" font-size="7" fill="#5b6270" text-anchor="middle">recover</text>
+
+                  <rect x="86" y="112" width="168" height="20" rx="4" fill="#2563eb" />
+                  <text x="170" y="126" font-size="7.5" fill="#ffffff" text-anchor="middle">check the output before anything acts on it</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  None of these is about making the model better. They are about
+                  making the loop survive a model that is occasionally wrong.
+                </figcaption>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="when">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Judgement</span>
+              <h2 id="when">When not to build one</h2>
+              <p class="narrow lead">
+                Agents are the most over-applied idea in the field right now. The
+                test is simple: does the number of steps genuinely depend on the
+                input?
+              </p>
+              <div class="grid grid--2">
+                <div class="card">
+                  <h3>Write a pipeline</h3>
+                  <p>
+                    Classify these reviews. Summarise this document. Translate
+                    this page. Answer from these five passages. The steps are
+                    always the same, so write them: you get lower cost, fixed
+                    latency, and a program you can test with an ordinary test.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Write an agent</h3>
+                  <p>
+                    Questions where you cannot know in advance what is needed:
+                    one lookup or six, this tool or that one, stop now or keep
+                    going. Our budget question needed seven calls; the forecast
+                    question needed none. No pipeline covers both.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 32px">
+                <span class="breakdown__label">What you give up by choosing the loop</span>
+                <dl class="breakdown__list">
+                  <dt>predictable cost</dt>
+                  <dd>Measured on this page: 572 to 6 451 prompt tokens for questions a user would consider equally ordinary. An 11&#215; spread.</dd>
+                  <dt>predictable latency</dt>
+                  <dd>2.4 s to 17.2 s. If a person is waiting, that range is the product.</dd>
+                  <dt>reproducibility</dt>
+                  <dd>The same question can take a different path on a different day. Pin the temperature low, log every trace, and accept that a run is evidence rather than a proof.</dd>
+                  <dt>easy testing</dt>
+                  <dd>You can no longer assert on one output. You test the tools separately, and the loop against a scripted model &#8212; which is exactly how the six failure modes above are tested without spending a cent.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  A useful order: prompt, then retrieval, then an agent, then
+                  fine-tuning. It is Lecture 9&#8217;s order with one more rung, and
+                  the rungs get more expensive as you climb.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="lab">The lab</h2>
+              <p class="narrow lead">
+                The interface exists for one reason: an agent whose steps you
+                cannot see is an agent you cannot debug or trust. The trace is
+                the feature.
+              </p>
+
+              <div class="code-block" data-lang="bash"><pre><code># one of the two, in the repository's .env
+OPENAI_API_KEY=sk-...
+# or reuse Lecture 9's local server instead:  cd ../lesson9 && ./serve.sh
+
+pip install -r requirements.txt
+python3 agent.py --demo                      # the runs on this page, in the terminal
+python3 agent.py "How far is Turkistan from Shymkent?"
+python3 app.py                               # http://127.0.0.1:7861</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Ask</h3>
+                  <p>In Kazakh, Russian or English. The agent answers in the language it was asked in, whatever language the tool results came back in.</p>
+                </div>
+                <div class="card">
+                  <h3>Watch</h3>
+                  <p>Every tool call with its arguments and its result, green when it worked and red when it did not. This is the column to look at during a demonstration.</p>
+                </div>
+                <div class="card">
+                  <h3>Count</h3>
+                  <p>Tool calls, prompt tokens, output tokens, seconds, and the per-turn token growth printed underneath. The cost of the loop, live.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <code>llm.py</code> reads <code>.env</code> and picks the
+                  backend: OpenAI when a key is set, Lecture 9&#8217;s local
+                  <code>llama-server</code> otherwise. The agent code never finds
+                  out which one it got, which is the practical meaning of
+                  &#8220;an agent is a loop, not a product&#8221;.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Eight questions we answer together before finishing.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">A colleague says their RAG system is &#8220;an agent&#8221; because it has four steps. Are they right?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">No. Steps are not decisions. If every question takes the same four steps, the path was chosen by the programmer and the thing is a pipeline. The test is whether the number of steps changes with the input: ours used 0, 2, 4, 5 and 7 tool calls on five questions.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">How does the loop know the agent has finished?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">The model replies with text and no <code>tool_calls</code>. That is the entire stopping condition &#8212; there is no special &#8220;done&#8221; signal. Which is also why a step limit is needed: nothing guarantees the model ever chooses to stop.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">One run made 4 tool calls and cost 2 052 prompt tokens. Another made 5 and cost 4 751. Why is one extra call more than twice the price?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">Because it is not the calls that cost, it is the turns. The 4-call run asked for all four at once, so there were two turns. The 5-call run chained them, so there were five turns, and every turn resends the whole history plus all six tool schemas. Batch independent lookups; chain only when step two needs step one&#8217;s result.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">A tool raises a Python exception instead of returning <code>{"error": ...}</code>. What breaks?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">The loop dies and every token spent so far is wasted, the user gets a stack trace, and the model loses its chance to recover. Our Charyn run is the counter-example: the error came back as data, the model read the hint in it, switched to the Latin spelling and finished.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">The agent was told to use <code>calculate</code> for every sum. It divided 222 439.02 by 3 in its head and got the right answer. Is there a problem?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">Yes, and the fact that the answer was right is the problem. The instruction failed silently; nothing in the output shows it. Next time the number will be harder and the answer will be wrong in exactly the same confident tone. Fix it with a better tool (let the conversion take a <code>divide_by</code>), or by checking in code that every number in the answer appears in some tool result.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 6</h3>
+                  <p class="challenge__task">Why is <code>calculate</code> written with an AST walker instead of <code>eval</code>?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">Because the expression is written by a model, and the model is reading text from Wikipedia and public APIs. That is an untrusted chain ending in your process. Asked to run <code>__import__('os').system('echo pwned')</code>, the tool replies <code>only + - * / // % ** and numbers are allowed</code>. With <code>eval</code> it would have run it.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 7</h3>
+                  <p class="challenge__task">The agent answered a question about next March&#8217;s weather without calling any tool. Did it fail?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">No &#8212; that was the best run on the page. The system prompt said forecasts reach about two weeks and that it should say so rather than invent one, and it did, for 572 tokens and 2.4 s. The failure mode to fear is the opposite: calling the tool with a nonsense date, getting something back, and paraphrasing it confidently.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 8</h3>
+                  <p class="challenge__task">The agent kept failing on Kazakh city names. Would a better prompt have fixed it?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">No. <code>geocode</code> searched the gazetteer in English only, so «Алматы» genuinely did not exist as far as the tool was concerned, and four of eight steps went on failing lookups. The fix was in the tool: try English, Russian and Kazakh, then transliterate. When a trace looks bad, decide first whether the model reasoned badly or the tool answered badly.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Practice</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in <code>code_files/lesson10/</code>. Everything here is one
+                command or one small edit.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Task 1 &#8212; Reproduce the table</h3>
+                  <p class="challenge__task">Run <code>python3 agent.py --demo</code> and compare your tool counts and token totals with the table above. They will not match exactly. Write one sentence explaining why that is expected rather than a bug.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 &#8212; Break a description</h3>
+                  <p class="challenge__task">In <code>tools.py</code>, change <code>geocode</code>&#8217;s description to just &#8220;Looks up a place.&#8221; Ask three questions that need population figures. Does it still call the tool, or does it start guessing? You have just measured what a description is worth.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 &#8212; Force the arithmetic</h3>
+                  <p class="challenge__task">Add a <code>divide_by</code> argument to <code>convert_currency</code> so a per-day figure comes back from the tool. Re-run the 500 USD question. Does the unsourced division disappear?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 &#8212; Lower the limit</h3>
+                  <p class="challenge__task">Set <code>--max-steps 2</code> and ask the Turkestan budget question, which needed seven. Read what comes back. Then decide what a real product should do when the limit is hit: apologise, answer partially, or escalate?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 &#8212; Add a tool</h3>
+                  <p class="challenge__task">Write <code>timezone_difference(place_a, place_b)</code> using the timezone <code>geocode</code> already returns. Register it, then find a question that makes the agent choose it without being told to.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 &#8212; Audit the citations</h3>
+                  <p class="challenge__task">Write a script that extracts every number from the final answer and checks it appears somewhere in the tool results for that run. Run it over the seven demo questions. How many unsourced numbers do you find besides the one on this page?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 &#8212; Two backends</h3>
+                  <p class="challenge__task">Run the same question against OpenAI and against Lecture 9&#8217;s local 4&#8202;B model. Compare tool choice, step count and total tokens. Which parts of &#8220;being an agent&#8221; survive the smaller model?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 &#8212; A tool that lies</h3>
+                  <p class="challenge__task">Make <code>convert_currency</code> return a rate ten times too large. Ask a budget question. Does the agent notice anything is wrong? Write two sentences on what this implies about trusting tool output.</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>An agent is a loop in which the model chooses the next action; steps alone do not make a pipeline into one</li>
+                <li>The loop is about twenty lines: ask with tools, run what it asks for, append the results, ask again</li>
+                <li>It stops when the model replies with text and no tool calls &#8212; so a step limit is not optional</li>
+                <li>A tool is a function, a JSON schema, and a description; the description is a prompt and decides whether the tool is ever used</li>
+                <li>Our agent knows nothing about Kazakhstan: every distance, forecast, rate and description was fetched at run time</li>
+                <li>The same agent used 0, 2, 4, 5 and 7 tool calls on five ordinary questions &#8212; you cannot predict the path from the question</li>
+                <li>Turns cost, not calls: 4 calls in 2 turns cost 2 052 tokens; 5 calls in 5 turns cost 4 751</li>
+                <li>Cost grew from 572 to 6 451 prompt tokens across seven questions, an 11&#215; spread, and latency from 2.4 s to 17.2 s</li>
+                <li>Errors must be data, not exceptions &#8212; that is what let the agent recover from a failed lookup</li>
+                <li>Write error messages for the model: &#8220;try the Latin spelling&#8221; is what produced the recovery</li>
+                <li>Agents repeat failed calls: ours reissued an identical failing call it could still see in its own history</li>
+                <li>Never <code>eval</code> model output; <code>calculate</code> refused <code>__import__('os').system(...)</code></li>
+                <li>It disobeyed its own instruction to use <code>calculate</code>, and got the right answer anyway &#8212; visible only in the trace</li>
+                <li>The best run on the page called no tools at all, because the honest answer was &#8220;I cannot know that&#8221;</li>
+                <li>The bad trace was the tool&#8217;s fault, not the model&#8217;s: fixing Kazakh place names halved the steps</li>
+                <li>Prompt, then retrieval, then an agent, then fine-tuning &#8212; in that order, because each rung costs more</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Lecture 10 &middot; 24 Sep 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>
