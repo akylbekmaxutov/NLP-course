@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Speech: ASR and TTS | NLP Course</title>
+    <meta
+      name="description"
+      content="Lecture 11: how speech becomes text and text becomes speech. Spectrograms, Whisper as an encoder-decoder, the language token, word and character error rate measured on Kazakh, Russian and English, then OmniVoice for synthesis, voice cloning, and the round-trip test that scores both at once."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Contents
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/11-speech-asr-tts.html" aria-current="true" data-lang-link="en">EN</a>
+        <a href="../kk/11-speech-asr-tts.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/11-speech-asr-tts.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">From Text Processing to Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/11-speech-asr-tts.html" aria-current="true" data-lang-link="en">EN</a>
+          <a href="../kk/11-speech-asr-tts.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/11-speech-asr-tts.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Contents</span>
+        <nav data-toc aria-label="Course contents">
+          <noscript><a href="index.html">Course Roadmap</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Close contents" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Lecture 11</span>
+              <h1>Speech: ASR and TTS</h1>
+              <p class="hero__subtitle">
+                Every lecture so far started with text that someone had already
+                typed. Most language is not typed &#8212; it is spoken. This
+                lecture closes the loop at both ends: sound into text with
+                Whisper, text into sound with OmniVoice, and an honest way to
+                score each of them on Kazakh.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Learning goals</span>
+              <h2 id="goals">By the end of this lecture you can&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Explain how audio becomes input</h3>
+                  <p>Sampling, the spectrogram, and why 16 000 numbers a second have to become about 50 frames a second before a Transformer can read them.</p>
+                </div>
+                <div class="card">
+                  <h3>Describe Whisper</h3>
+                  <p>Lecture 6&#8217;s encoder–decoder with audio on the front, and the special tokens that decide what language it writes in.</p>
+                </div>
+                <div class="card">
+                  <h3>Measure a recogniser</h3>
+                  <p>Word error rate and character error rate, why one can exceed 1.0, and why the gap between them is where the interesting finding lives.</p>
+                </div>
+                <div class="card">
+                  <h3>Synthesise speech</h3>
+                  <p>Text to audio tokens to a waveform, and the three ways to choose whose voice comes out.</p>
+                </div>
+                <div class="card">
+                  <h3>Score a synthesiser</h3>
+                  <p>Speak it, transcribe it back, and read the number against a control &#8212; because on its own it measures two systems at once.</p>
+                </div>
+                <div class="card">
+                  <h3>Say what this costs Kazakh</h3>
+                  <p>Put a number on the low-resource penalty in speech, and connect it to the same penalty in Lectures 7 and 8.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Both models run on the laptop.</strong>
+                  <code>openai/whisper-small</code> (244&#8202;M) and
+                  <code>k2-fsa/OmniVoice</code> (Qwen3-0.6&#8202;B plus an audio
+                  tokenizer), on an Apple M4 Pro, no API key. The audio is
+                  <strong>FLEURS</strong>: the same source sentences read aloud
+                  in every language it covers, which is what makes the
+                  comparisons on this page fair.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="sound">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The input</span>
+              <h2 id="sound">What a computer receives when someone speaks</h2>
+              <p class="narrow lead">
+                A microphone measures air pressure, over and over. At 16&#8202;kHz
+                that is sixteen thousand numbers per second &#8212; and they are
+                the wrong numbers, in the wrong quantity, for a Transformer.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-wave-t">
+                  <title id="fig-wave-t">From air pressure to a handful of frames per second</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">1. the waveform &#8212; 16 000 samples every second</text>
+                  <polyline points="8,34 14,26 20,42 26,22 32,46 38,28 44,38 50,20 56,44 62,30 68,40 74,24 80,42 86,32 92,36 98,26 104,44 110,30 116,38 122,28 128,40 134,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <polyline points="134,34 140,22 146,46 152,28 158,42 164,26 170,40 176,30 182,38 188,24 194,44 200,32 206,36 212,28 218,42 224,30 230,40 236,26 242,38 248,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <text x="258" y="36" font-size="7.5" fill="#5b6270">amplitude</text>
+                  <text x="258" y="46" font-size="7.5" fill="#5b6270">over time</text>
+
+                  <line x1="128" y1="54" x2="128" y2="64" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="76" font-size="9" fill="#5b6270">2. the spectrogram &#8212; energy per frequency, per 20 ms window</text>
+                  <rect x="8" y="82" width="240" height="44" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <rect x="12" y="86" width="8" height="36" fill="#2563eb" opacity="0.30" />
+                  <rect x="22" y="94" width="8" height="28" fill="#2563eb" opacity="0.55" />
+                  <rect x="32" y="90" width="8" height="32" fill="#2563eb" opacity="0.75" />
+                  <rect x="42" y="102" width="8" height="20" fill="#2563eb" opacity="0.40" />
+                  <rect x="52" y="86" width="8" height="36" fill="#2563eb" opacity="0.85" />
+                  <rect x="62" y="98" width="8" height="24" fill="#2563eb" opacity="0.35" />
+                  <rect x="72" y="92" width="8" height="30" fill="#2563eb" opacity="0.65" />
+                  <rect x="82" y="106" width="8" height="16" fill="#2563eb" opacity="0.25" />
+                  <rect x="92" y="88" width="8" height="34" fill="#2563eb" opacity="0.70" />
+                  <rect x="102" y="96" width="8" height="26" fill="#2563eb" opacity="0.50" />
+                  <rect x="112" y="90" width="8" height="32" fill="#2563eb" opacity="0.80" />
+                  <rect x="122" y="104" width="8" height="18" fill="#2563eb" opacity="0.30" />
+                  <rect x="132" y="86" width="8" height="36" fill="#2563eb" opacity="0.60" />
+                  <rect x="142" y="100" width="8" height="22" fill="#2563eb" opacity="0.45" />
+                  <rect x="152" y="94" width="8" height="28" fill="#2563eb" opacity="0.75" />
+                  <rect x="162" y="108" width="8" height="14" fill="#2563eb" opacity="0.20" />
+                  <rect x="172" y="88" width="8" height="34" fill="#2563eb" opacity="0.65" />
+                  <rect x="182" y="98" width="8" height="24" fill="#2563eb" opacity="0.40" />
+                  <rect x="192" y="92" width="8" height="30" fill="#2563eb" opacity="0.70" />
+                  <rect x="202" y="102" width="8" height="20" fill="#2563eb" opacity="0.35" />
+                  <rect x="212" y="86" width="8" height="36" fill="#2563eb" opacity="0.55" />
+                  <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
+                  <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
+                  <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel bands</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 frames/s</text>
+
+                  <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. the encoder halves it again, then the decoder writes words</text>
+                  <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/s</text>
+                  <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
+                  <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <line x1="152" y1="169" x2="166" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="166" y="160" width="82" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="207" y="172" font-size="7" fill="#111111" text-anchor="middle">~3 words/s</text>
+                  <text x="256" y="172" font-size="7.5" fill="#b91c1c">5 000&#215; fewer</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Speech recognition is mostly a compression problem. Sixteen
+                  thousand numbers a second have to become about three words a
+                  second, and almost all of the architecture is about doing that
+                  reduction without throwing away the part that carries meaning.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Three ideas you need before the model</span>
+                <dl class="breakdown__list">
+                  <dt>sampling rate</dt>
+                  <dd>16&#8202;kHz is the speech standard. It captures frequencies up to 8&#8202;kHz, which is enough for every speech sound and half the size of music-quality audio. Every clip on this page was resampled to it.</dd>
+                  <dt>the spectrogram</dt>
+                  <dd>Cut the signal into overlapping 25&#8202;ms windows every 10&#8202;ms, and for each window measure how much energy sits in each of 80 frequency bands, spaced the way human hearing spaces them. The result is a picture: time across, frequency up.</dd>
+                  <dt>it is now a sequence</dt>
+                  <dd>80 numbers per frame, 50 frames per second. That is exactly the shape Lecture 6&#8217;s encoder expects &#8212; a sequence of vectors &#8212; which is why the same architecture works on sound with no change to the attention at all.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Nothing in the Transformer knows this is audio. Swap the
+                  embedding table for a spectrogram and the rest of Lecture 6
+                  runs unmodified.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="whisper">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The model</span>
+              <h2 id="whisper">Whisper is Lecture 6 with a microphone</h2>
+              <p class="narrow lead">
+                There is no new architecture here. An encoder reads the
+                spectrogram, a decoder writes text, and cross-attention connects
+                them &#8212; exactly the encoder&#8211;decoder Transformer from
+                Lecture 6, with audio replacing the source sentence.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-whisper-t">
+                  <title id="fig-whisper-t">Whisper: an audio encoder, a text decoder, and cross-attention between them</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">30 seconds of audio, padded or trimmed</text>
+                  <rect x="8" y="18" width="116" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="66" y="31" font-size="7.5" fill="#111111" text-anchor="middle">log-mel spectrogram</text>
+                  <line x1="66" y1="36" x2="66" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="8" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="66" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">audio encoder</text>
+                  <text x="66" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">2 conv layers, then</text>
+                  <text x="66" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">self-attention blocks</text>
+
+                  <line x1="124" y1="71" x2="146" y2="71" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="146,71 141,68.5 141,73.5" fill="#5b6270" />
+                  <text x="135" y="64" font-size="7" fill="#15803d" text-anchor="middle">cross-attention</text>
+
+                  <rect x="146" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="204" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <text x="204" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">causal, one token</text>
+                  <text x="204" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">at a time</text>
+
+                  <line x1="204" y1="96" x2="204" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="146" y="106" width="116" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="204" y="119" font-size="7.5" fill="#111111" text-anchor="middle">ақш-тың гимнастика&#8230;</text>
+
+                  <rect x="274" y="46" width="58" height="50" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="303" y="62" font-size="7" fill="#111111" text-anchor="middle">tiny 39 M</text>
+                  <text x="303" y="74" font-size="7" fill="#111111" text-anchor="middle">base 74 M</text>
+                  <text x="303" y="86" font-size="7" fill="#2563eb" text-anchor="middle">small 244 M</text>
+
+                  <rect x="8" y="136" width="324" height="32" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="150" font-size="8" fill="#111111" text-anchor="middle">trained on 680 000 hours scraped from the web, in 99 languages</text>
+                  <text x="170" y="162" font-size="8" fill="#5b6270" text-anchor="middle">but that hoard is not shared out evenly, which is this lecture&#8217;s main finding</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  The decoder is a language model. That is why Whisper writes
+                  fluent, plausible sentences even when it has misheard &#8212;
+                  and why its mistakes read like real words rather than noise.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">The tokens before the text</h3>
+              <p class="narrow">
+                The decoder does not start empty. It is forced to begin with a
+                short prefix of special tokens, and the second one names the
+                language.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 128" role="img" aria-labelledby="fig-tokens-t">
+                  <title id="fig-tokens-t">The forced decoder prefix, and where the language is decided</title>
+                  <rect x="8" y="20" width="74" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="45" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|startoftranscript|&gt;</text>
+                  <rect x="86" y="20" width="40" height="22" rx="4" fill="#2563eb" />
+                  <text x="106" y="34" font-size="7.5" fill="#ffffff" text-anchor="middle">&lt;|kk|&gt;</text>
+                  <rect x="130" y="20" width="64" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="162" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|transcribe|&gt;</text>
+                  <rect x="198" y="20" width="70" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="233" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|notimestamps|&gt;</text>
+                  <rect x="272" y="20" width="60" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="302" y="34" font-size="7" fill="#111111" text-anchor="middle">ақш-тың &#8230;</text>
+
+                  <line x1="106" y1="42" x2="106" y2="54" stroke="#2563eb" stroke-width="1.2" />
+                  <text x="106" y="66" font-size="8" fill="#2563eb" text-anchor="middle">this one decides the output language</text>
+                  <text x="106" y="78" font-size="7.5" fill="#5b6270" text-anchor="middle">it is not a hint; it is where generation starts</text>
+
+                  <rect x="8" y="90" width="324" height="30" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="104" font-size="8" fill="#111111" text-anchor="middle">set it to &lt;|ru|&gt; on Kazakh audio and the model does not fail politely</text>
+                  <text x="170" y="115" font-size="8" fill="#b91c1c" text-anchor="middle">it writes fluent Russian-looking nonsense &#8212; measured below</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  <code>&lt;|translate|&gt;</code> in the third slot is the other
+                  switch: same audio, same encoder, English out. Whisper
+                  translates only <em>into</em> English.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from transformers import WhisperProcessor, WhisperForConditionalGeneration
+
+processor = WhisperProcessor.from_pretrained("openai/whisper-small")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+
+features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+
+ids = model.generate(features, language="kk", task="transcribe")
+print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="scoring">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Measurement</span>
+              <h2 id="scoring">How to score a transcript</h2>
+              <p class="narrow lead">
+                Two numbers, both of them edit distances, one counted in words
+                and one in characters. The difference between them turns out to
+                be the most informative thing on this page.
+              </p>
+
+              <div class="definition">
+                <p>
+                  <strong>WER</strong> = (substitutions + deletions +
+                  insertions) &#247; words in the reference. <strong>CER</strong>
+                  is the same arithmetic over characters. Both are computed
+                  after lowercasing and stripping punctuation &#8212; otherwise
+                  you are mostly measuring whether the model felt like writing a
+                  comma.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 146" role="img" aria-labelledby="fig-wer-t">
+                  <title id="fig-wer-t">Word error rate counted on a short example</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">reference (6 words)</text>
+                  <rect x="8" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="30" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="30" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="18" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="30" font-size="6.5" fill="#111111" text-anchor="middle">дейінгі</text>
+                  <rect x="162" y="18" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="30" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="18" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="30" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="18" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="30" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+
+                  <text x="8" y="56" font-size="8" fill="#5b6270">hypothesis</text>
+                  <rect x="8" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="74" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="74" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="62" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="74" font-size="6.5" fill="#111111" text-anchor="middle">дейін</text>
+                  <rect x="162" y="62" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="74" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="62" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="74" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="62" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="74" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+                  <rect x="266" y="62" width="40" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="286" y="74" font-size="6.5" fill="#111111" text-anchor="middle">болады</text>
+
+                  <text x="138" y="50" font-size="7" fill="#b91c1c" text-anchor="middle">substitution</text>
+                  <text x="286" y="92" font-size="7" fill="#b91c1c" text-anchor="middle">insertion</text>
+
+                  <rect x="8" y="104" width="324" height="34" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="118" font-size="8.5" fill="#111111" text-anchor="middle">WER = (1 substitution + 0 deletions + 1 insertion) / 6 words = 0.333</text>
+                  <text x="170" y="131" font-size="8" fill="#5b6270" text-anchor="middle">insertions are why WER can exceed 1.0 &#8212; whisper-tiny scores 2.099 below</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  WER is not a percentage of words correct. It is errors per
+                  reference word, and a model that rambles can commit more
+                  errors than there were words to get wrong.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Why both numbers, and not just WER</span>
+                <dl class="breakdown__list">
+                  <dt>WER is what a user feels</dt>
+                  <dd>A wrong word is a wrong word, whether it missed by one letter or ten. For search, subtitles or a voice command, this is the number that matters.</dd>
+                  <dt>CER is what the model heard</dt>
+                  <dd>If CER is low while WER is high, the model got the sounds nearly right and the spelling wrong. That is a very different failure from not understanding the audio at all.</dd>
+                  <dt>the gap is diagnostic</dt>
+                  <dd>Measured below: Kazakh WER is 7.5&#215; English, but Kazakh CER is only 4.3&#215;. Whisper is hearing Kazakh tolerably and writing it badly &#8212; a tokenizer and training-data problem, not a deafness problem.</dd>
+                  <dt>normalise first, and say how</dt>
+                  <dd>Ours lowercases, removes punctuation and collapses whitespace. Published WER figures are not comparable across papers unless the normalisation matches, and it usually does not.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="results-asr">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Recognition</span>
+              <h2 id="results-asr">One clip, in full</h2>
+              <div class="code-block" data-lang="bash"><pre><code>python3 data.py --fetch      # 12 clips each of kk / ru / en, once
+python3 asr.py --demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  file      kk-00.wav  (14.9 s of Kazakh, google/fleurs kk_kz test)
+
+  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды
+              және біздің барлық спортсмендер үшін қоршаған ортаның қауіпсіздігін
+              арттырудың абсолютті қажеттілігін мойындайды
+
+  whisper-small: Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды,
+              және біздің барлық спартсмендерішін, хоршаған үртаның қаупсыдың,
+              арттырудың абсалюттық ажеттілің бойындайды.
+
+  WER 0.762   CER 0.174   0.6 s for 14.9 s of audio (RTF 0.04)
+
+  word by word, after normalisation:
+    replace  ақш тың гимнастика      -> ақыштың димнастика
+    replace  ақш олимпиада комитеті… -> ақыш олимпиады қамитетінің ханғылд…
+    replace  спортсмендер үшін қорш… -> спартсмендерішін хоршаған үртаның …
+    replace  абсолютті қажеттілігін… -> абсалюттық ажеттілің бойындайды</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Read the errors, not just the number</span>
+                <dl class="breakdown__list">
+                  <dt>21 reference words, 13 substituted, 3 deleted, 0 inserted</dt>
+                  <dd>(13 + 3 + 0) / 21 = 0.762. Five words came through untouched.</dd>
+                  <dt>гимнастика &#8594; димнастика</dt>
+                  <dd>One letter. Counted as a whole wrong word by WER, as one wrong character by CER. Multiply that across a transcript and you get the 7.5&#215; against 4.3&#215; gap.</dd>
+                  <dt>ақш-тың &#8594; ақыштың</dt>
+                  <dd>An abbreviation plus a case suffix, which is the hard case in an agglutinative language: Lecture 2&#8217;s morphology problem, arriving through a microphone.</dd>
+                  <dt>0.6 s for 14.9 s of audio</dt>
+                  <dd>A real-time factor of 0.04, about 25&#215; faster than the speech itself, on a laptop with no GPU server. Recognition is cheap; being right is the expensive part.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="languages">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; The main finding</span>
+              <h2 id="languages">The same model, three languages</h2>
+              <p class="narrow lead">
+                FLEURS reads the same source sentences in every language it
+                covers. So these three rows differ in language and in nothing
+                else that matters.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  language    clips      WER      CER    audio s      RTF
+  --------------------------------------------------------
+  en             12    0.099    0.042      107.1     0.02
+  ru             12    0.108    0.028      138.9     0.02
+  kk             12    0.744    0.180      187.6     0.03
+
+  Kazakh WER is 7.5x the English WER on the same sentences.</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 154" role="img" aria-labelledby="fig-langbar-t">
+                  <title id="fig-langbar-t">Word and character error rate for English, Russian and Kazakh</title>
+                  <line x1="40" y1="16" x2="40" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <line x1="40" y1="110" x2="320" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <text x="14" y="20" font-size="7" fill="#5b6270">0.8</text>
+                  <text x="14" y="66" font-size="7" fill="#5b6270">0.4</text>
+                  <text x="14" y="113" font-size="7" fill="#5b6270">0</text>
+
+                  <rect x="62" y="98" width="26" height="12" fill="#2563eb" />
+                  <text x="75" y="95" font-size="6.5" fill="#111111" text-anchor="middle">.099</text>
+                  <rect x="92" y="105" width="26" height="5" fill="#93b4f5" />
+                  <text x="105" y="102" font-size="6.5" fill="#111111" text-anchor="middle">.042</text>
+                  <text x="90" y="124" font-size="8" fill="#111111" text-anchor="middle">English</text>
+
+                  <rect x="146" y="97" width="26" height="13" fill="#2563eb" />
+                  <text x="159" y="94" font-size="6.5" fill="#111111" text-anchor="middle">.108</text>
+                  <rect x="176" y="107" width="26" height="3" fill="#93b4f5" />
+                  <text x="189" y="104" font-size="6.5" fill="#111111" text-anchor="middle">.028</text>
+                  <text x="174" y="124" font-size="8" fill="#111111" text-anchor="middle">Russian</text>
+
+                  <rect x="230" y="22" width="26" height="88" fill="#b91c1c" />
+                  <text x="243" y="19" font-size="6.5" fill="#111111" text-anchor="middle">.744</text>
+                  <rect x="260" y="89" width="26" height="21" fill="#e79a9a" />
+                  <text x="273" y="86" font-size="6.5" fill="#111111" text-anchor="middle">.180</text>
+                  <text x="258" y="124" font-size="8" fill="#111111" text-anchor="middle">Kazakh</text>
+
+                  <rect x="40" y="134" width="10" height="8" fill="#2563eb" />
+                  <text x="54" y="141" font-size="7.5" fill="#5b6270">WER</text>
+                  <rect x="84" y="134" width="10" height="8" fill="#93b4f5" />
+                  <text x="98" y="141" font-size="7.5" fill="#5b6270">CER</text>
+                  <text x="196" y="141" font-size="7.5" fill="#111111">WER 7.5&#215; worse, CER only 4.3&#215; worse</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  The two bars diverge for Kazakh and stay together for English
+                  and Russian. That divergence is the finding.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What 0.744 actually means</span>
+                <dl class="breakdown__list">
+                  <dt>three out of four words are wrong</dt>
+                  <dd>As a subtitle track it is unusable. As a search index it is close to useless: the words you would search for are the rare ones, and the rare ones are what it gets wrong.</dd>
+                  <dt>but it is not deaf</dt>
+                  <dd>CER 0.180 means five of six characters are right. Read the transcript aloud and a Kazakh speaker recognises the sentence. The model has the sound and not the spelling.</dd>
+                  <dt>this is a data problem, not a language problem</dt>
+                  <dd>Whisper was trained on 680 000 hours scraped from the web, in which Kazakh is a rounding error. Nothing about Kazakh is intrinsically harder to hear.</dd>
+                  <dt>you have seen this number before</dt>
+                  <dd>Lecture 7: 0.937 on English sentiment against 0.799 on Kazakh. Lecture 8: the same sentence costs 2.0&#215; the tokens in Kazakh. Lecture 10: the geocoder could not find «Алматы». The penalty follows the language through every layer of the stack.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  For a Kazakhstan product this is the number that decides the
+                  architecture. At WER 0.744 you do not build voice search; you
+                  build a fallback, or you fine-tune, or you pay for a bigger
+                  model.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Size</span>
+              <h2 id="sizes">Does a bigger model fix it?</h2>
+              <div class="code-block" data-lang="output"><pre><code>  3. MODEL SIZE AGAINST ACCURACY  (kk)
+
+  model      parameters      WER      CER      RTF
+  ------------------------------------------------
+  tiny             39 M    2.099    0.894     0.02
+  base             74 M    0.934    0.322     0.02
+  small           244 M    0.744    0.180     0.03</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>WER 2.099 is not a typo.</strong> <code>tiny</code>
+                  produces more than twice as many errors as there are words in
+                  the reference, because it inserts text that was never spoken
+                  &#8212; the decoder is a language model, and a small language
+                  model with a weak audio signal starts writing fiction. This is
+                  the clearest possible demonstration that WER is errors per
+                  word, not a percentage correct.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Reading the ladder</span>
+                <dl class="breakdown__list">
+                  <dt>6&#215; the parameters buys a lot, then less</dt>
+                  <dd>39&#8202;M to 74&#8202;M nearly halves CER (0.894 to 0.322). 74&#8202;M to 244&#8202;M halves it again (0.322 to 0.180) for 3.3&#215; the parameters. The returns are real and diminishing.</dd>
+                  <dt>speed barely changes</dt>
+                  <dd>RTF 0.02 to 0.03 across a 6&#215; range in size. On this task the models are all far faster than real time, so size costs memory, not waiting.</dd>
+                  <dt>0.744 is still not usable</dt>
+                  <dd>Scaling within the family did not solve Kazakh. The honest options are a larger checkpoint (<code>large-v3</code>), fine-tuning on Kazakh speech, or designing the product so it never needs a perfect transcript.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="langtoken">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; A trap</span>
+              <h2 id="langtoken">Naming the wrong language</h2>
+              <p class="narrow lead">
+                The same Kazakh clip, decoded four times, changing only the
+                language token.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды…
+
+  language=kk  WER 0.762  Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+  language=ru  WER 0.905  Акшн димнастика Федерация Акш Олимпиада комитетов, хану…
+  language=tr  WER 1.095  Akıştın Dimyastika Fidiratiası Akış Aleyküya'da komite…
+  language=en  WER 1.095  The Dymnastic Federation was the chairman of the Olympic…</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Look at the last line. Told the audio is English, Whisper
+                produces a grammatical English sentence about an Olympic
+                committee chairman. It is fluent, it is confident, and it is
+                invented &#8212; the decoder&#8217;s language model filling in
+                over an audio signal it cannot map to English words.
+              </p>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Two practical consequences</span>
+                <dl class="breakdown__list">
+                  <dt>never hard-code the language in a multilingual product</dt>
+                  <dd>In Kazakhstan a support line receives Kazakh and Russian in the same queue, often in the same sentence. A fixed <code>language="ru"</code> silently turns every Kazakh call into transliterated noise, and nothing in the output signals it.</dd>
+                  <dt>detect it, and look at the confidence</dt>
+                  <dd>Whisper can predict the language token itself rather than being forced. That is a real classifier with a probability on it; log the probability and route low-confidence audio to a human.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">Transcribe against translate</h3>
+              <div class="code-block" data-lang="output"><pre><code>  task=transcribe  0.5 s
+    Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды, …
+
+  task=translate   0.2 s
+    The Dymnastic Federation of Akhars is the leader of the Akhars Olympic
+    Committee. It is the center of the community of our sportsmen, athletes,
+    and athletes.</code></pre></div>
+              <p class="narrow" style="margin-top: 20px">
+                One model, one encoder pass, a different third token. The
+                English is grammatical and substantively wrong &#8212;
+                &#8220;Federation of Akhars&#8221;, &#8220;athletes, and
+                athletes&#8221; &#8212; because translation inherits every
+                recognition error and then smooths it into fluent prose. If
+                Kazakh recognition is at WER 0.744, Kazakh-to-English
+                translation cannot be better than that, and it will look much
+                better than it is.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tts">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Synthesis</span>
+              <h2 id="tts">The same problem, backwards</h2>
+              <p class="narrow lead">
+                Recognition compresses 16 000 numbers a second down to three
+                words. Synthesis has to expand three words a second back into
+                16 000 numbers &#8212; and unlike recognition, there is no single
+                right answer. Every sentence has infinitely many correct
+                readings, differing in voice, pace and emphasis.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-tts-t">
+                  <title id="fig-tts-t">Text becomes audio tokens, then audio tokens become sound</title>
+                  <rect x="8" y="20" width="72" height="24" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="44" y="30" font-size="7" fill="#111111" text-anchor="middle">text</text>
+                  <text x="44" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">«Сәлеметсіз бе»</text>
+                  <line x1="80" y1="32" x2="94" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="94" y="14" width="88" height="36" rx="5" fill="#2563eb" />
+                  <text x="138" y="28" font-size="8" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <text x="138" y="40" font-size="6.5" fill="#dbe7ff" text-anchor="middle">Qwen3-0.6B, diffusion</text>
+                  <line x1="182" y1="32" x2="196" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="196" y="20" width="62" height="24" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="227" y="30" font-size="7" fill="#111111" text-anchor="middle">audio tokens</text>
+                  <text x="227" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">discrete codes</text>
+                  <line x1="258" y1="32" x2="272" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="272" y="14" width="60" height="36" rx="5" fill="#2563eb" />
+                  <text x="302" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">audio</text>
+                  <text x="302" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">tokenizer</text>
+
+                  <line x1="302" y1="50" x2="302" y2="62" stroke="#5b6270" stroke-width="1.2" />
+                  <polyline points="248,74 252,68 256,80 260,66 264,82 268,70 272,78 276,64 280,84 284,72 288,76 292,68 296,80 300,70 304,78 308,66 312,82 316,72 320,76 324,70 328,74" fill="none" stroke="#2563eb" stroke-width="1" />
+                  <text x="238" y="76" font-size="7" fill="#5b6270" text-anchor="end">24 kHz waveform</text>
+
+                  <rect x="8" y="94" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="108" font-size="8" fill="#111111" text-anchor="middle">the language model writes audio tokens the way Lecture 8&#8217;s wrote words</text>
+
+                  <text x="170" y="132" font-size="8" fill="#5b6270" text-anchor="middle">651 languages, including Kazakh &#8212; and unlike Whisper it was</text>
+                  <text x="170" y="144" font-size="8" fill="#5b6270" text-anchor="middle">built for exactly this breadth rather than acquiring it by accident</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Audio tokens are the trick that makes this a language-modelling
+                  problem. Once sound is a discrete sequence, everything from
+                  Lecture 6 onwards applies to it.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from omnivoice import OmniVoice
+
+model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="mps")
+
+audio = model.generate(
+    text="Сәлеметсіз бе! Бүгін Астанада ауа райы жақсы.",
+    language="Kazakh",
+)                      # a list of numpy arrays at 24 kHz
+
+import soundfile as sf
+sf.write("out.wav", audio[0], 24000)</code></pre></div>
+
+              <h3 style="margin-top: 44px">Three ways to choose the voice</h3>
+              <div class="grid" style="margin-top: 24px">
+                <div class="card">
+                  <h3>auto</h3>
+                  <p>Say nothing and the model picks a voice. Fast &#8212; 2.96 s of audio in 1.9 s &#8212; and you get whatever it felt like. Fine for a prototype, useless for a product with a brand.</p>
+                </div>
+                <div class="card">
+                  <h3>voice design</h3>
+                  <p>Describe the speaker with attributes: <code>female, young adult, high pitch</code>. No reference audio needed at all. Same speed as auto.</p>
+                </div>
+                <div class="card">
+                  <h3>voice clone</h3>
+                  <p>Give it a few seconds of a real speaker <em>and a transcript of that audio</em>, and it copies the voice. Slower &#8212; 11.6 s here, because the reference has to be encoded too.</p>
+                </div>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>Voice design takes a controlled vocabulary, not prose.</strong>
+                  &#8220;A calm, warm female voice speaking slowly and clearly&#8221;
+                  is <em>rejected</em>, with an error listing the 23 attributes
+                  it will accept: <code>female</code>, <code>male</code>,
+                  <code>child</code>, <code>teenager</code>,
+                  <code>young adult</code>, <code>middle-aged</code>,
+                  <code>elderly</code>, five pitch levels,
+                  <code>whisper</code>, and ten accents. This is exactly
+                  Lecture 10&#8217;s JSON finding in a different costume:
+                  getting the <em>shape</em> right is not the same as getting the
+                  <em>vocabulary</em> right, and a good API tells you which words
+                  exist.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="roundtrip">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Scoring a voice</span>
+              <h2 id="roundtrip">The round trip</h2>
+              <p class="narrow lead">
+                How do you score a synthesiser without a listening panel? Close
+                the loop: speak the sentence, transcribe it back with Whisper,
+                and measure how much survived. It is cheap, it is repeatable,
+                and it is wrong in one specific way you have to control for.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 162" role="img" aria-labelledby="fig-rt-t">
+                  <title id="fig-rt-t">Text through synthesis and recognition, with two places errors enter</title>
+                  <rect x="8" y="26" width="58" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="40" font-size="7.5" fill="#111111" text-anchor="middle">text in</text>
+                  <line x1="66" y1="37" x2="82" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="82" y="26" width="66" height="22" rx="4" fill="#2563eb" />
+                  <text x="115" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <line x1="148" y1="37" x2="164" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="164" y="26" width="52" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="190" y="40" font-size="7.5" fill="#111111" text-anchor="middle">audio</text>
+                  <line x1="216" y1="37" x2="232" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="232" y="26" width="58" height="22" rx="4" fill="#2563eb" />
+                  <text x="261" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">Whisper</text>
+                  <line x1="290" y1="37" x2="306" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="306" y="26" width="26" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="319" y="40" font-size="7" fill="#111111" text-anchor="middle">text</text>
+
+                  <text x="115" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">errors enter here</text>
+                  <text x="261" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">and here</text>
+                  <line x1="115" y1="48" x2="115" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+                  <line x1="261" y1="48" x2="261" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+
+                  <path d="M319 48 L319 74 L37 74 L37 52" fill="none" stroke="#5b6270" stroke-width="1.1" stroke-dasharray="3 2" />
+                  <text x="178" y="86" font-size="8" fill="#111111" text-anchor="middle">compare the two ends &#8212; but the score blames both systems</text>
+
+                  <rect x="8" y="98" width="324" height="56" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="114" font-size="8.5" fill="#111111" text-anchor="middle">the control: Whisper&#8217;s error on real human speech</text>
+                  <text x="170" y="128" font-size="8" fill="#5b6270" text-anchor="middle">English 0.099 &#183; Russian 0.108 &#183; Kazakh 0.744</text>
+                  <text x="170" y="146" font-size="8" fill="#15803d" text-anchor="middle">a round-trip score near its control means the voice is not the problem</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Without the control column the Kazakh number is
+                  uninterpretable. With it, the answer is immediate.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="output"><pre><code>  2. ROUND TRIP: TEXT -> SPEECH -> TEXT
+
+  language     lines      WER      CER      RTF    human WER
+  ----------------------------------------------------------
+  en               4    0.083    0.024     0.62        0.099
+  ru               4    0.146    0.054     0.57        0.108
+  kk               4    0.787    0.240     0.62        0.744</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What this decomposition shows</span>
+                <dl class="breakdown__list">
+                  <dt>English round-trip 0.083 &#8212; better than human speech</dt>
+                  <dd>Whisper makes <em>fewer</em> mistakes on OmniVoice&#8217;s English than on the human FLEURS readers (0.099). Synthetic speech is clean, evenly paced and free of the room noise and hesitation in real recordings. The synthesiser is genuinely good.</dd>
+                  <dt>so the Kazakh 0.787 is not the voice&#8217;s fault</dt>
+                  <dd>It sits barely above Whisper&#8217;s 0.744 on human Kazakh. Almost the entire error is the recogniser&#8217;s, measured in the previous section. The same pipeline on English proves the synthesis half works.</dd>
+                  <dt>which is why the control column exists</dt>
+                  <dd>Report 0.787 alone and a reader concludes the Kazakh voice is broken. That conclusion would be wrong, and only the English row rules it out. A metric that measures two systems at once needs a condition where one of them is known good.</dd>
+                  <dt>real-time factor about 0.6</dt>
+                  <dd>Synthesis is roughly 20&#215; slower than recognition and still faster than speech. A sentence takes about 60% of the time it takes to say it, on a laptop.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Note what this does <em>not</em> measure: whether the voice
+                  sounds natural, pleasant, or correctly stressed. A robotic
+                  monotone can score perfectly. The round trip measures
+                  intelligibility and nothing else &#8212; useful, cheap, and not
+                  a substitute for listening.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="propagation">
+            <div class="container">
+              <span class="section__eyebrow">Result &#183; Pipelines</span>
+              <h2 id="propagation">Errors travel</h2>
+              <p class="narrow lead">
+                Cloning a voice needs the reference audio <em>and a transcript of
+                it</em>. In a language your recogniser is weak at, that
+                transcript is itself a guess &#8212; so the two systems on this
+                page feed each other their mistakes.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  reference clip : kk-00.wav (14.9 s)
+  true transcript: ақш-тың гимнастика федерациясы ақш олимпиада комитетінің…
+  whisper heard  : Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+
+  Now make that speaker say something new:
+  «Алматыдан Шымкентке дейінгі жол тоғыз сағат.»
+
+  ref_text = true transcript     ->  round-trip WER 0.667   CER 0.209
+  ref_text = whisper transcript  ->  round-trip WER 1.000   CER 0.279</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>0.667 becomes 1.000.</strong> Same audio, same target
+                  sentence, same models. The only change is whether the
+                  reference transcript was correct or was Whisper&#8217;s best
+                  effort at it. Every word in the output was wrong.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">The general lesson, which is not about speech</span>
+                <dl class="breakdown__list">
+                  <dt>a pipeline multiplies its weakest stage</dt>
+                  <dd>Two components at 75% each are not a 75% system. Lecture 10 made this point about agents chaining tool calls; here it is two models, and the number is stark.</dd>
+                  <dt>the second stage cannot tell it was given rubbish</dt>
+                  <dd>OmniVoice has no way to know the reference text does not match the reference audio. It produced confident, fluent speech from an inconsistent pair.</dd>
+                  <dt>so measure end to end, not stage by stage</dt>
+                  <dd>Whisper at 0.744 and OmniVoice at &#8220;works fine in English&#8221; both look acceptable in isolation. Only the joint measurement shows a complete failure.</dd>
+                  <dt>and prefer human transcripts where you can</dt>
+                  <dd>For a product that clones a speaker, record the reference script rather than transcribing whatever you were given. It is the cheapest fix on this page.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="kazakh">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The through-line</span>
+              <h2 id="kazakh">The low-resource penalty, one last time</h2>
+              <p class="narrow lead">
+                This course has now measured the same effect at five different
+                layers of the stack. It is worth putting the numbers next to
+                each other, because together they say something no single one of
+                them says alone.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">The Kazakh penalty measured across the course</caption>
+                  <thead>
+                    <tr><th scope="col">Lecture</th><th scope="col">What was measured</th><th scope="col">English</th><th scope="col">Kazakh</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>7</td><td>Sentiment accuracy, fine-tuned encoder</td><td>0.937</td><td>0.799</td></tr>
+                    <tr><td>8</td><td>Tokens for the same sentence (o200k)</td><td>19</td><td>38</td></tr>
+                    <tr><td>8</td><td>API cost for the same workload</td><td>$130</td><td>$336</td></tr>
+                    <tr><td>10</td><td>Geocoding «Алматы» before the fix</td><td>found</td><td>not found</td></tr>
+                    <tr><td><strong>11</strong></td><td><strong>Speech recognition, WER</strong></td><td><strong>0.099</strong></td><td><strong>0.744</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">What the pattern means for building things here</span>
+                <dl class="breakdown__list">
+                  <dt>the penalty compounds down a pipeline</dt>
+                  <dd>Speech at 0.744, then a tokenizer charging double, then a model trained mostly on other languages. Each stage is survivable; stacked, they are not. Build with the fewest stages you can.</dd>
+                  <dt>measure your own language, always</dt>
+                  <dd>Every model card on this page reports benchmark numbers. None of them reported this one. Twelve clips and an afternoon produced it, and it changes what you would build.</dd>
+                  <dt>the fixes are known and unglamorous</dt>
+                  <dd>A larger checkpoint, fine-tuning on local speech (Kazakhstan has public corpora), constraining the task so a perfect transcript is not required, and keeping a human in the loop where the cost of being wrong is high.</dd>
+                  <dt>and the gap is closing from the other end</dt>
+                  <dd>OmniVoice covers 651 languages deliberately, and its Kazakh is good enough that Whisper is the bottleneck. Synthesis got multilingual before recognition did.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="lab">The lab</h2>
+              <div class="code-block" data-lang="bash"><pre><code>brew install ffmpeg
+pip install -r requirements.txt
+
+python3 data.py --fetch      # 12 clips each of kk / ru / en, once (~13 MB)
+python3 asr.py --all         # every recognition number on this page
+python3 tts.py --all         # the three voice modes and the round trip
+python3 app.py               # http://127.0.0.1:7862</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Transcribe</h3>
+                  <p>Upload a file or speak into the microphone. The language token, the model size and the transcribe/translate switch are all exposed, so the traps above can be reproduced live in one click.</p>
+                </div>
+                <div class="card">
+                  <h3>Speak</h3>
+                  <p>Type text, pick auto / voice design / voice clone, and listen. Feeding it prose instead of the allowed attributes shows the rejection message, which is the point.</p>
+                </div>
+                <div class="card">
+                  <h3>Round trip</h3>
+                  <p>Say it and transcribe it back, scored, with Whisper&#8217;s human-speech error quoted alongside so the number can be read correctly.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  Everything is local: <code>whisper-small</code> is about 1&#8202;GB,
+                  OmniVoice about 2.5&#8202;GB, both downloaded once. No API key,
+                  and no audio leaves the room &#8212; which for recorded speech,
+                  the most personal data in this course, is not a small detail.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">In class</span>
+              <h2 id="knowledge-check">Knowledge check</h2>
+              <p class="narrow lead">Eight questions we answer together before finishing.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Question 1</h3>
+                  <p class="challenge__task">Why does audio have to become a spectrogram before a Transformer sees it?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">Length, mostly. Attention is quadratic in sequence length, and 30 seconds at 16&#8202;kHz is 480 000 samples. The spectrogram turns that into about 1 500 frames of 80 numbers &#8212; a 300&#215; reduction &#8212; while keeping the frequency structure that distinguishes speech sounds. After that it is just a sequence of vectors, which is what Lecture 6&#8217;s encoder already accepted.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 2</h3>
+                  <p class="challenge__task">Whisper scored WER 2.099 on Kazakh with the <code>tiny</code> model. How can an error rate be above 1?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">Because WER counts insertions, and is divided by the length of the <em>reference</em>, not the hypothesis. A model that writes 60 words where 21 were spoken can commit more errors than there are reference words. The decoder is a language model; starved of a usable audio signal it starts producing fluent text of its own.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 3</h3>
+                  <p class="challenge__task">Kazakh WER is 7.5&#215; English but Kazakh CER is only 4.3&#215;. What does that gap tell you?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">That the model is hearing roughly the right sounds and writing the wrong words. <code>гимнастика</code> came out as <code>димнастика</code> &#8212; one character wrong, one whole word wrong. If CER were also catastrophic the model would not be resolving Kazakh phonetics at all, and the fix would be different. The gap points at training data and spelling, not at the acoustics.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 4</h3>
+                  <p class="challenge__task">A colleague hard-codes <code>language="ru"</code> because most of their callers speak Russian. What happens to the Kazakh callers?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">They get fluent transliterated nonsense, with nothing in the output to indicate a problem &#8212; WER 0.905 instead of 0.762 in our measurement, and worse, it <em>looks</em> like Russian. The language token is the token the decoder is forced to start from, not a hint it can override. Let Whisper predict the language and log the probability.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 5</h3>
+                  <p class="challenge__task">The round-trip WER for Kazakh was 0.787. Is the Kazakh voice bad?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">No, and you cannot tell from that number alone &#8212; which is the lesson. Whisper scores 0.744 on <em>human</em> Kazakh, so almost all of 0.787 is the recogniser. The English control settles it: round-trip English is 0.083, better than Whisper on human English (0.099). The synthesiser works; the recogniser is the bottleneck.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 6</h3>
+                  <p class="challenge__task">Round-trip WER for English was <em>lower</em> than Whisper's error on human English. Should that worry you?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">It should make you careful about what the metric means. Synthetic speech is clean, evenly paced, noise-free and has no hesitation or accent, so it is genuinely easier to recognise than a real recording. The round trip measures intelligibility to a machine &#8212; not naturalness, not pleasantness, not correct stress. A flat robotic monotone could score perfectly.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 7</h3>
+                  <p class="challenge__task">Cloning with the true transcript scored 0.667; cloning with Whisper's transcript of the same clip scored 1.000. Why so severe?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">The cloner aligns the reference audio with the reference text to work out how this speaker realises each sound. Give it a text that does not match the audio and that alignment is wrong everywhere, so the voice it extracts is wrong everywhere. It cannot detect the inconsistency, and it produces confident, fluent, unusable speech. Two components that each look acceptable alone made a system that fails completely.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Question 8</h3>
+                  <p class="challenge__task">You are asked to build Kazakh voice search for a Kazakhstan app. What do you say?</p>
+                  <details class="answer">
+                    <summary>Show Answer</summary>
+                    <p style="margin-bottom: 0">That at WER 0.744 with <code>whisper-small</code> it will not work as specified, and here is the measurement. Then the options: a larger checkpoint, fine-tuning on Kazakh speech corpora, restricting to a small command vocabulary where a constrained decoder can be right far more often, or falling back to typing when confidence is low. The useful contribution is the number, taken on your own language, before anyone has built anything.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Practice</span>
+              <h2 id="practice">Practice tasks</h2>
+              <p class="narrow lead">
+                Work in <code>code_files/lesson11/</code>. Fetch the audio once,
+                then everything is one command or one small edit.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Task 1 &#8212; Your own voice</h3>
+                  <p class="challenge__task">Record yourself reading a Kazakh and a Russian sentence in the Transcribe tab. Compare the WER against the FLEURS numbers. Studio readers are the easy case; you are the real one.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 2 &#8212; Break the language token</h3>
+                  <p class="challenge__task">Take one Kazakh clip and transcribe it as <code>kk</code>, <code>ru</code>, <code>tr</code> and <code>en</code>. Read the English output aloud to a neighbour without telling them the source. Would they know it was invented?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 3 &#8212; Where does the size stop paying?</h3>
+                  <p class="challenge__task">Add <code>openai/whisper-medium</code> to <code>MODELS</code> in <code>asr.py</code> and re-run <code>--sizes</code>. Plot WER against parameters. Does Kazakh reach a usable level anywhere on that curve?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 4 &#8212; Normalisation matters</h3>
+                  <p class="challenge__task">Turn off punctuation stripping in <code>asr.normalise</code> and re-run the language comparison. How much of the reported error was ever about punctuation? Now you know why published WER figures are hard to compare.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 5 &#8212; A harder listening test</h3>
+                  <p class="challenge__task">Add noise to a clip with <code>librosa</code> before transcribing, at a few signal-to-noise ratios. Plot WER against SNR for Kazakh and English. Does the low-resource gap widen or narrow as conditions get worse?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 6 &#8212; Design a voice</h3>
+                  <p class="challenge__task">Work through the 23 voice-design attributes and find the combination closest to a Kazakh public-service announcement. Then try to express the same thing in free prose and read the error message carefully.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 7 &#8212; Clone yourself</h3>
+                  <p class="challenge__task">Record ten seconds of your own speech, type the transcript by hand, and clone it. Then clone it again using Whisper's transcript instead. Measure both round trips, as the lecture did for Kazakh.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Task 8 &#8212; The whole course in one pipeline</h3>
+                  <p class="challenge__task">Chain it: speech &#8594; Whisper &#8594; Lecture 7's sentiment classifier &#8594; a spoken reply from OmniVoice. Measure the end-to-end accuracy and compare it with the classifier's accuracy on typed text. How much did the microphone cost you?</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Summary</span>
+              <h2 id="takeaways">Today we learned</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Speech reaches a model as a spectrogram: 80 mel bands, 50 frames a second, which is just a sequence of vectors</li>
+                <li>Whisper is Lecture 6&#8217;s encoder&#8211;decoder with audio on the front; nothing about the attention changed</li>
+                <li>Its decoder is a language model, which is why its mistakes are fluent real words rather than noise</li>
+                <li>The language token is the decoder&#8217;s starting point, not a hint &#8212; name the wrong one and you get confident transliteration</li>
+                <li>WER counts substitutions, deletions and insertions per reference word, so it can exceed 1.0; whisper-tiny scored 2.099 on Kazakh</li>
+                <li>On the same FLEURS sentences: English WER 0.099, Russian 0.108, <strong>Kazakh 0.744</strong> &#8212; 7.5&#215; worse</li>
+                <li>But Kazakh CER is only 4.3&#215; worse: the model hears the sounds and writes the wrong words</li>
+                <li>Scaling tiny &#8594; base &#8594; small took Kazakh CER 0.894 &#8594; 0.322 &#8594; 0.180, and still did not reach usable</li>
+                <li>Recognition runs at RTF 0.02&#8211;0.03 on a laptop; being right is the expensive part, not being fast</li>
+                <li>Synthesis is the same problem backwards, with no single right answer &#8212; text becomes audio tokens, then a waveform</li>
+                <li>OmniVoice picks a voice three ways: auto, voice design from a fixed vocabulary, or cloning from a reference clip</li>
+                <li>Voice design rejects free prose and lists its 23 allowed attributes &#8212; structure is not vocabulary, as in Lecture 10</li>
+                <li>Score a synthesiser by speaking and transcribing back &#8212; but only against a control, or the number blames two systems at once</li>
+                <li>Round-trip English scored 0.083, better than Whisper on human English, so the synthesiser is good and Kazakh&#8217;s 0.787 is the recogniser&#8217;s doing</li>
+                <li>Feeding Whisper&#8217;s own transcript into the voice cloner took it from WER 0.667 to 1.000 &#8212; errors propagate and compound</li>
+                <li>The Kazakh penalty has now been measured at five layers of this course, and it compounds down a pipeline</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Lecture 11 &middot; 28 Sep 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

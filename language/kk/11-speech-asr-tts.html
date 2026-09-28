@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="kk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Сөйлеу: ASR және TTS | NLP Course</title>
+    <meta
+      name="description"
+      content="11-дәріс: сөйлеу қалай мәтінге, мәтін қалай сөйлеуге айналады. Спектрограммалар, encoder-decoder ретіндегі Whisper, language token, қазақ, орыс және ағылшын тілдерінде өлшенген word және character error rate, содан соң синтезге OmniVoice, дауысты клондау және екі жүйені бірден бағалайтын айналма рейс."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Мазмұнға өту</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Мазмұны
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/11-speech-asr-tts.html" data-lang-link="en">EN</a>
+        <a href="../kk/11-speech-asr-tts.html" aria-current="true" data-lang-link="kk">KZ</a>
+        <a href="../ru/11-speech-asr-tts.html" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">Мәтінді өңдеуден Large Language Models-ке дейін</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/11-speech-asr-tts.html" data-lang-link="en">EN</a>
+          <a href="../kk/11-speech-asr-tts.html" aria-current="true" data-lang-link="kk">KZ</a>
+          <a href="../ru/11-speech-asr-tts.html" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Мазмұны</span>
+        <nav data-toc aria-label="Курс мазмұны">
+          <noscript><a href="index.html">Курс бағдарламасы</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Мазмұнды жабу" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">11-дәріс</span>
+              <h1>Сөйлеу: ASR және TTS</h1>
+              <p class="hero__subtitle">
+                Осы кезге дейінгі әр дәріс біреу теріп қойған мәтіннен басталды. Ал тілдің көбі терілмейді — ол айтылады. Бұл дәріс шеңберді екі ұшынан да тұйықтайды: Whisper арқылы дыбысты мәтінге, OmniVoice арқылы мәтінді дыбысқа, әрі екеуін де қазақ тілінде адал бағалау тәсілін.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Оқу мақсаттары</span>
+              <h2 id="goals">Осы дәрістің соңында сіз&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Аудио қалай кіріске айналатынын түсіндіре аласыз</h3>
+                  <p>Дискретизация, спектрограмма және Transformer оқи алуы үшін секундына 16 000 сан неге секундына шамамен 50 кадрға айналуға тиіс екені.</p>
+                </div>
+                <div class="card">
+                  <h3>Whisper-ді сипаттай аласыз</h3>
+                  <p>6-дәрістегі encoder–decoder, алдында дыбыспен, әрі қай тілде жазатынын шешетін арнайы tokens.</p>
+                </div>
+                <div class="card">
+                  <h3>Танығышты өлшей аласыз</h3>
+                  <p>Word error rate пен character error rate, біреуі неге 1.0-ден асуы мүмкін екені және ең қызық нәрсе неге солардың арасындағы алшақтықта тұратыны.</p>
+                </div>
+                <div class="card">
+                  <h3>Сөйлеуді синтездей аласыз</h3>
+                  <p>Мәтін → аудио-tokens → дыбыс толқыны, әрі кімнің даусы шығатынын таңдаудың үш жолы.</p>
+                </div>
+                <div class="card">
+                  <h3>Синтезаторды бағалай аласыз</h3>
+                  <p>Айтқызып, кері танытып, санды бақылауға қарсы оқи аласыз — өйткені өздігінен ол бірден екі жүйені өлшейді.</p>
+                </div>
+                <div class="card">
+                  <h3>Бұл қазаққа неге түсетінін айта аласыз</h3>
+                  <p>Сөйлеудегі төмен ресурсты айыпқа сан қойып, оны 7 және 8-дәрістердегі сол айыппен байланыстыра аласыз.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Екі модель де ноутбукте жұмыс істейді.</strong> <code>openai/whisper-small</code> (244&#8202;M) және <code>k2-fsa/OmniVoice</code> (Qwen3-0.6&#8202;B және аудио tokenizer), Apple M4 Pro үстінде, API кілтсіз. Аудио — <strong>FLEURS</strong>: ол қамтитын әр тілде дауыстап оқылған сол бір бастапқы сөйлемдер, ал бұл беттегі салыстыруларды әділ ететін де осы.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="sound">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Кіріс</span>
+              <h2 id="sound">Адам сөйлегенде компьютер не алады</h2>
+              <p class="narrow lead">
+                Микрофон ауа қысымын қайта-қайта өлшейді. 16&#8202;кГц-те бұл секундына он алты мың сан — әрі Transformer үшін бұл дұрыс емес мөлшердегі дұрыс емес сандар.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-wave-t">
+                  <title id="fig-wave-t">Ауа қысымынан секундына бірнеше кадрға дейін</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">1. толқын — әр секунд сайын 16 000 үлгі</text>
+                  <polyline points="8,34 14,26 20,42 26,22 32,46 38,28 44,38 50,20 56,44 62,30 68,40 74,24 80,42 86,32 92,36 98,26 104,44 110,30 116,38 122,28 128,40 134,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <polyline points="134,34 140,22 146,46 152,28 158,42 164,26 170,40 176,30 182,38 188,24 194,44 200,32 206,36 212,28 218,42 224,30 230,40 236,26 242,38 248,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <text x="258" y="36" font-size="7.5" fill="#5b6270">амплитуда</text>
+                  <text x="258" y="46" font-size="7.5" fill="#5b6270">уақыт бойынша</text>
+
+                  <line x1="128" y1="54" x2="128" y2="64" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="76" font-size="9" fill="#5b6270">2. спектрограмма — 20 мс терезеге жиілік бойынша энергия</text>
+                  <rect x="8" y="82" width="240" height="44" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <rect x="12" y="86" width="8" height="36" fill="#2563eb" opacity="0.30" />
+                  <rect x="22" y="94" width="8" height="28" fill="#2563eb" opacity="0.55" />
+                  <rect x="32" y="90" width="8" height="32" fill="#2563eb" opacity="0.75" />
+                  <rect x="42" y="102" width="8" height="20" fill="#2563eb" opacity="0.40" />
+                  <rect x="52" y="86" width="8" height="36" fill="#2563eb" opacity="0.85" />
+                  <rect x="62" y="98" width="8" height="24" fill="#2563eb" opacity="0.35" />
+                  <rect x="72" y="92" width="8" height="30" fill="#2563eb" opacity="0.65" />
+                  <rect x="82" y="106" width="8" height="16" fill="#2563eb" opacity="0.25" />
+                  <rect x="92" y="88" width="8" height="34" fill="#2563eb" opacity="0.70" />
+                  <rect x="102" y="96" width="8" height="26" fill="#2563eb" opacity="0.50" />
+                  <rect x="112" y="90" width="8" height="32" fill="#2563eb" opacity="0.80" />
+                  <rect x="122" y="104" width="8" height="18" fill="#2563eb" opacity="0.30" />
+                  <rect x="132" y="86" width="8" height="36" fill="#2563eb" opacity="0.60" />
+                  <rect x="142" y="100" width="8" height="22" fill="#2563eb" opacity="0.45" />
+                  <rect x="152" y="94" width="8" height="28" fill="#2563eb" opacity="0.75" />
+                  <rect x="162" y="108" width="8" height="14" fill="#2563eb" opacity="0.20" />
+                  <rect x="172" y="88" width="8" height="34" fill="#2563eb" opacity="0.65" />
+                  <rect x="182" y="98" width="8" height="24" fill="#2563eb" opacity="0.40" />
+                  <rect x="192" y="92" width="8" height="30" fill="#2563eb" opacity="0.70" />
+                  <rect x="202" y="102" width="8" height="20" fill="#2563eb" opacity="0.35" />
+                  <rect x="212" y="86" width="8" height="36" fill="#2563eb" opacity="0.55" />
+                  <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
+                  <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
+                  <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel жолағы</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 кадр/с</text>
+
+                  <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder оны тағы жартылайды, содан соң decoder сөз жазады</text>
+                  <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/с</text>
+                  <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
+                  <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <line x1="152" y1="169" x2="166" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="166" y="160" width="82" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="207" y="172" font-size="7" fill="#111111" text-anchor="middle">~3 сөз/с</text>
+                  <text x="256" y="172" font-size="7.5" fill="#b91c1c">5 000&#215; аз</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Сөйлеуді тану негізінен сығу міндеті. Секундына он алты мың сан секундына шамамен үш сөзге айналуға тиіс, ал архитектураның барлығы дерлік сол қысқартуды мағына тасушы бөлікті лақтырып тастамай жасау туралы.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Модельге дейін керек үш идея</span>
+                <dl class="breakdown__list">
+                  <dt>дискретизация жиілігі</dt>
+                  <dd>16&#8202;кГц — сөйлеу стандарты. Ол 8&#8202;кГц-ке дейінгі жиіліктерді ұстайды, бұл кез келген сөйлеу дыбысына жетеді әрі музыкалық сапаның жартысы. Осы беттегі әр клип соған қайта сэмплденген.</dd>
+                  <dt>спектрограмма</dt>
+                  <dd>Сигналды әр 10&#8202;мс сайын 25&#8202;мс қабаттасатын терезелерге кесіп, әр терезе үшін адам құлағы орналастыратындай орналасқан 80 жиілік жолағының әрқайсысына қанша энергия түсетінін өлшейміз. Нәтижесі — сурет: уақыт көлденең, жиілік тік.</dd>
+                  <dt>енді бұл тізбек</dt>
+                  <dd>Кадрына 80 сан, секундына 50 кадр. Бұл — 6-дәрістегі encoder күтетін дәл сол пішін, векторлар тізбегі, — сондықтан сол архитектура attention-де мүлдем өзгеріссіз дыбыспен жұмыс істейді.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Transformer ішінде мұның аудио екенін білетін ештеңе жоқ. Embeddings кестесін спектрограммаға ауыстырыңыз да, 6-дәрістің қалғаны өзгеріссіз жұмыс істейді.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="whisper">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Модель</span>
+              <h2 id="whisper">Whisper — микрофоны бар 6-дәріс</h2>
+              <p class="narrow lead">
+                Мұнда жаңа архитектура жоқ. Encoder спектрограмманы оқиды, decoder мәтін жазады, ал cross-attention оларды жалғайды — дәл 6-дәрістегі encoder–decoder Transformer, мұнда бастапқы сөйлемді аудио алмастырған.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-whisper-t">
+                  <title id="fig-whisper-t">Whisper: audio encoder, text decoder және олардың арасындағы cross-attention</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">30 секунд аудио, толтырылған немесе қиылған</text>
+                  <rect x="8" y="18" width="116" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="66" y="31" font-size="7.5" fill="#111111" text-anchor="middle">log-mel спектрограмма</text>
+                  <line x1="66" y1="36" x2="66" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="8" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="66" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">audio encoder</text>
+                  <text x="66" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">2 конволюция қабаты, сосын</text>
+                  <text x="66" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">self-attention блоктары</text>
+
+                  <line x1="124" y1="71" x2="146" y2="71" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="146,71 141,68.5 141,73.5" fill="#5b6270" />
+                  <text x="135" y="64" font-size="7" fill="#15803d" text-anchor="middle">cross-attention</text>
+
+                  <rect x="146" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="204" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <text x="204" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">себепті, бір token</text>
+                  <text x="204" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">бір мезгілде</text>
+
+                  <line x1="204" y1="96" x2="204" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="146" y="106" width="116" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="204" y="119" font-size="7.5" fill="#111111" text-anchor="middle">ақш-тың гимнастика&#8230;</text>
+
+                  <rect x="274" y="46" width="58" height="50" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="303" y="62" font-size="7" fill="#111111" text-anchor="middle">tiny 39 M</text>
+                  <text x="303" y="74" font-size="7" fill="#111111" text-anchor="middle">base 74 M</text>
+                  <text x="303" y="86" font-size="7" fill="#2563eb" text-anchor="middle">small 244 M</text>
+
+                  <rect x="8" y="136" width="324" height="32" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="150" font-size="8" fill="#111111" text-anchor="middle">интернеттен жиналған 680 000 сағатта, 99 тілде оқытылған</text>
+                  <text x="170" y="162" font-size="8" fill="#5b6270" text-anchor="middle">бірақ бұл қор тең бөлінбеген, ал дәрістің басты түйіні осы</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Decoder — тілдік модель. Сондықтан Whisper қате естігенде де еркін, сенімді сөйлем жазады, әрі сондықтан оның қателері шу емес, нағыз сөздер болып көрінеді.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">Мәтінге дейінгі tokens</h3>
+              <p class="narrow">
+                Decoder бос жерден бастамайды. Ол арнайы tokens-тің қысқа префиксінен бастауға мәжбүр, ал олардың екіншісі тілді атайды.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 128" role="img" aria-labelledby="fig-tokens-t">
+                  <title id="fig-tokens-t">Decoder-дің мәжбүрлі префиксі және тіл қай жерде шешілетіні</title>
+                  <rect x="8" y="20" width="74" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="45" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|startoftranscript|&gt;</text>
+                  <rect x="86" y="20" width="40" height="22" rx="4" fill="#2563eb" />
+                  <text x="106" y="34" font-size="7.5" fill="#ffffff" text-anchor="middle">&lt;|kk|&gt;</text>
+                  <rect x="130" y="20" width="64" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="162" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|transcribe|&gt;</text>
+                  <rect x="198" y="20" width="70" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="233" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|notimestamps|&gt;</text>
+                  <rect x="272" y="20" width="60" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="302" y="34" font-size="7" fill="#111111" text-anchor="middle">ақш-тың &#8230;</text>
+
+                  <line x1="106" y1="42" x2="106" y2="54" stroke="#2563eb" stroke-width="1.2" />
+                  <text x="106" y="66" font-size="8" fill="#2563eb" text-anchor="middle">шығыс тілін осы шешеді</text>
+                  <text x="106" y="78" font-size="7.5" fill="#5b6270" text-anchor="middle">бұл нұсқау емес; бұл генерация басталатын жер</text>
+
+                  <rect x="8" y="90" width="324" height="30" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="104" font-size="8" fill="#111111" text-anchor="middle">қазақ аудиосына &lt;|ru|&gt; қойыңыз — модель сыпайы қателеспейді</text>
+                  <text x="170" y="115" font-size="8" fill="#b91c1c" text-anchor="middle">ол орысша көрінетін еркін мағынасыздық жазады — төменде өлшенген</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Үшінші ұяшықтағы <code>&lt;|translate|&gt;</code> — екінші ауыстырғыш: сол аудио, сол encoder, шығысы ағылшынша. Whisper тек ағылшын тіліне <em>қарай</em> аударады.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from transformers import WhisperProcessor, WhisperForConditionalGeneration
+
+processor = WhisperProcessor.from_pretrained("openai/whisper-small")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+
+features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+
+ids = model.generate(features, language="kk", task="transcribe")
+print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="scoring">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Өлшеу</span>
+              <h2 id="scoring">Транскрипцияны қалай бағалау керек</h2>
+              <p class="narrow lead">
+                Екі сан, екеуі де редакциялау қашықтығы, бірі сөзбен, бірі таңбамен саналады. Олардың арасындағы айырма осы беттегі ең ақпаратты нәрсе болып шығады.
+              </p>
+
+              <div class="definition">
+                <p>
+                  <strong>WER</strong> = (ауыстырулар + түсіп қалулар + қыстырулар) &#247; эталондағы сөз саны. <strong>CER</strong> — таңбалар бойынша сол арифметика. Екеуі де кіші әріпке келтіріп, тыныс белгілерін алып тастағаннан кейін есептеледі, әйтпесе сіз негізінен модельдің үтір қойғысы келді ме, соны өлшейсіз.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 146" role="img" aria-labelledby="fig-wer-t">
+                  <title id="fig-wer-t">Қысқа мысалда есептелген word error rate</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">эталон (6 сөз)</text>
+                  <rect x="8" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="30" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="30" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="18" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="30" font-size="6.5" fill="#111111" text-anchor="middle">дейінгі</text>
+                  <rect x="162" y="18" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="30" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="18" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="30" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="18" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="30" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+
+                  <text x="8" y="56" font-size="8" fill="#5b6270">болжам</text>
+                  <rect x="8" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="74" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="74" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="62" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="74" font-size="6.5" fill="#111111" text-anchor="middle">дейін</text>
+                  <rect x="162" y="62" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="74" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="62" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="74" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="62" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="74" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+                  <rect x="266" y="62" width="40" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="286" y="74" font-size="6.5" fill="#111111" text-anchor="middle">болады</text>
+
+                  <text x="138" y="50" font-size="7" fill="#b91c1c" text-anchor="middle">ауыстыру</text>
+                  <text x="286" y="92" font-size="7" fill="#b91c1c" text-anchor="middle">қыстыру</text>
+
+                  <rect x="8" y="104" width="324" height="34" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="118" font-size="8.5" fill="#111111" text-anchor="middle">WER = (1 ауыстыру + 0 түсіру + 1 қыстыру) / 6 сөз = 0.333</text>
+                  <text x="170" y="131" font-size="8" fill="#5b6270" text-anchor="middle">қыстырулар себебінен WER 1.0-ден асады — whisper-tiny 2.099</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  WER — дұрыс сөздердің пайызы емес. Бұл эталон сөзіне шаққандағы қате саны, ал көп сөйлеп кеткен модель қателесуге болатын сөздерден де көп қате жасай алады.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Неге тек WER емес, екі сан да</span>
+                <dl class="breakdown__list">
+                  <dt>WER — пайдаланушы сезінетін нәрсе</dt>
+                  <dd>Қате сөз бір әріпке жаңылса да, онға жаңылса да қате болып қалады. Іздеу, субтитр немесе дауыстық команда үшін маңыздысы осы сан.</dd>
+                  <dt>CER — модель естігені</dt>
+                  <dd>CER төмен, ал WER жоғары болса, модель дыбыстарды шамамен дұрыс, ал жазуды қате алған. Бұл аудионы мүлдем түсінбеуден мүлде басқа ақау.</dd>
+                  <dt>алшақтық диагностикалық</dt>
+                  <dd>Төменде өлшенген: қазақ WER ағылшыннан 7.5&#215; көп, ал қазақ CER тек 4.3&#215;. Whisper қазақшаны шыдамды естіп, нашар жазады — бұл tokenizer мен оқыту деректерінің мәселесі, саңыраулық емес.</dd>
+                  <dt>алдымен нормалаңыз, әрі қалай екенін айтыңыз</dt>
+                  <dd>Біздікі кіші әріпке келтіреді, тыныс белгілерін алады және бос орындарды жинайды. Жарияланған WER сандары нормалау сәйкес келмесе мақалалар арасында салыстырылмайды, ал ол әдетте сәйкес келмейді.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="results-asr">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Тану</span>
+              <h2 id="results-asr">Бір клип толығымен</h2>
+              <div class="code-block" data-lang="bash"><pre><code>python3 data.py --fetch      # 12 clips each of kk / ru / en, once
+python3 asr.py --demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  file      kk-00.wav  (14.9 s of Kazakh, google/fleurs kk_kz test)
+
+  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды
+              және біздің барлық спортсмендер үшін қоршаған ортаның қауіпсіздігін
+              арттырудың абсолютті қажеттілігін мойындайды
+
+  whisper-small: Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды,
+              және біздің барлық спартсмендерішін, хоршаған үртаның қаупсыдың,
+              арттырудың абсалюттық ажеттілің бойындайды.
+
+  WER 0.762   CER 0.174   0.6 s for 14.9 s of audio (RTF 0.04)
+
+  word by word, after normalisation:
+    replace  ақш тың гимнастика      -> ақыштың димнастика
+    replace  ақш олимпиада комитеті… -> ақыш олимпиады қамитетінің ханғылд…
+    replace  спортсмендер үшін қорш… -> спартсмендерішін хоршаған үртаның …
+    replace  абсолютті қажеттілігін… -> абсалюттық ажеттілің бойындайды</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Тек санды емес, қателерді оқыңыз</span>
+                <dl class="breakdown__list">
+                  <dt>21 эталон сөз, 13 ауыстырылған, 3 түсіп қалған, 0 қыстырылған</dt>
+                  <dd>(13 + 3 + 0) / 21 = 0.762. Бес сөз тимей өтті.</dd>
+                  <dt>гимнастика &#8594; димнастика</dt>
+                  <dd>Бір әріп. WER мұны тұтас қате сөз деп, CER бір қате таңба деп санайды. Мұны бүкіл транскрипцияға көбейтіңіз — 7.5&#215; пен 4.3&#215; арасындағы алшақтық шығады.</dd>
+                  <dt>ақш-тың &#8594; ақыштың</dt>
+                  <dd>Қысқарту мен септік жалғауы — агглютинативті тілдегі қиын жағдай: микрофон арқылы келген 2-дәрістің морфология мәселесі.</dd>
+                  <dt>14.9 с аудиоға 0.6 с</dt>
+                  <dd>Real-time factor 0.04, сөйлеудің өзінен шамамен 25&#215; жылдам, GPU серверсіз ноутбукте. Тану арзан; қымбаты — дұрыс болу.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="languages">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Басты түйін</span>
+              <h2 id="languages">Бір модель, үш тіл</h2>
+              <p class="narrow lead">
+                FLEURS өзі қамтитын әр тілде сол бір бастапқы сөйлемдерді оқиды. Сондықтан бұл үш жол тілмен ғана ерекшеленеді, маңызды басқа ештеңемен емес.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  language    clips      WER      CER    audio s      RTF
+  --------------------------------------------------------
+  en             12    0.099    0.042      107.1     0.02
+  ru             12    0.108    0.028      138.9     0.02
+  kk             12    0.744    0.180      187.6     0.03
+
+  Kazakh WER is 7.5x the English WER on the same sentences.</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 154" role="img" aria-labelledby="fig-langbar-t">
+                  <title id="fig-langbar-t">Ағылшын, орыс және қазақ тілдері үшін word және character error rate</title>
+                  <line x1="40" y1="16" x2="40" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <line x1="40" y1="110" x2="320" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <text x="14" y="20" font-size="7" fill="#5b6270">0.8</text>
+                  <text x="14" y="66" font-size="7" fill="#5b6270">0.4</text>
+                  <text x="14" y="113" font-size="7" fill="#5b6270">0</text>
+
+                  <rect x="62" y="98" width="26" height="12" fill="#2563eb" />
+                  <text x="75" y="95" font-size="6.5" fill="#111111" text-anchor="middle">.099</text>
+                  <rect x="92" y="105" width="26" height="5" fill="#93b4f5" />
+                  <text x="105" y="102" font-size="6.5" fill="#111111" text-anchor="middle">.042</text>
+                  <text x="90" y="124" font-size="8" fill="#111111" text-anchor="middle">Ағылшын</text>
+
+                  <rect x="146" y="97" width="26" height="13" fill="#2563eb" />
+                  <text x="159" y="94" font-size="6.5" fill="#111111" text-anchor="middle">.108</text>
+                  <rect x="176" y="107" width="26" height="3" fill="#93b4f5" />
+                  <text x="189" y="104" font-size="6.5" fill="#111111" text-anchor="middle">.028</text>
+                  <text x="174" y="124" font-size="8" fill="#111111" text-anchor="middle">Орыс</text>
+
+                  <rect x="230" y="22" width="26" height="88" fill="#b91c1c" />
+                  <text x="243" y="19" font-size="6.5" fill="#111111" text-anchor="middle">.744</text>
+                  <rect x="260" y="89" width="26" height="21" fill="#e79a9a" />
+                  <text x="273" y="86" font-size="6.5" fill="#111111" text-anchor="middle">.180</text>
+                  <text x="258" y="124" font-size="8" fill="#111111" text-anchor="middle">Қазақ</text>
+
+                  <rect x="40" y="134" width="10" height="8" fill="#2563eb" />
+                  <text x="54" y="141" font-size="7.5" fill="#5b6270">WER</text>
+                  <rect x="84" y="134" width="10" height="8" fill="#93b4f5" />
+                  <text x="98" y="141" font-size="7.5" fill="#5b6270">CER</text>
+                  <text x="196" y="141" font-size="7.5" fill="#111111">WER 7.5&#215; нашар, CER тек 4.3&#215;</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Екі баған қазақ тілінде ажырап, ағылшын мен орыс тілінде бірге қалады. Сол ажырау — түйіннің өзі.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">0.744 шын мәнінде нені білдіреді</span>
+                <dl class="breakdown__list">
+                  <dt>төрт сөздің үшеуі қате</dt>
+                  <dd>Субтитр жолы ретінде бұл жарамсыз. Іздеу индексі ретінде пайдасы жоққа жақын: іздейтін сөздеріңіз сирек сөздер, ал сирек сөздерді ол дәл бүлдіреді.</dd>
+                  <dt>бірақ ол саңырау емес</dt>
+                  <dd>CER 0.180 дегеніміз алты таңбаның бесеуі дұрыс. Транскрипцияны дауыстап оқыңыз — қазақ тілін білетін адам сөйлемді таниды. Модельде дыбыс бар, жазу жоқ.</dd>
+                  <dt>бұл тілдің емес, деректің мәселесі</dt>
+                  <dd>Whisper интернеттен жиналған 680 000 сағатта оқытылды, ал онда қазақ тілі — дөңгелектеу қателігі. Қазақ тілінде естуге іштей қиынырақ ештеңе жоқ.</dd>
+                  <dt>бұл санды бұрын да көрдіңіз</dt>
+                  <dd>7-дәріс: ағылшын тональдігінде 0.937, қазақшада 0.799. 8-дәріс: сол сөйлем қазақша 2.0&#215; көп tokens тұрады. 10-дәріс: геокодер «Алматы» деген жерді таппады. Айып тілдің соңынан стектің әр қабатында ереді.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Қазақстандық өнім үшін архитектураны осы сан шешеді. WER 0.744 кезінде сіз дауыстық іздеу құрмайсыз; сіз қосалқы жол құрасыз, немесе дәлдеп оқытасыз, немесе үлкенірек модельге төлейсіз.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Өлшем</span>
+              <h2 id="sizes">Үлкенірек модель бұны түзете ме?</h2>
+              <div class="code-block" data-lang="output"><pre><code>  3. MODEL SIZE AGAINST ACCURACY  (kk)
+
+  model      parameters      WER      CER      RTF
+  ------------------------------------------------
+  tiny             39 M    2.099    0.894     0.02
+  base             74 M    0.934    0.322     0.02
+  small           244 M    0.744    0.180     0.03</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>WER 2.099 — қате теру емес.</strong> <code>tiny</code> эталондағы сөзден екі есе көп қате шығарады, өйткені ешкім айтпаған мәтінді қыстырады: decoder — тілдік модель, ал әлсіз аудио сигналы бар шағын тілдік модель ойдан шығара бастайды. Бұл — WER пайыз емес, сөзге шаққандағы қате екенінің ең айқын дәлелі.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Осы сатыны оқу</span>
+                <dl class="breakdown__list">
+                  <dt>6&#215; параметр көп нәрсе береді, содан соң азырақ</dt>
+                  <dd>39&#8202;M-нен 74&#8202;M-ге CER шамамен екі есе азаяды (0.894 → 0.322). 74&#8202;M-нен 244&#8202;M-ге ол тағы екі есе азаяды (0.322 → 0.180), бұл 3.3&#215; параметрге. Қайтарым нақты әрі кемиді.</dd>
+                  <dt>жылдамдық әрең өзгереді</dt>
+                  <dd>Өлшемнің алты еселік ауқымында RTF 0.02-ден 0.03-ке дейін. Бұл тапсырмада модельдердің бәрі нақты уақыттан әлдеқайда жылдам, сондықтан өлшем күтуге емес, жадыға түседі.</dd>
+                  <dt>0.744 әлі де жарамсыз</dt>
+                  <dd>Отбасы ішіндегі масштабтау қазақ тілін шешкен жоқ. Адал нұсқалар: үлкенірек checkpoint (<code>large-v3</code>), қазақ сөйлеуінде дәлдеп оқыту немесе өнімді мінсіз транскрипция қажет болмайтындай жобалау.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="langtoken">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Тұзақ</span>
+              <h2 id="langtoken">Тілді қате атау</h2>
+              <p class="narrow lead">
+                Сол бір қазақ клипі төрт рет декодталған, тек language token өзгерген.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды…
+
+  language=kk  WER 0.762  Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+  language=ru  WER 0.905  Акшн димнастика Федерация Акш Олимпиада комитетов, хану…
+  language=tr  WER 1.095  Akıştın Dimyastika Fidiratiası Akış Aleyküya'da komite…
+  language=en  WER 1.095  The Dymnastic Federation was the chairman of the Olympic…</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Соңғы жолға қараңыз. Аудио ағылшынша деп айтылғанда, Whisper олимпиада комитетінің төрағасы туралы грамматикалық ағылшын сөйлемін шығарады. Ол еркін, ол сенімді және ол ойдан шығарылған — decoder-дің тілдік моделі ағылшын сөздеріне қатыстыра алмайтын аудио сигналдың үстін толтырып тұр.
+              </p>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Екі практикалық салдар</span>
+                <dl class="breakdown__list">
+                  <dt>көптілді өнімде тілді ешқашан қатаң жазбаңыз</dt>
+                  <dd>Қазақстанда қолдау желісі қазақша мен орысшаны бір кезекте, көбіне бір сөйлемде алады. Бекітілген <code>language="ru"</code> әр қазақ қоңырауын үнсіз транслитерацияланған шуға айналдырады, ал шығыста бұл туралы ештеңе сигнал бермейді.</dd>
+                  <dt>оны анықтап, сенімділікке қараңыз</dt>
+                  <dd>Whisper мәжбүрленудің орнына language token-ді өзі болжай алады. Бұл — ықтималдығы бар нағыз классификатор; ықтималдықты логтап, сенімділігі төмен аудионы адамға бағыттаңыз.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">Transcribe пен translate</h3>
+              <div class="code-block" data-lang="output"><pre><code>  task=transcribe  0.5 s
+    Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды, …
+
+  task=translate   0.2 s
+    The Dymnastic Federation of Akhars is the leader of the Akhars Olympic
+    Committee. It is the center of the community of our sportsmen, athletes,
+    and athletes.</code></pre></div>
+              <p class="narrow" style="margin-top: 20px">
+                Бір модель, encoder-дің бір өтуі, өзге үшінші token. Ағылшыншасы грамматикалық және мәні бойынша қате — «Federation of Akhars», «athletes, and athletes» — өйткені аударма тану қателерінің әрқайсысын мұралап, содан соң оларды еркін прозаға тегістейді. Қазақшаны тану WER 0.744 болса, қазақшадан ағылшыншаға аударма одан жақсы бола алмайды, әрі ол шын жағдайынан әлдеқайда жақсы көрінеді.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tts">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Синтез</span>
+              <h2 id="tts">Сол мәселе, кері бағытта</h2>
+              <p class="narrow lead">
+                Тану секундына 16 000 санды үш сөзге сығады. Синтезге секундына үш сөзді қайтадан 16 000 санға жаю керек — әрі танудан өзгеше, мұнда жалғыз дұрыс жауап жоқ. Әр сөйлемнің дауысымен, қарқынымен және екпінімен ерекшеленетін шексіз көп дұрыс оқылуы бар.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-tts-t">
+                  <title id="fig-tts-t">Мәтін аудио-tokens-ке, содан соң аудио-tokens дыбысқа айналады</title>
+                  <rect x="8" y="20" width="72" height="24" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="44" y="30" font-size="7" fill="#111111" text-anchor="middle">мәтін</text>
+                  <text x="44" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">«Сәлеметсіз бе»</text>
+                  <line x1="80" y1="32" x2="94" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="94" y="14" width="88" height="36" rx="5" fill="#2563eb" />
+                  <text x="138" y="28" font-size="8" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <text x="138" y="40" font-size="6.5" fill="#dbe7ff" text-anchor="middle">Qwen3-0.6B, диффузия</text>
+                  <line x1="182" y1="32" x2="196" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="196" y="20" width="62" height="24" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="227" y="30" font-size="7" fill="#111111" text-anchor="middle">аудио-tokens</text>
+                  <text x="227" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">дискретті кодтар</text>
+                  <line x1="258" y1="32" x2="272" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="272" y="14" width="60" height="36" rx="5" fill="#2563eb" />
+                  <text x="302" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">аудио</text>
+                  <text x="302" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">tokenizer</text>
+
+                  <line x1="302" y1="50" x2="302" y2="62" stroke="#5b6270" stroke-width="1.2" />
+                  <polyline points="248,74 252,68 256,80 260,66 264,82 268,70 272,78 276,64 280,84 284,72 288,76 292,68 296,80 300,70 304,78 308,66 312,82 316,72 320,76 324,70 328,74" fill="none" stroke="#2563eb" stroke-width="1" />
+                  <text x="238" y="76" font-size="7" fill="#5b6270" text-anchor="end">24 кГц толқын</text>
+
+                  <rect x="8" y="94" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="108" font-size="8" fill="#111111" text-anchor="middle">тілдік модель аудио-tokens-ті 8-дәрістегідей сөз жазғандай жазады</text>
+
+                  <text x="170" y="132" font-size="8" fill="#5b6270" text-anchor="middle">651 тіл, оның ішінде қазақ тілі — әрі Whisper-ден өзгеше, ол</text>
+                  <text x="170" y="144" font-size="8" fill="#5b6270" text-anchor="middle">осындай кеңдік үшін әдейі құрылған, кездейсоқ алған жоқ</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Аудио-tokens — мұны тілдік модельдеу міндетіне айналдыратын амал. Дыбыс дискретті тізбекке айналған соң, оған 6-дәрістен бергінің бәрі қолданылады.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from omnivoice import OmniVoice
+
+model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="mps")
+
+audio = model.generate(
+    text="Сәлеметсіз бе! Бүгін Астанада ауа райы жақсы.",
+    language="Kazakh",
+)                      # a list of numpy arrays at 24 kHz
+
+import soundfile as sf
+sf.write("out.wav", audio[0], 24000)</code></pre></div>
+
+              <h3 style="margin-top: 44px">Дауысты таңдаудың үш жолы</h3>
+              <div class="grid" style="margin-top: 24px">
+                <div class="card">
+                  <h3>auto</h3>
+                  <p>Ештеңе айтпаңыз — модель дауысты өзі таңдайды. Жылдам: 1.9 с ішінде 2.96 с аудио, — және сізге не қаласа сол тиеді. Прототипке жарайды, бренді бар өнімге жарамайды.</p>
+                </div>
+                <div class="card">
+                  <h3>voice design</h3>
+                  <p>Сөйлеушіні атрибуттармен сипаттаңыз: <code>female, young adult, high pitch</code>. Референстік аудио мүлдем керек емес. Жылдамдығы auto-мен бірдей.</p>
+                </div>
+                <div class="card">
+                  <h3>voice clone</h3>
+                  <p>Нағыз сөйлеушінің бірнеше секундын <em>және сол аудионың транскрипциясын</em> беріңіз — дауыс көшіріледі. Баяуырақ: мұнда 11.6 с, өйткені референсті де кодтау керек.</p>
+                </div>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>Voice design прозаны емес, бақыланатын сөздікті қабылдайды.</strong> «Баяу әрі анық сөйлейтін тыныш, жылы әйел даусы» <em>қабылданбайды</em>, ал қате өзі қабылдайтын 23 атрибутты тізіп береді: <code>female</code>, <code>male</code>, <code>child</code>, <code>teenager</code>, <code>young adult</code>, <code>middle-aged</code>, <code>elderly</code>, бес тон деңгейі, <code>whisper</code> және он акцент. Бұл — 10-дәрістегі JSON туралы табылғанның басқа киімдегі дәл өзі: дұрыс <em>пішін</em> дұрыс <em>сөздікпен</em> бір емес, ал жақсы API қандай сөздер бар екенін айтады.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="roundtrip">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Дауысты бағалау</span>
+              <h2 id="roundtrip">Айналма рейс</h2>
+              <p class="narrow lead">
+                Тыңдаушылар алқасынсыз синтезаторды қалай бағалау керек? Шеңберді тұйықтау: сөйлемді айтқызып, Whisper арқылы кері танып, қаншасы аман қалғанын өлшеу. Бұл арзан, қайталанымды, әрі нақты бір жолмен қате — оны бақылау керек.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 162" role="img" aria-labelledby="fig-rt-t">
+                  <title id="fig-rt-t">Мәтін синтез бен тану арқылы, қателер кіретін екі орынмен</title>
+                  <rect x="8" y="26" width="58" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="40" font-size="7.5" fill="#111111" text-anchor="middle">кіріс мәтін</text>
+                  <line x1="66" y1="37" x2="82" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="82" y="26" width="66" height="22" rx="4" fill="#2563eb" />
+                  <text x="115" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <line x1="148" y1="37" x2="164" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="164" y="26" width="52" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="190" y="40" font-size="7.5" fill="#111111" text-anchor="middle">аудио</text>
+                  <line x1="216" y1="37" x2="232" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="232" y="26" width="58" height="22" rx="4" fill="#2563eb" />
+                  <text x="261" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">Whisper</text>
+                  <line x1="290" y1="37" x2="306" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="306" y="26" width="26" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="319" y="40" font-size="7" fill="#111111" text-anchor="middle">мәтін</text>
+
+                  <text x="115" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">қателер осында кіреді</text>
+                  <text x="261" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">және осында</text>
+                  <line x1="115" y1="48" x2="115" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+                  <line x1="261" y1="48" x2="261" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+
+                  <path d="M319 48 L319 74 L37 74 L37 52" fill="none" stroke="#5b6270" stroke-width="1.1" stroke-dasharray="3 2" />
+                  <text x="178" y="86" font-size="8" fill="#111111" text-anchor="middle">екі ұшты салыстырамыз — бірақ ұпай екі жүйені де кінәлайды</text>
+
+                  <rect x="8" y="98" width="324" height="56" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="114" font-size="8.5" fill="#111111" text-anchor="middle">бақылау: Whisper-дің нағыз адам сөйлеуіндегі қатесі</text>
+                  <text x="170" y="128" font-size="8" fill="#5b6270" text-anchor="middle">ағылшын 0.099 &#183; орыс 0.108 &#183; қазақ 0.744</text>
+                  <text x="170" y="146" font-size="8" fill="#15803d" text-anchor="middle">өз бақылауына жақын ұпай дауыс кінәлі емес дегенді білдіреді</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Бақылау бағанасыз қазақ саны түсіндірілмейді. Онымен жауап бірден белгілі.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="output"><pre><code>  2. ROUND TRIP: TEXT -> SPEECH -> TEXT
+
+  language     lines      WER      CER      RTF    human WER
+  ----------------------------------------------------------
+  en               4    0.083    0.024     0.62        0.099
+  ru               4    0.146    0.054     0.57        0.108
+  kk               4    0.787    0.240     0.62        0.744</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл жіктеу нені көрсетеді</span>
+                <dl class="breakdown__list">
+                  <dt>ағылшын айналма рейсі 0.083 — адам сөйлеуінен жақсы</dt>
+                  <dd>Whisper OmniVoice-тің ағылшыншасында FLEURS-тің адам оқырмандарына қарағанда <em>азырақ</em> қате жібереді (0.099). Синтетикалық сөйлеу таза, қарқыны біркелкі, нағыз жазбалардағы бөлме шуы мен кідірістен ада. Синтезатор шынымен жақсы.</dd>
+                  <dt>демек қазақтың 0.787-сі дауыстың кінәсі емес</dt>
+                  <dd>Ол Whisper-дің адам қазақшасындағы 0.744-інен әрең жоғары. Қатенің барлығы дерлік алдыңғы бөлімде өлшенген танығыштікі. Дәл сол құбыр ағылшыншада синтез жағының жұмыс істейтінін дәлелдейді.</dd>
+                  <dt>бақылау бағанасы сол үшін бар</dt>
+                  <dd>0.787-ні жеке хабарласаңыз, оқырман қазақ даусы сынған деп шешеді. Бұл тұжырым қате болар еді, ал оны тек ағылшын жолы жоққа шығарады. Бірден екі жүйені өлшейтін метрикаға біреуі мүлтіксіз екені белгілі жағдай керек.</dd>
+                  <dt>real-time factor шамамен 0.6</dt>
+                  <dd>Синтез танудан шамамен 20&#215; баяу және әлі де сөйлеуден жылдам. Сөйлем оны айтуға кететін уақыттың шамамен 60%-ын алады — ноутбукте.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Бұл нені өлшемейтінін байқаңыз: дауыс табиғи, жағымды әрі екпіні дұрыс па. Роботтанған монотон мінсіз ұпай ала алады. Айналма рейс тек түсініктілікті өлшейді — пайдалы, арзан және тыңдауды алмастырмайды.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="propagation">
+            <div class="container">
+              <span class="section__eyebrow">Нәтиже &#183; Құбырлар</span>
+              <h2 id="propagation">Қателер саяхаттайды</h2>
+              <p class="narrow lead">
+                Дауысты клондау үшін референстік аудио <em>және оның транскрипциясы</em> керек. Танығышыңыз әлсіз тілде сол транскрипцияның өзі — болжам, сондықтан осы беттегі екі жүйе бір-біріне өз қателерін тамақтандырады.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  reference clip : kk-00.wav (14.9 s)
+  true transcript: ақш-тың гимнастика федерациясы ақш олимпиада комитетінің…
+  whisper heard  : Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+
+  Now make that speaker say something new:
+  «Алматыдан Шымкентке дейінгі жол тоғыз сағат.»
+
+  ref_text = true transcript     ->  round-trip WER 0.667   CER 0.209
+  ref_text = whisper transcript  ->  round-trip WER 1.000   CER 0.279</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>0.667 1.000-ға айналады.</strong> Сол аудио, сол мақсатты сөйлем, сол модельдер. Өзгергені біреу ғана: референстік транскрипция дұрыс болды ма, әлде Whisper-дің ең жақсы талпынысы болды ма. Шығыстағы әр сөз қате шықты.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Жалпы сабақ, әрі ол сөйлеу туралы емес</span>
+                <dl class="breakdown__list">
+                  <dt>құбыр өзінің ең әлсіз буынын еселейді</dt>
+                  <dd>Әрқайсысы 75% екі құрауыш 75% жүйе бермейді. 10-дәріс мұны құрал шақыруларын тізбектейтін agents туралы айтты; мұнда бұл екі модель, әрі сан айқынырақ.</dd>
+                  <dt>екінші саты өзіне қоқыс берілгенін біле алмайды</dt>
+                  <dd>OmniVoice-та референстік мәтіннің референстік аудиоға сәйкес келмейтінін білетін жол жоқ. Ол үйлеспейтін жұптан сенімді әрі еркін сөйлеу шығарды.</dd>
+                  <dt>сондықтан саты-сатымен емес, ұштан-ұшқа өлшеңіз</dt>
+                  <dd>0.744-тегі Whisper пен «ағылшыншада жақсы жұмыс істейді» дегендегі OmniVoice жеке-жеке қарағанда қолайлы көрінеді. Толық сәтсіздікті тек бірлескен өлшем көрсетеді.</dd>
+                  <dt>әрі мүмкіндігінше адам транскрипциясын таңдаңыз</dt>
+                  <dd>Сөйлеушіні клондайтын өнім үшін берілгенді транскрипциялаудың орнына референстік сценарийді жазып алыңыз. Бұл — беттегі ең арзан түзету.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="kazakh">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Өтпелі желі</span>
+              <h2 id="kazakh">Төмен ресурсты айып, соңғы рет</h2>
+              <p class="narrow lead">
+                Бұл курс енді дәл сол әсерді стектің бес түрлі қабатында өлшеді. Сандарды қатар қоюға тұрарлық, өйткені бірге олар ешқайсысы жеке айтпайтын нәрсені айтады.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Курс бойында өлшенген қазақ айыбы</caption>
+                  <thead>
+                    <tr><th scope="col">Дәріс</th><th scope="col">Не өлшенді</th><th scope="col">Ағылшын</th><th scope="col">Қазақ</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>7</td><td>Тональдік дәлдігі, дәлдеп оқытылған encoder</td><td>0.937</td><td>0.799</td></tr>
+                    <tr><td>8</td><td>Сол сөйлемге кететін tokens (o200k)</td><td>19</td><td>38</td></tr>
+                    <tr><td>8</td><td>Сол жүктемеге API құны</td><td>$130</td><td>$336</td></tr>
+                    <tr><td>10</td><td>Түзетуге дейін «Алматы» геокодтау</td><td>табылды</td><td>табылмады</td></tr>
+                    <tr><td><strong>11</strong></td><td><strong>Сөйлеуді тану, WER</strong></td><td><strong>0.099</strong></td><td><strong>0.744</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Бұл өрнек осы жерде құрылатын нәрсе үшін нені білдіреді</span>
+                <dl class="breakdown__list">
+                  <dt>айып құбыр бойында жинақталады</dt>
+                  <dd>Сөйлеу 0.744-те, содан соң екі есе алатын tokenizer, содан соң негізінен басқа тілдерде оқытылған модель. Әр саты жеке шыдамды; жинақталғанда — жоқ. Қолыңыздан келгенше аз сатымен құрыңыз.</dd>
+                  <dt>әрқашан өз тіліңізді өлшеңіз</dt>
+                  <dd>Осы беттегі әр модель картасы бенчмарк сандарын хабарлайды. Ешқайсысы мынаны хабарлаған жоқ. Он екі клип пен бір күн оны шығарды, әрі ол не құратыныңызды өзгертеді.</dd>
+                  <dt>түзетулер белгілі әрі әсерсіз</dt>
+                  <dd>Үлкенірек checkpoint, жергілікті сөйлеуде дәлдеп оқыту (Қазақстанда ашық корпустар бар), тапсырманы мінсіз транскрипция қажет болмайтындай шектеу және қателік бағасы жоғары жерде адамды контурда қалдыру.</dd>
+                  <dt>әрі алшақтық екінші ұштан жабылып келеді</dt>
+                  <dd>OmniVoice 651 тілді әдейі қамтиды, ал оның қазақшасы Whisper тар жол болатындай жақсы. Синтез танудан бұрын көптілді болды.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">Аудиторияда</span>
+              <h2 id="lab">Зертхана</h2>
+              <div class="code-block" data-lang="bash"><pre><code>brew install ffmpeg
+pip install -r requirements.txt
+
+python3 data.py --fetch      # 12 clips each of kk / ru / en, once (~13 MB)
+python3 asr.py --all         # every recognition number on this page
+python3 tts.py --all         # the three voice modes and the round trip
+python3 app.py               # http://127.0.0.1:7862</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Transcribe</h3>
+                  <p>Файл жүктеңіз немесе микрофонға сөйлеңіз. Language token, модель өлшемі және transcribe/translate ауыстырғышы сыртқа шығарылған, сондықтан жоғарыдағы тұзақтарды бір басумен тікелей қайталауға болады.</p>
+                </div>
+                <div class="card">
+                  <h3>Speak</h3>
+                  <p>Мәтін теріп, auto / voice design / voice clone таңдап, тыңдаңыз. Рұқсат етілген атрибуттардың орнына проза берсеңіз, ол бас тарту хабарламасын көрсетеді — мәні де сонда.</p>
+                </div>
+                <div class="card">
+                  <h3>Round trip</h3>
+                  <p>Айтқызып, кері таныңыз, ұпаймен, әрі жанында Whisper-дің адам сөйлеуіндегі қатесі тұрады, сонда санды дұрыс оқуға болады.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  Бәрі жергілікті: <code>whisper-small</code> шамамен 1&#8202;ГБ, OmniVoice шамамен 2.5&#8202;ГБ, бір рет жүктеледі. API кілтсіз, әрі бірде-бір дыбыс аудиториядан шықпайды — бұл курстағы ең жеке дерек болып табылатын жазылған сөйлеу үшін бұл шағын мәселе емес.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">Аудиторияда</span>
+              <h2 id="knowledge-check">Білімді тексеру</h2>
+              <p class="narrow lead">Аяқтамас бұрын бірге жауап беретін сегіз сұрақ.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-сұрақ</h3>
+                  <p class="challenge__task">Transformer көрместен бұрын аудио неге спектрограммаға айналуға тиіс?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Негізінен ұзындықтан. Attention тізбек ұзындығына квадраттық, ал 16&#8202;кГц-те 30 секунд — 480 000 үлгі. Спектрограмма оны 80 саннан тұратын шамамен 1 500 кадрға айналдырады — 300&#215; қысқарту — әрі сөйлеу дыбыстарын ажырататын жиілік құрылымын сақтайды. Одан кейін бұл жай ғана векторлар тізбегі, ал оны 6-дәрістегі encoder бұрыннан қабылдайтын.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>2-сұрақ</h3>
+                  <p class="challenge__task">Whisper <code>tiny</code> моделімен қазақшада WER 2.099 алды. Қате мөлшері қалай 1-ден асады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Өйткені WER қыстыруларды санайды әрі болжамның емес, <em>эталонның</em> ұзындығына бөлінеді. 21 сөз айтылған жерде 60 сөз жазған модель эталон сөздерінен де көп қате жасай алады. Decoder — тілдік модель; жарамды аудио сигналдан айырылғанда ол өз еркін мәтінін шығара бастайды.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>3-сұрақ</h3>
+                  <p class="challenge__task">Қазақ WER ағылшыннан 7.5&#215; көп, ал CER тек 4.3&#215;. Бұл алшақтық не айтады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Модель шамамен дұрыс дыбыстарды естіп, қате сөздерді жазатынын. <code>гимнастика</code> <code>димнастика</code> болып шықты — бір қате таңба, бір тұтас қате сөз. CER те апатты болса, модель қазақ фонетикасын мүлдем ажыратпаған болар еді, әрі түзету басқа болар еді. Алшақтық акустикаға емес, оқыту деректері мен жазуға нұсқайды.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>4-сұрақ</h3>
+                  <p class="challenge__task">Әріптесіңіз қоңырау шалушылардың көбі орысша сөйлейді деп <code>language="ru"</code> дегенді қатаң жазады. Қазақ тілділерге не болады?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Олар еркін транслитерацияланған мағынасыздық алады, әрі шығыста мәселені көрсететін ештеңе болмайды — біздің өлшемде 0.762 орнына WER 0.905, әрі одан жаманы, ол орысша <em>көрінеді</em>. Language token — decoder бастауға мәжбүр token, ол қабылдамай кете алатын нұсқау емес. Whisper тілді өзі болжасын да, ықтималдықты логтаңыз.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>5-сұрақ</h3>
+                  <p class="challenge__task">Қазақша айналма рейстің WER-і 0.787 болды. Қазақ даусы нашар ма?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Жоқ, әрі осы бір саннан айту мүмкін емес — сабақ та сонда. Whisper <em>адам</em> қазақшасында 0.744 береді, сондықтан 0.787-нің барлығы дерлік — танығыш. Ағылшын бақылауы мәселені шешеді: ағылшынша айналма рейс 0.083, Whisper-дің адам ағылшыншасындағыдан (0.099) жақсы. Синтезатор жұмыс істейді; тар жол — танығыш.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>6-сұрақ</h3>
+                  <p class="challenge__task">Ағылшынша айналма рейс Whisper-дің адам ағылшыншасындағы қатесінен <em>төмен</em> болды. Бұл алаңдатуы керек пе?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Бұл метриканың нені білдіретініне мұқият болуға мәжбүрлеуі керек. Синтетикалық сөйлеу таза, қарқыны біркелкі, шусыз, кідіріссіз және акцентсіз, сондықтан оны нағыз жазбаға қарағанда тану шынымен оңай. Айналма рейс машина үшін түсініктілікті өлшейді — табиғилықты, жағымдылықты, дұрыс екпінді емес. Жалпақ роботтанған монотон мінсіз ұпай ала алар еді.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>7-сұрақ</h3>
+                  <p class="challenge__task">Дұрыс транскрипциямен клондау 0.667 берді; сол клиптің Whisper транскрипциясымен клондау 1.000 берді. Неге сонша қатты?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0">Клондағыш бұл сөйлеуші әр дыбысты қалай шығаратынын анықтау үшін референстік аудионы референстік мәтінмен туралайды. Оған аудиоға сәйкес келмейтін мәтін беріңіз — туралау барлық жерде қате, демек шығарылған дауыс та барлық жерде қате. Үйлеспеушілікті ол таба алмайды әрі сенімді, еркін, жарамсыз сөйлеу шығарады. Әрқайсысы жеке қолайлы көрінетін екі құрауыш толықтай сәтсіз жүйе жасады.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>8-сұрақ</h3>
+                  <p class="challenge__task">Сізден қазақстандық қосымшаға қазақша дауыстық іздеу құру сұралды. Не айтасыз?</p>
+                  <details class="answer">
+                    <summary>Жауапты көрсету</summary>
+                    <p style="margin-bottom: 0"><code>whisper-small</code> WER 0.744 кезінде мәлімделген түрде бұл жұмыс істемейтінін, әрі міне өлшем екенін. Содан соң нұсқалар: үлкенірек checkpoint, қазақ сөйлеу корпустарында дәлдеп оқыту, шектеулі декодер әлдеқайда жиі дұрыс болатындай шағын команда сөздігіне дейін тарылту немесе сенімділік төмен болғанда теруге қайту. Пайдалы үлес — біреу бірдеңе құрмас бұрын өз тіліңізде алынған сол сан.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Тәжірибе</span>
+              <h2 id="practice">Практикалық тапсырмалар</h2>
+              <p class="narrow lead">
+                <code>code_files/lesson11/</code> ішінде жұмыс істеңіз. Аудионы бір рет жүктеңіз, әрі қарай бәрі — бір команда немесе бір шағын түзету.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>1-тапсырма — Өз дауысыңыз</h3>
+                  <p class="challenge__task">Transcribe қойындысында өзіңіздің қазақша және орысша сөйлем оқығаныңызды жазып алыңыз. WER-ді FLEURS сандарымен салыстырыңыз. Студиялық дикторлар — оңай жағдай; нағыз жағдай — сіз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>2-тапсырма — Language token-ді сындырыңыз</h3>
+                  <p class="challenge__task">Бір қазақ клипін алып, оны <code>kk</code>, <code>ru</code>, <code>tr</code> және <code>en</code> ретінде таныңыз. Ағылшынша шығысты дереккөзін айтпай көршіңізге дауыстап оқыңыз. Ол оның ойдан шығарылғанын білер ме еді?</p>
+                </article>
+                <article class="challenge">
+                  <h3>3-тапсырма — Өлшем қай жерде ақталуын тоқтатады?</h3>
+                  <p class="challenge__task"><code>asr.py</code> ішіндегі <code>MODELS</code>-ке <code>openai/whisper-medium</code> қосып, <code>--sizes</code> қайта жүгіртіңіз. WER-ді параметр санына қарсы сызыңыз. Қазақ тілі осы қисықтың бір жерінде жарамды деңгейге жете ме?</p>
+                </article>
+                <article class="challenge">
+                  <h3>4-тапсырма — Нормалау маңызды</h3>
+                  <p class="challenge__task"><code>asr.normalise</code> ішінде тыныс белгілерін алып тастауды өшіріп, тілдерді салыстыруды қайта жүгіртіңіз. Хабарланған қатенің қандай бөлігі тыныс белгілері туралы еді? Енді жарияланған WER сандарын салыстыру неге қиын екенін білесіз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>5-тапсырма — Қиынырақ тыңдау сынағы</h3>
+                  <p class="challenge__task">Танудан бұрын <code>librosa</code> арқылы клипке бірнеше сигнал/шу қатынасында шу қосыңыз. Қазақ пен ағылшын үшін WER-ді SNR-ге қарсы сызыңыз. Жағдай нашарлаған сайын төмен ресурсты алшақтық кеңейе ме, тарыла ма?</p>
+                </article>
+                <article class="challenge">
+                  <h3>6-тапсырма — Дауыс жобалаңыз</h3>
+                  <p class="challenge__task">Voice design-тың 23 атрибутын аралап шығып, қазақша мемлекеттік хабарландыруға ең жақын комбинацияны табыңыз. Содан соң дәл соны еркін прозамен айтып көріңіз де, қате туралы хабарламаны мұқият оқыңыз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>7-тапсырма — Өзіңізді клондаңыз</h3>
+                  <p class="challenge__task">Өз сөйлеуіңіздің он секундын жазып, транскрипциясын қолмен теріп, клондаңыз. Содан соң Whisper транскрипциясымен қайта клондаңыз. Дәріс қазақ тілі үшін істегендей екі айналма рейсті де өлшеңіз.</p>
+                </article>
+                <article class="challenge">
+                  <h3>8-тапсырма — Бүкіл курс бір құбырда</h3>
+                  <p class="challenge__task">Тізбектеңіз: сөйлеу &#8594; Whisper &#8594; 7-дәрістегі тональдік классификаторы &#8594; OmniVoice-тен айтылған жауап. Ұштан-ұшқа дәлдікті өлшеп, оны классификатордың терілген мәтіндегі дәлдігімен салыстырыңыз. Микрофон сізге неге түсті?</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Қорытынды</span>
+              <h2 id="takeaways">Бүгін біз үйрендік</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Сөйлеу модельге спектрограмма болып жетеді: 80 mel жолағы, секундына 50 кадр — бұл жай ғана векторлар тізбегі</li>
+                <li>Whisper — алдында дыбысы бар 6-дәрістегі encoder–decoder; attention-де ештеңе өзгерген жоқ</li>
+                <li>Оның decoder-і тілдік модель, сондықтан оның қателері шу емес, еркін нағыз сөздер</li>
+                <li>Language token — decoder-дің бастау нүктесі, нұсқау емес: қатесін атаңыз да, сенімді транслитерация аласыз</li>
+                <li>WER эталон сөзіне шаққанда ауыстыру, түсіру және қыстыруды санайды, сондықтан 1.0-ден асуы мүмкін; whisper-tiny қазақшада 2.099 алды</li>
+                <li>Сол FLEURS сөйлемдерінде: ағылшын WER 0.099, орыс 0.108, <strong>қазақ 0.744</strong> — 7.5&#215; нашар</li>
+                <li>Бірақ қазақ CER тек 4.3&#215; нашар: модель дыбыстарды естіп, қате сөздерді жазады</li>
+                <li>tiny &#8594; base &#8594; small ауысуы қазақ CER-ін 0.894 &#8594; 0.322 &#8594; 0.180 етті, әрі бәрібір жарамдыға жеткізген жоқ</li>
+                <li>Тану ноутбукте RTF 0.02&#8211;0.03-те жүреді; қымбаты — жылдамдық емес, дұрыс болу</li>
+                <li>Синтез — сол мәселе кері бағытта, жалғыз дұрыс жауапсыз: мәтін аудио-tokens болады, содан соң толқын</li>
+                <li>OmniVoice дауысты үш жолмен таңдайды: auto, бекітілген сөздіктен voice design немесе референстік клиптен клондау</li>
+                <li>Voice design еркін прозаны қабылдамай, 23 рұқсат етілген атрибутын тізеді — 10-дәрістегідей, құрылым сөздік емес</li>
+                <li>Синтезаторды айтқызып, кері танып бағалаңыз — бірақ тек бақылауға қарсы, әйтпесе сан бірден екі жүйені кінәлайды</li>
+                <li>Ағылшынша айналма рейс 0.083 берді, Whisper-дің адам ағылшыншасындағыдан жақсы: синтезатор жақсы, ал қазақтың 0.787-сі — танығыштың ісі</li>
+                <li>Whisper-дің өз транскрипциясын дауыс клондағышқа беру WER-ді 0.667-ден 1.000-ға көтерді — қателер таралады әрі жинақталады</li>
+                <li>Қазақ айыбы енді осы курстың бес қабатында өлшенді, әрі құбыр бойында ол жинақталады</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; 11-дәріс &middot; 2026 жылғы 28 қыркүйек</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

@@ -257,18 +257,22 @@ window.NLP_COURSE = {
     {
       id: "speech",
       num: 11,
-      file: null,
+      file: "11-speech-asr-tts.html",
       date: {
         en: "28 Sep 2026",
         kk: "28 қыркүйек 2026",
         ru: "28 сентября 2026"
       },
       title: {
-        en: "Speech Processing",
-        kk: "Speech Processing",
-        ru: "Speech Processing"
+        en: "Speech: ASR and TTS",
+        kk: "Сөйлеу: ASR және TTS",
+        ru: "Речь: ASR и TTS"
       },
-      topics: { en: "ASR · TTS", kk: "ASR · TTS", ru: "ASR · TTS" }
+      topics: {
+        en: "Spectrograms · Whisper · WER · TTS · Voice cloning",
+        kk: "Спектрограмма · Whisper · WER · TTS · Дауысты клондау",
+        ru: "Спектрограммы · Whisper · WER · TTS · Клонирование голоса"
+      }
     }
   ]
 };

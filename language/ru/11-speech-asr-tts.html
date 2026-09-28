@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Речь: ASR и TTS | NLP Course</title>
+    <meta
+      name="description"
+      content="Лекция 11: как речь становится текстом и текст речью. Спектрограммы, Whisper как encoder-decoder, language token, word и character error rate, измеренные на казахском, русском и английском, затем OmniVoice для синтеза, клонирование голоса и круговой рейс, который оценивает обе системы сразу."
+    />
+    <link rel="stylesheet" href="../../page/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Перейти к содержанию</a>
+    <div class="progress-bar" aria-hidden="true"></div>
+
+    <header class="mobile-bar">
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sidebar">
+        &#9776; Содержание
+      </button>
+      <a class="mobile-bar__brand" href="index.html">NLP Course</a>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <a href="../en/11-speech-asr-tts.html" data-lang-link="en">EN</a>
+        <a href="../kk/11-speech-asr-tts.html" data-lang-link="kk">KZ</a>
+        <a href="../ru/11-speech-asr-tts.html" aria-current="true" data-lang-link="ru">RU</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <a class="sidebar__brand" href="index.html">NLP Course</a>
+        <p class="sidebar__tagline">От обработки текста до Large Language Models</p>
+        <div class="lang-switch" role="group" aria-label="Language">
+          <a href="../en/11-speech-asr-tts.html" data-lang-link="en">EN</a>
+          <a href="../kk/11-speech-asr-tts.html" data-lang-link="kk">KZ</a>
+          <a href="../ru/11-speech-asr-tts.html" aria-current="true" data-lang-link="ru">RU</a>
+        </div>
+        <span class="sidebar__section-label">Содержание</span>
+        <nav data-toc aria-label="Содержание курса">
+          <noscript><a href="index.html">Программа курса</a></noscript>
+        </nav>
+      </aside>
+      <button class="sidebar-backdrop" type="button" aria-label="Закрыть содержание" tabindex="-1"></button>
+
+      <div class="content">
+        <main id="main">
+          <section class="hero">
+            <div class="container">
+              <span class="hero__kicker">Лекция 11</span>
+              <h1>Речь: ASR и TTS</h1>
+              <p class="hero__subtitle">
+                Каждая лекция до сих пор начиналась с текста, который кто-то уже набрал. Но большая часть языка не набирается — она произносится. Эта лекция замыкает круг с обоих концов: звук в текст с помощью Whisper, текст в звук с помощью OmniVoice и честный способ оценить каждого из них на казахском.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="goals">
+            <div class="container">
+              <span class="section__eyebrow">Цели обучения</span>
+              <h2 id="goals">К концу этой лекции вы сможете&#8230;</h2>
+              <div class="grid">
+                <div class="card">
+                  <h3>Объяснить, как аудио становится входом</h3>
+                  <p>Дискретизация, спектрограмма и почему 16 000 чисел в секунду должны превратиться примерно в 50 кадров в секунду, прежде чем Transformer сможет их прочитать.</p>
+                </div>
+                <div class="card">
+                  <h3>Описать Whisper</h3>
+                  <p>Encoder–decoder из Лекции 6 со звуком на входе и специальные tokens, решающие, на каком языке он будет писать.</p>
+                </div>
+                <div class="card">
+                  <h3>Измерить распознавание</h3>
+                  <p>Word error rate и character error rate, почему один из них может превысить 1.0 и почему самое интересное живёт в разрыве между ними.</p>
+                </div>
+                <div class="card">
+                  <h3>Синтезировать речь</h3>
+                  <p>Текст в аудио-tokens в звуковую волну и три способа выбрать, чей голос прозвучит.</p>
+                </div>
+                <div class="card">
+                  <h3>Оценить синтезатор</h3>
+                  <p>Произнести, распознать обратно и читать число относительно контроля — потому что само по себе оно измеряет сразу две системы.</p>
+                </div>
+                <div class="card">
+                  <h3>Сказать, во что это обходится казахскому</h3>
+                  <p>Поставить число на низкоресурсный штраф в речи и связать его с тем же штрафом из Лекций 7 и 8.</p>
+                </div>
+              </div>
+              <div class="callout" style="margin-top: 32px">
+                <p style="margin-bottom: 0">
+                  <strong>Обе модели работают на ноутбуке.</strong> <code>openai/whisper-small</code> (244&#8202;M) и <code>k2-fsa/OmniVoice</code> (Qwen3-0.6&#8202;B плюс аудио-tokenizer), на Apple M4 Pro, без API-ключа. Аудио — <strong>FLEURS</strong>: одни и те же исходные предложения, прочитанные вслух на каждом языке, который он покрывает, и именно это делает сравнения на этой странице честными.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="sound">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Вход</span>
+              <h2 id="sound">Что получает компьютер, когда человек говорит</h2>
+              <p class="narrow lead">
+                Микрофон снова и снова измеряет давление воздуха. На 16&#8202;кГц это шестнадцать тысяч чисел в секунду — и это неправильные числа в неправильном количестве для Transformer.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-wave-t">
+                  <title id="fig-wave-t">От давления воздуха до горстки кадров в секунду</title>
+                  <text x="8" y="12" font-size="9" fill="#5b6270">1. волна — 16 000 отсчётов каждую секунду</text>
+                  <polyline points="8,34 14,26 20,42 26,22 32,46 38,28 44,38 50,20 56,44 62,30 68,40 74,24 80,42 86,32 92,36 98,26 104,44 110,30 116,38 122,28 128,40 134,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <polyline points="134,34 140,22 146,46 152,28 158,42 164,26 170,40 176,30 182,38 188,24 194,44 200,32 206,36 212,28 218,42 224,30 230,40 236,26 242,38 248,34" fill="none" stroke="#2563eb" stroke-width="1.1" />
+                  <text x="258" y="36" font-size="7.5" fill="#5b6270">амплитуда</text>
+                  <text x="258" y="46" font-size="7.5" fill="#5b6270">во времени</text>
+
+                  <line x1="128" y1="54" x2="128" y2="64" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="76" font-size="9" fill="#5b6270">2. спектрограмма — энергия по частотам, на окно 20 мс</text>
+                  <rect x="8" y="82" width="240" height="44" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <rect x="12" y="86" width="8" height="36" fill="#2563eb" opacity="0.30" />
+                  <rect x="22" y="94" width="8" height="28" fill="#2563eb" opacity="0.55" />
+                  <rect x="32" y="90" width="8" height="32" fill="#2563eb" opacity="0.75" />
+                  <rect x="42" y="102" width="8" height="20" fill="#2563eb" opacity="0.40" />
+                  <rect x="52" y="86" width="8" height="36" fill="#2563eb" opacity="0.85" />
+                  <rect x="62" y="98" width="8" height="24" fill="#2563eb" opacity="0.35" />
+                  <rect x="72" y="92" width="8" height="30" fill="#2563eb" opacity="0.65" />
+                  <rect x="82" y="106" width="8" height="16" fill="#2563eb" opacity="0.25" />
+                  <rect x="92" y="88" width="8" height="34" fill="#2563eb" opacity="0.70" />
+                  <rect x="102" y="96" width="8" height="26" fill="#2563eb" opacity="0.50" />
+                  <rect x="112" y="90" width="8" height="32" fill="#2563eb" opacity="0.80" />
+                  <rect x="122" y="104" width="8" height="18" fill="#2563eb" opacity="0.30" />
+                  <rect x="132" y="86" width="8" height="36" fill="#2563eb" opacity="0.60" />
+                  <rect x="142" y="100" width="8" height="22" fill="#2563eb" opacity="0.45" />
+                  <rect x="152" y="94" width="8" height="28" fill="#2563eb" opacity="0.75" />
+                  <rect x="162" y="108" width="8" height="14" fill="#2563eb" opacity="0.20" />
+                  <rect x="172" y="88" width="8" height="34" fill="#2563eb" opacity="0.65" />
+                  <rect x="182" y="98" width="8" height="24" fill="#2563eb" opacity="0.40" />
+                  <rect x="192" y="92" width="8" height="30" fill="#2563eb" opacity="0.70" />
+                  <rect x="202" y="102" width="8" height="20" fill="#2563eb" opacity="0.35" />
+                  <rect x="212" y="86" width="8" height="36" fill="#2563eb" opacity="0.55" />
+                  <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
+                  <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
+                  <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel-полос</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 кадров/с</text>
+
+                  <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder сжимает ещё вдвое, затем decoder пишет слова</text>
+                  <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/с</text>
+                  <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
+                  <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <line x1="152" y1="169" x2="166" y2="169" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="166" y="160" width="82" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="207" y="172" font-size="7" fill="#111111" text-anchor="middle">~3 слова/с</text>
+                  <text x="256" y="172" font-size="7.5" fill="#b91c1c">в 5 000&#215; меньше</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Распознавание речи — это в основном задача сжатия. Шестнадцать тысяч чисел в секунду должны стать примерно тремя словами в секунду, и почти вся архитектура посвящена тому, чтобы выполнить это сокращение, не выбросив ту часть, которая несёт смысл.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Три идеи, нужные до модели</span>
+                <dl class="breakdown__list">
+                  <dt>частота дискретизации</dt>
+                  <dd>16&#8202;кГц — стандарт для речи. Он захватывает частоты до 8&#8202;кГц, чего хватает для любого звука речи и что вдвое меньше музыкального качества. Каждый клип на этой странице пересэмплирован к ней.</dd>
+                  <dt>спектрограмма</dt>
+                  <dd>Режем сигнал на перекрывающиеся окна по 25&#8202;мс каждые 10&#8202;мс и для каждого окна измеряем, сколько энергии приходится на каждую из 80 частотных полос, расставленных так, как их расставляет человеческий слух. Получается картинка: время по горизонтали, частота по вертикали.</dd>
+                  <dt>теперь это последовательность</dt>
+                  <dd>80 чисел на кадр, 50 кадров в секунду. Это ровно та форма, которую ждёт encoder из Лекции 6 — последовательность векторов, — поэтому та же архитектура работает со звуком вообще без изменений в attention.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Ничто внутри Transformer не знает, что это аудио. Замените таблицу embeddings на спектрограмму, и остальная часть Лекции 6 работает без правок.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="whisper">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Модель</span>
+              <h2 id="whisper">Whisper — это Лекция 6 с микрофоном</h2>
+              <p class="narrow lead">
+                Никакой новой архитектуры здесь нет. Encoder читает спектрограмму, decoder пишет текст, а cross-attention их соединяет — ровно encoder–decoder Transformer из Лекции 6, где аудио заменило исходное предложение.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 176" role="img" aria-labelledby="fig-whisper-t">
+                  <title id="fig-whisper-t">Whisper: audio encoder, text decoder и cross-attention между ними</title>
+                  <text x="8" y="12" font-size="8.5" fill="#5b6270">30 секунд аудио, дополненные или обрезанные</text>
+                  <rect x="8" y="18" width="116" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="66" y="31" font-size="7.5" fill="#111111" text-anchor="middle">log-mel спектрограмма</text>
+                  <line x1="66" y1="36" x2="66" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="8" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="66" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">audio encoder</text>
+                  <text x="66" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">2 свёрточных слоя, затем</text>
+                  <text x="66" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">блоки self-attention</text>
+
+                  <line x1="124" y1="71" x2="146" y2="71" stroke="#5b6270" stroke-width="1.2" />
+                  <polygon points="146,71 141,68.5 141,73.5" fill="#5b6270" />
+                  <text x="135" y="64" font-size="7" fill="#15803d" text-anchor="middle">cross-attention</text>
+
+                  <rect x="146" y="46" width="116" height="50" rx="5" fill="#2563eb" />
+                  <text x="204" y="64" font-size="8.5" fill="#ffffff" text-anchor="middle">text decoder</text>
+                  <text x="204" y="77" font-size="7" fill="#dbe7ff" text-anchor="middle">причинный, по одному</text>
+                  <text x="204" y="88" font-size="7" fill="#dbe7ff" text-anchor="middle">token за раз</text>
+
+                  <line x1="204" y1="96" x2="204" y2="106" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="146" y="106" width="116" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="204" y="119" font-size="7.5" fill="#111111" text-anchor="middle">ақш-тың гимнастика&#8230;</text>
+
+                  <rect x="274" y="46" width="58" height="50" rx="4" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="303" y="62" font-size="7" fill="#111111" text-anchor="middle">tiny 39 M</text>
+                  <text x="303" y="74" font-size="7" fill="#111111" text-anchor="middle">base 74 M</text>
+                  <text x="303" y="86" font-size="7" fill="#2563eb" text-anchor="middle">small 244 M</text>
+
+                  <rect x="8" y="136" width="324" height="32" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="150" font-size="8" fill="#111111" text-anchor="middle">обучен на 680 000 часах, собранных из интернета, на 99 языках</text>
+                  <text x="170" y="162" font-size="8" fill="#5b6270" text-anchor="middle">но эта груда поделена неравномерно, и в этом главный вывод лекции</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Decoder — это языковая модель. Именно поэтому Whisper пишет беглые, правдоподобные предложения, даже когда ослышался, и поэтому его ошибки выглядят как настоящие слова, а не как шум.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">Tokens до текста</h3>
+              <p class="narrow">
+                Decoder начинает не с пустоты. Он обязан начать с короткого префикса специальных tokens, и второй из них называет язык.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 128" role="img" aria-labelledby="fig-tokens-t">
+                  <title id="fig-tokens-t">Обязательный префикс decoder-а и место, где решается язык</title>
+                  <rect x="8" y="20" width="74" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="45" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|startoftranscript|&gt;</text>
+                  <rect x="86" y="20" width="40" height="22" rx="4" fill="#2563eb" />
+                  <text x="106" y="34" font-size="7.5" fill="#ffffff" text-anchor="middle">&lt;|kk|&gt;</text>
+                  <rect x="130" y="20" width="64" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="162" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|transcribe|&gt;</text>
+                  <rect x="198" y="20" width="70" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="233" y="34" font-size="7" fill="#111111" text-anchor="middle">&lt;|notimestamps|&gt;</text>
+                  <rect x="272" y="20" width="60" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="302" y="34" font-size="7" fill="#111111" text-anchor="middle">ақш-тың &#8230;</text>
+
+                  <line x1="106" y1="42" x2="106" y2="54" stroke="#2563eb" stroke-width="1.2" />
+                  <text x="106" y="66" font-size="8" fill="#2563eb" text-anchor="middle">вот этот решает язык вывода</text>
+                  <text x="106" y="78" font-size="7.5" fill="#5b6270" text-anchor="middle">это не подсказка; это точка старта генерации</text>
+
+                  <rect x="8" y="90" width="324" height="30" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="104" font-size="8" fill="#111111" text-anchor="middle">поставьте &lt;|ru|&gt; на казахском аудио — и модель не откажет вежливо</text>
+                  <text x="170" y="115" font-size="8" fill="#b91c1c" text-anchor="middle">она напишет беглую чушь, похожую на русский, — измерено ниже</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  <code>&lt;|translate|&gt;</code> в третьем слоте — другой переключатель: то же аудио, тот же encoder, на выходе английский. Whisper переводит только <em>на</em> английский.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from transformers import WhisperProcessor, WhisperForConditionalGeneration
+
+processor = WhisperProcessor.from_pretrained("openai/whisper-small")
+model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small")
+
+features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+
+ids = model.generate(features, language="kk", task="transcribe")
+print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="scoring">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Измерение</span>
+              <h2 id="scoring">Как оценить расшифровку</h2>
+              <p class="narrow lead">
+                Два числа, оба — редакционные расстояния, одно считается в словах, другое в символах. Разница между ними оказывается самым информативным, что есть на этой странице.
+              </p>
+
+              <div class="definition">
+                <p>
+                  <strong>WER</strong> = (замены + пропуски + вставки) &#247; количество слов в эталоне. <strong>CER</strong> — та же арифметика по символам. Оба считаются после приведения к нижнему регистру и удаления пунктуации, иначе вы в основном измеряете, захотелось ли модели поставить запятую.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 146" role="img" aria-labelledby="fig-wer-t">
+                  <title id="fig-wer-t">Word error rate, посчитанный на коротком примере</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">эталон (6 слов)</text>
+                  <rect x="8" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="30" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="18" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="30" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="18" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="30" font-size="6.5" fill="#111111" text-anchor="middle">дейінгі</text>
+                  <rect x="162" y="18" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="30" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="18" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="30" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="18" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="30" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+
+                  <text x="8" y="56" font-size="8" fill="#5b6270">гипотеза</text>
+                  <rect x="8" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="34" y="74" font-size="6.5" fill="#111111" text-anchor="middle">алматыдан</text>
+                  <rect x="62" y="62" width="52" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="88" y="74" font-size="6.5" fill="#111111" text-anchor="middle">шымкентке</text>
+                  <rect x="116" y="62" width="44" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="138" y="74" font-size="6.5" fill="#111111" text-anchor="middle">дейін</text>
+                  <rect x="162" y="62" width="28" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="176" y="74" font-size="6.5" fill="#111111" text-anchor="middle">жол</text>
+                  <rect x="192" y="62" width="36" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="210" y="74" font-size="6.5" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <rect x="230" y="62" width="34" height="18" rx="3" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="247" y="74" font-size="6.5" fill="#111111" text-anchor="middle">сағат</text>
+                  <rect x="266" y="62" width="40" height="18" rx="3" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="286" y="74" font-size="6.5" fill="#111111" text-anchor="middle">болады</text>
+
+                  <text x="138" y="50" font-size="7" fill="#b91c1c" text-anchor="middle">замена</text>
+                  <text x="286" y="92" font-size="7" fill="#b91c1c" text-anchor="middle">вставка</text>
+
+                  <rect x="8" y="104" width="324" height="34" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="118" font-size="8.5" fill="#111111" text-anchor="middle">WER = (1 замена + 0 пропусков + 1 вставка) / 6 слов = 0.333</text>
+                  <text x="170" y="131" font-size="8" fill="#5b6270" text-anchor="middle">из-за вставок WER может превысить 1.0 — у whisper-tiny ниже 2.099</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  WER — это не процент верных слов. Это ошибки на слово эталона, и модель, которая разговорилась, может совершить больше ошибок, чем было слов, в которых можно ошибиться.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Почему оба числа, а не только WER</span>
+                <dl class="breakdown__list">
+                  <dt>WER — это то, что чувствует пользователь</dt>
+                  <dd>Неверное слово остаётся неверным, промахнулось оно на одну букву или на десять. Для поиска, субтитров или голосовой команды важно именно это число.</dd>
+                  <dt>CER — это то, что услышала модель</dt>
+                  <dd>Если CER низкий, а WER высокий, модель почти правильно взяла звуки и неправильно — написание. Это совсем другой сбой, чем непонимание аудио вообще.</dd>
+                  <dt>разрыв диагностичен</dt>
+                  <dd>Измерено ниже: казахский WER в 7.5&#215; больше английского, но казахский CER — только в 4.3&#215;. Whisper сносно слышит казахский и плохо его записывает — проблема tokenizer-а и обучающих данных, а не глухоты.</dd>
+                  <dt>сначала нормализуйте и скажите как</dt>
+                  <dd>Наша нормализация приводит к нижнему регистру, убирает пунктуацию и схлопывает пробелы. Опубликованные значения WER несравнимы между статьями, если нормализация не совпадает, а она обычно не совпадает.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="results-asr">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Распознавание</span>
+              <h2 id="results-asr">Один клип целиком</h2>
+              <div class="code-block" data-lang="bash"><pre><code>python3 data.py --fetch      # 12 clips each of kk / ru / en, once
+python3 asr.py --demo</code></pre></div>
+              <div class="code-block" data-lang="output"><pre><code>  file      kk-00.wav  (14.9 s of Kazakh, google/fleurs kk_kz test)
+
+  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды
+              және біздің барлық спортсмендер үшін қоршаған ортаның қауіпсіздігін
+              арттырудың абсолютті қажеттілігін мойындайды
+
+  whisper-small: Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды,
+              және біздің барлық спартсмендерішін, хоршаған үртаның қаупсыдың,
+              арттырудың абсалюттық ажеттілің бойындайды.
+
+  WER 0.762   CER 0.174   0.6 s for 14.9 s of audio (RTF 0.04)
+
+  word by word, after normalisation:
+    replace  ақш тың гимнастика      -> ақыштың димнастика
+    replace  ақш олимпиада комитеті… -> ақыш олимпиады қамитетінің ханғылд…
+    replace  спортсмендер үшін қорш… -> спартсмендерішін хоршаған үртаның …
+    replace  абсолютті қажеттілігін… -> абсалюттық ажеттілің бойындайды</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Читайте ошибки, а не только число</span>
+                <dl class="breakdown__list">
+                  <dt>21 слово эталона, 13 заменено, 3 пропущено, 0 вставлено</dt>
+                  <dd>(13 + 3 + 0) / 21 = 0.762. Пять слов прошли нетронутыми.</dd>
+                  <dt>гимнастика &#8594; димнастика</dt>
+                  <dd>Одна буква. WER считает это целым неверным словом, CER — одним неверным символом. Умножьте это на всю расшифровку — и получите разрыв 7.5&#215; против 4.3&#215;.</dd>
+                  <dt>ақш-тың &#8594; ақыштың</dt>
+                  <dd>Аббревиатура плюс падежный суффикс — трудный случай для агглютинативного языка: проблема морфологии из Лекции 2, пришедшая через микрофон.</dd>
+                  <dt>0.6 с на 14.9 с аудио</dt>
+                  <dd>Real-time factor 0.04, примерно в 25&#215; быстрее самой речи, на ноутбуке без GPU-сервера. Распознавание дёшево; дорого обходится правильность.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="languages">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Главный вывод</span>
+              <h2 id="languages">Одна модель, три языка</h2>
+              <p class="narrow lead">
+                FLEURS читает одни и те же исходные предложения на каждом языке, который покрывает. Поэтому эти три строки различаются языком и больше ничем существенным.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  language    clips      WER      CER    audio s      RTF
+  --------------------------------------------------------
+  en             12    0.099    0.042      107.1     0.02
+  ru             12    0.108    0.028      138.9     0.02
+  kk             12    0.744    0.180      187.6     0.03
+
+  Kazakh WER is 7.5x the English WER on the same sentences.</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 154" role="img" aria-labelledby="fig-langbar-t">
+                  <title id="fig-langbar-t">Word и character error rate для английского, русского и казахского</title>
+                  <line x1="40" y1="16" x2="40" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <line x1="40" y1="110" x2="320" y2="110" stroke="#5b6270" stroke-width="1" />
+                  <text x="14" y="20" font-size="7" fill="#5b6270">0.8</text>
+                  <text x="14" y="66" font-size="7" fill="#5b6270">0.4</text>
+                  <text x="14" y="113" font-size="7" fill="#5b6270">0</text>
+
+                  <rect x="62" y="98" width="26" height="12" fill="#2563eb" />
+                  <text x="75" y="95" font-size="6.5" fill="#111111" text-anchor="middle">.099</text>
+                  <rect x="92" y="105" width="26" height="5" fill="#93b4f5" />
+                  <text x="105" y="102" font-size="6.5" fill="#111111" text-anchor="middle">.042</text>
+                  <text x="90" y="124" font-size="8" fill="#111111" text-anchor="middle">Английский</text>
+
+                  <rect x="146" y="97" width="26" height="13" fill="#2563eb" />
+                  <text x="159" y="94" font-size="6.5" fill="#111111" text-anchor="middle">.108</text>
+                  <rect x="176" y="107" width="26" height="3" fill="#93b4f5" />
+                  <text x="189" y="104" font-size="6.5" fill="#111111" text-anchor="middle">.028</text>
+                  <text x="174" y="124" font-size="8" fill="#111111" text-anchor="middle">Русский</text>
+
+                  <rect x="230" y="22" width="26" height="88" fill="#b91c1c" />
+                  <text x="243" y="19" font-size="6.5" fill="#111111" text-anchor="middle">.744</text>
+                  <rect x="260" y="89" width="26" height="21" fill="#e79a9a" />
+                  <text x="273" y="86" font-size="6.5" fill="#111111" text-anchor="middle">.180</text>
+                  <text x="258" y="124" font-size="8" fill="#111111" text-anchor="middle">Казахский</text>
+
+                  <rect x="40" y="134" width="10" height="8" fill="#2563eb" />
+                  <text x="54" y="141" font-size="7.5" fill="#5b6270">WER</text>
+                  <rect x="84" y="134" width="10" height="8" fill="#93b4f5" />
+                  <text x="98" y="141" font-size="7.5" fill="#5b6270">CER</text>
+                  <text x="196" y="141" font-size="7.5" fill="#111111">WER хуже в 7.5&#215;, CER лишь в 4.3&#215;</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Два столбика расходятся у казахского и держатся вместе у английского и русского. Это расхождение и есть вывод.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что на самом деле означает 0.744</span>
+                <dl class="breakdown__list">
+                  <dt>три слова из четырёх неверны</dt>
+                  <dd>Как дорожка субтитров это непригодно. Как поисковый индекс — почти бесполезно: искать вы будете редкие слова, а именно редкие слова модель и портит.</dd>
+                  <dt>но она не глухая</dt>
+                  <dd>CER 0.180 означает, что пять символов из шести верны. Прочитайте расшифровку вслух — и носитель казахского узнает предложение. У модели есть звук, но нет написания.</dd>
+                  <dt>это проблема данных, а не языка</dt>
+                  <dd>Whisper обучался на 680 000 часах, собранных из интернета, где казахский — погрешность округления. В казахском нет ничего внутренне более трудного для слуха.</dd>
+                  <dt>вы уже видели это число</dt>
+                  <dd>Лекция 7: 0.937 на английской тональности против 0.799 на казахской. Лекция 8: то же предложение стоит в 2.0&#215; больше tokens на казахском. Лекция 10: геокодер не нашёл «Алматы». Штраф следует за языком через каждый слой стека.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Для казахстанского продукта это число решает архитектуру. При WER 0.744 вы не строите голосовой поиск; вы строите запасной путь, или дообучаете, или платите за модель побольше.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="sizes">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Размер</span>
+              <h2 id="sizes">Спасёт ли модель побольше?</h2>
+              <div class="code-block" data-lang="output"><pre><code>  3. MODEL SIZE AGAINST ACCURACY  (kk)
+
+  model      parameters      WER      CER      RTF
+  ------------------------------------------------
+  tiny             39 M    2.099    0.894     0.02
+  base             74 M    0.934    0.322     0.02
+  small           244 M    0.744    0.180     0.03</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>WER 2.099 — это не опечатка.</strong> <code>tiny</code> производит вдвое больше ошибок, чем в эталоне слов, потому что вставляет текст, который никто не произносил: decoder — это языковая модель, а маленькая языковая модель со слабым аудиосигналом начинает сочинять. Это самая наглядная демонстрация того, что WER — ошибки на слово, а не процент верного.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Как читать эту лестницу</span>
+                <dl class="breakdown__list">
+                  <dt>6&#215; параметров даёт много, потом меньше</dt>
+                  <dd>С 39&#8202;M до 74&#8202;M CER почти вдвое падает (0.894 → 0.322). С 74&#8202;M до 244&#8202;M он падает вдвое снова (0.322 → 0.180) за 3.3&#215; параметров. Отдача реальна и убывает.</dd>
+                  <dt>скорость почти не меняется</dt>
+                  <dd>RTF с 0.02 до 0.03 на шестикратном диапазоне размеров. На этой задаче все модели намного быстрее реального времени, так что размер стоит памяти, а не ожидания.</dd>
+                  <dt>0.744 всё ещё непригодно</dt>
+                  <dd>Масштабирование внутри семейства не решило казахский. Честные варианты: более крупный checkpoint (<code>large-v3</code>), дообучение на казахской речи или проектирование продукта так, чтобы идеальная расшифровка ему не требовалась.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="langtoken">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Ловушка</span>
+              <h2 id="langtoken">Неверно названный язык</h2>
+              <p class="narrow lead">
+                Тот же казахский клип, декодированный четыре раза, где меняется только language token.
+              </p>
+              <div class="code-block" data-lang="output"><pre><code>  reference : ақш-тың гимнастика федерациясы ақш олимпиада комитетінің хатын қолдайды…
+
+  language=kk  WER 0.762  Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+  language=ru  WER 0.905  Акшн димнастика Федерация Акш Олимпиада комитетов, хану…
+  language=tr  WER 1.095  Akıştın Dimyastika Fidiratiası Akış Aleyküya'da komite…
+  language=en  WER 1.095  The Dymnastic Federation was the chairman of the Olympic…</code></pre></div>
+
+              <p class="narrow" style="margin-top: 24px">
+                Посмотрите на последнюю строку. Услышав, что аудио английское, Whisper выдаёт грамматичное английское предложение про председателя олимпийского комитета. Оно беглое, уверенное и выдуманное — языковая модель decoder-а заполняет пустоту поверх сигнала, который она не может отобразить в английские слова.
+              </p>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Два практических следствия</span>
+                <dl class="breakdown__list">
+                  <dt>никогда не зашивайте язык в многоязычном продукте</dt>
+                  <dd>В Казахстане линия поддержки получает казахский и русский в одной очереди, часто в одном предложении. Фиксированный <code>language="ru"</code> молча превращает каждый казахский звонок в транслитерированный шум, и ничто в выводе об этом не сигналит.</dd>
+                  <dt>определяйте его и смотрите на уверенность</dt>
+                  <dd>Whisper может предсказать language token сам, а не получать его принудительно. Это настоящий классификатор с вероятностью; логируйте вероятность и отправляйте аудио с низкой уверенностью человеку.</dd>
+                </dl>
+              </div>
+
+              <h3 style="margin-top: 44px">Transcribe против translate</h3>
+              <div class="code-block" data-lang="output"><pre><code>  task=transcribe  0.5 s
+    Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің ханғылдайды, …
+
+  task=translate   0.2 s
+    The Dymnastic Federation of Akhars is the leader of the Akhars Olympic
+    Committee. It is the center of the community of our sportsmen, athletes,
+    and athletes.</code></pre></div>
+              <p class="narrow" style="margin-top: 20px">
+                Одна модель, один проход encoder-а, другой третий token. Английский грамматичен и по сути неверен — «Federation of Akhars», «athletes, and athletes», — потому что перевод наследует каждую ошибку распознавания и затем сглаживает её в беглую прозу. Если казахское распознавание на WER 0.744, перевод с казахского на английский не может быть лучше, и выглядеть он будет намного лучше, чем есть.
+              </p>
+            </div>
+          </section>
+          <section class="section" aria-labelledby="tts">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Синтез</span>
+              <h2 id="tts">Та же задача, наоборот</h2>
+              <p class="narrow lead">
+                Распознавание сжимает 16 000 чисел в секунду до трёх слов. Синтезу приходится развернуть три слова в секунду обратно в 16 000 чисел — и, в отличие от распознавания, единственного верного ответа нет. У каждого предложения бесконечно много правильных прочтений, различающихся голосом, темпом и ударением.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 158" role="img" aria-labelledby="fig-tts-t">
+                  <title id="fig-tts-t">Текст становится аудио-tokens, затем аудио-tokens становятся звуком</title>
+                  <rect x="8" y="20" width="72" height="24" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="44" y="30" font-size="7" fill="#111111" text-anchor="middle">текст</text>
+                  <text x="44" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">«Сәлеметсіз бе»</text>
+                  <line x1="80" y1="32" x2="94" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="94" y="14" width="88" height="36" rx="5" fill="#2563eb" />
+                  <text x="138" y="28" font-size="8" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <text x="138" y="40" font-size="6.5" fill="#dbe7ff" text-anchor="middle">Qwen3-0.6B, диффузия</text>
+                  <line x1="182" y1="32" x2="196" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="196" y="20" width="62" height="24" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="227" y="30" font-size="7" fill="#111111" text-anchor="middle">аудио-tokens</text>
+                  <text x="227" y="40" font-size="6.5" fill="#5b6270" text-anchor="middle">дискретные коды</text>
+                  <line x1="258" y1="32" x2="272" y2="32" stroke="#5b6270" stroke-width="1.2" />
+
+                  <rect x="272" y="14" width="60" height="36" rx="5" fill="#2563eb" />
+                  <text x="302" y="28" font-size="7.5" fill="#ffffff" text-anchor="middle">аудио</text>
+                  <text x="302" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">tokenizer</text>
+
+                  <line x1="302" y1="50" x2="302" y2="62" stroke="#5b6270" stroke-width="1.2" />
+                  <polyline points="248,74 252,68 256,80 260,66 264,82 268,70 272,78 276,64 280,84 284,72 288,76 292,68 296,80 300,70 304,78 308,66 312,82 316,72 320,76 324,70 328,74" fill="none" stroke="#2563eb" stroke-width="1" />
+                  <text x="238" y="76" font-size="7" fill="#5b6270" text-anchor="end">волна 24 кГц</text>
+
+                  <rect x="8" y="94" width="324" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="108" font-size="8" fill="#111111" text-anchor="middle">языковая модель пишет аудио-tokens так же, как в Лекции 8 писала слова</text>
+
+                  <text x="170" y="132" font-size="8" fill="#5b6270" text-anchor="middle">651 язык, включая казахский, — и в отличие от Whisper он был</text>
+                  <text x="170" y="144" font-size="8" fill="#5b6270" text-anchor="middle">построен именно ради такой широты, а не получил её случайно</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Аудио-tokens — это трюк, который превращает задачу в языковое моделирование. Как только звук стал дискретной последовательностью, к нему применимо всё начиная с Лекции 6.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>from omnivoice import OmniVoice
+
+model = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="mps")
+
+audio = model.generate(
+    text="Сәлеметсіз бе! Бүгін Астанада ауа райы жақсы.",
+    language="Kazakh",
+)                      # a list of numpy arrays at 24 kHz
+
+import soundfile as sf
+sf.write("out.wav", audio[0], 24000)</code></pre></div>
+
+              <h3 style="margin-top: 44px">Три способа выбрать голос</h3>
+              <div class="grid" style="margin-top: 24px">
+                <div class="card">
+                  <h3>auto</h3>
+                  <p>Не говорите ничего — и модель выберет голос сама. Быстро: 2.96 с аудио за 1.9 с, — и вы получите то, что ей вздумалось. Годится для прототипа, бесполезно для продукта с брендом.</p>
+                </div>
+                <div class="card">
+                  <h3>voice design</h3>
+                  <p>Опишите говорящего атрибутами: <code>female, young adult, high pitch</code>. Референсное аудио не нужно вовсе. Скорость та же, что у auto.</p>
+                </div>
+                <div class="card">
+                  <h3>voice clone</h3>
+                  <p>Дайте несколько секунд настоящего говорящего <em>и расшифровку этого аудио</em> — и голос будет скопирован. Медленнее: здесь 11.6 с, потому что референс тоже надо закодировать.</p>
+                </div>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>Voice design принимает контролируемый словарь, а не прозу.</strong> «Спокойный, тёплый женский голос, говорящий медленно и чётко» <em>отклоняется</em>, и ошибка перечисляет 23 атрибута, которые он примет: <code>female</code>, <code>male</code>, <code>child</code>, <code>teenager</code>, <code>young adult</code>, <code>middle-aged</code>, <code>elderly</code>, пять уровней высоты тона, <code>whisper</code> и десять акцентов. Это ровно находка Лекции 10 про JSON в другом костюме: правильная <em>форма</em> — не то же самое, что правильный <em>словарь</em>, и хороший API сообщает, какие слова существуют.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="roundtrip">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Оценка голоса</span>
+              <h2 id="roundtrip">Круговой рейс</h2>
+              <p class="narrow lead">
+                Как оценить синтезатор без панели слушателей? Замкнуть круг: произнести предложение, распознать его обратно с помощью Whisper и измерить, сколько уцелело. Это дёшево, воспроизводимо и ошибочно ровно одним конкретным образом, который надо контролировать.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 162" role="img" aria-labelledby="fig-rt-t">
+                  <title id="fig-rt-t">Текст через синтез и распознавание, с двумя местами, где входят ошибки</title>
+                  <rect x="8" y="26" width="58" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="37" y="40" font-size="7.5" fill="#111111" text-anchor="middle">вход</text>
+                  <line x1="66" y1="37" x2="82" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="82" y="26" width="66" height="22" rx="4" fill="#2563eb" />
+                  <text x="115" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">OmniVoice</text>
+                  <line x1="148" y1="37" x2="164" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="164" y="26" width="52" height="22" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="190" y="40" font-size="7.5" fill="#111111" text-anchor="middle">аудио</text>
+                  <line x1="216" y1="37" x2="232" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="232" y="26" width="58" height="22" rx="4" fill="#2563eb" />
+                  <text x="261" y="40" font-size="7.5" fill="#ffffff" text-anchor="middle">Whisper</text>
+                  <line x1="290" y1="37" x2="306" y2="37" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="306" y="26" width="26" height="22" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="319" y="40" font-size="7" fill="#111111" text-anchor="middle">текст</text>
+
+                  <text x="115" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">ошибки входят здесь</text>
+                  <text x="261" y="62" font-size="7.5" fill="#b91c1c" text-anchor="middle">и здесь</text>
+                  <line x1="115" y1="48" x2="115" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+                  <line x1="261" y1="48" x2="261" y2="54" stroke="#b91c1c" stroke-width="1.1" />
+
+                  <path d="M319 48 L319 74 L37 74 L37 52" fill="none" stroke="#5b6270" stroke-width="1.1" stroke-dasharray="3 2" />
+                  <text x="178" y="86" font-size="8" fill="#111111" text-anchor="middle">сравниваем два конца — но счёт винит обе системы</text>
+
+                  <rect x="8" y="98" width="324" height="56" rx="5" fill="#ffffff" stroke="#d1d6de" />
+                  <text x="170" y="114" font-size="8.5" fill="#111111" text-anchor="middle">контроль: ошибка Whisper на настоящей человеческой речи</text>
+                  <text x="170" y="128" font-size="8" fill="#5b6270" text-anchor="middle">английский 0.099 &#183; русский 0.108 &#183; казахский 0.744</text>
+                  <text x="170" y="146" font-size="8" fill="#15803d" text-anchor="middle">результат рядом со своим контролем означает, что дело не в голосе</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Без колонки контроля казахское число невозможно истолковать. С ней ответ очевиден сразу.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="output"><pre><code>  2. ROUND TRIP: TEXT -> SPEECH -> TEXT
+
+  language     lines      WER      CER      RTF    human WER
+  ----------------------------------------------------------
+  en               4    0.083    0.024     0.62        0.099
+  ru               4    0.146    0.054     0.57        0.108
+  kk               4    0.787    0.240     0.62        0.744</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что показывает это разложение</span>
+                <dl class="breakdown__list">
+                  <dt>английский круговой рейс 0.083 — лучше человеческой речи</dt>
+                  <dd>Whisper делает <em>меньше</em> ошибок на английском от OmniVoice, чем на людях-чтецах FLEURS (0.099). Синтетическая речь чистая, ровная по темпу и свободная от шума комнаты и запинок настоящих записей. Синтезатор действительно хорош.</dd>
+                  <dt>значит казахские 0.787 — не вина голоса</dt>
+                  <dd>Они лишь чуть выше 0.744 Whisper на человеческом казахском. Почти вся ошибка принадлежит распознавателю, измеренному в предыдущем разделе. Тот же конвейер на английском доказывает, что половина с синтезом работает.</dd>
+                  <dt>вот зачем нужна колонка контроля</dt>
+                  <dd>Сообщите 0.787 в одиночку — и читатель решит, что казахский голос сломан. Этот вывод был бы неверным, и исключает его только английская строка. Метрике, которая измеряет две системы сразу, нужно условие, где одна из них заведомо исправна.</dd>
+                  <dt>real-time factor около 0.6</dt>
+                  <dd>Синтез примерно в 20&#215; медленнее распознавания и всё ещё быстрее речи. Предложение занимает около 60% времени, которое нужно, чтобы его произнести, — на ноутбуке.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Заметьте, чего это <em>не</em> измеряет: звучит ли голос естественно, приятно и с верным ударением. Роботизированный монотон может получить идеальный балл. Круговой рейс измеряет разборчивость и больше ничего — полезно, дёшево и не заменяет прослушивание.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="propagation">
+            <div class="container">
+              <span class="section__eyebrow">Результат &#183; Конвейеры</span>
+              <h2 id="propagation">Ошибки путешествуют</h2>
+              <p class="narrow lead">
+                Клонированию голоса нужно референсное аудио <em>и его расшифровка</em>. На языке, в котором ваш распознаватель слаб, эта расшифровка сама является догадкой — так что две системы этой страницы скармливают друг другу свои ошибки.
+              </p>
+
+              <div class="code-block" data-lang="output"><pre><code>  reference clip : kk-00.wav (14.9 s)
+  true transcript: ақш-тың гимнастика федерациясы ақш олимпиада комитетінің…
+  whisper heard  : Ақыштың димнастика федерациясы Ақыш Олимпиады қамитетінің…
+
+  Now make that speaker say something new:
+  «Алматыдан Шымкентке дейінгі жол тоғыз сағат.»
+
+  ref_text = true transcript     ->  round-trip WER 0.667   CER 0.209
+  ref_text = whisper transcript  ->  round-trip WER 1.000   CER 0.279</code></pre></div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>0.667 становится 1.000.</strong> То же аудио, то же целевое предложение, те же модели. Меняется только одно: была ли референсная расшифровка верной или это была лучшая попытка Whisper. Каждое слово вывода оказалось неверным.
+                </p>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Общий урок, и он не про речь</span>
+                <dl class="breakdown__list">
+                  <dt>конвейер умножает своё слабейшее звено</dt>
+                  <dd>Две составляющие по 75% не дают системы на 75%. Лекция 10 говорила это про agents, цепляющие вызовы инструментов; здесь это две модели, и число выразительнее.</dd>
+                  <dt>вторая ступень не может понять, что ей дали мусор</dt>
+                  <dd>У OmniVoice нет способа узнать, что референсный текст не соответствует референсному аудио. Он выдал уверенную беглую речь из несогласованной пары.</dd>
+                  <dt>поэтому измеряйте сквозным образом, а не по ступеням</dt>
+                  <dd>Whisper на 0.744 и OmniVoice, который «на английском работает нормально», по отдельности выглядят приемлемо. Только совместное измерение показывает полный провал.</dd>
+                  <dt>и предпочитайте человеческие расшифровки, когда можете</dt>
+                  <dd>Для продукта, который клонирует говорящего, записывайте референсный сценарий, а не расшифровывайте то, что дали. Это самое дешёвое исправление на этой странице.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+          <section class="section section--surface" aria-labelledby="kazakh">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Сквозная линия</span>
+              <h2 id="kazakh">Низкоресурсный штраф, в последний раз</h2>
+              <p class="narrow lead">
+                Этот курс уже измерил один и тот же эффект на пяти разных слоях стека. Стоит поставить числа рядом, потому что вместе они говорят то, чего не говорит ни одно из них по отдельности.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Казахский штраф, измеренный по всему курсу</caption>
+                  <thead>
+                    <tr><th scope="col">Лекция</th><th scope="col">Что измерялось</th><th scope="col">Английский</th><th scope="col">Казахский</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>7</td><td>Точность тональности, дообученный encoder</td><td>0.937</td><td>0.799</td></tr>
+                    <tr><td>8</td><td>Tokens на то же предложение (o200k)</td><td>19</td><td>38</td></tr>
+                    <tr><td>8</td><td>Стоимость API на ту же нагрузку</td><td>$130</td><td>$336</td></tr>
+                    <tr><td>10</td><td>Геокодирование «Алматы» до исправления</td><td>найдено</td><td>не найдено</td></tr>
+                    <tr><td><strong>11</strong></td><td><strong>Распознавание речи, WER</strong></td><td><strong>0.099</strong></td><td><strong>0.744</strong></td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Что этот узор значит для того, что здесь строят</span>
+                <dl class="breakdown__list">
+                  <dt>штраф накапливается вдоль конвейера</dt>
+                  <dd>Речь на 0.744, затем tokenizer, берущий вдвое, затем модель, обученная в основном на других языках. Каждая ступень переживаема; сложенные вместе — нет. Стройте с наименьшим числом ступеней, какое сможете.</dd>
+                  <dt>всегда измеряйте свой язык</dt>
+                  <dd>Каждая карточка модели на этой странице сообщает бенчмарки. Ни одна не сообщила этот. Двенадцать клипов и один день дали его, и он меняет то, что вы стали бы строить.</dd>
+                  <dt>исправления известны и неэффектны</dt>
+                  <dd>Более крупный checkpoint, дообучение на местной речи (в Казахстане есть открытые корпуса), ограничение задачи так, чтобы идеальная расшифровка не требовалась, и человек в контуре там, где цена ошибки высока.</dd>
+                  <dt>и разрыв сокращается с другого конца</dt>
+                  <dd>OmniVoice покрывает 651 язык намеренно, и его казахский достаточно хорош, чтобы узким местом оказался Whisper. Синтез стал многоязычным раньше распознавания.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="lab">
+            <div class="container">
+              <span class="section__eyebrow">В аудитории</span>
+              <h2 id="lab">Лаборатория</h2>
+              <div class="code-block" data-lang="bash"><pre><code>brew install ffmpeg
+pip install -r requirements.txt
+
+python3 data.py --fetch      # 12 clips each of kk / ru / en, once (~13 MB)
+python3 asr.py --all         # every recognition number on this page
+python3 tts.py --all         # the three voice modes and the round trip
+python3 app.py               # http://127.0.0.1:7862</code></pre></div>
+
+              <div class="grid" style="margin-top: 28px">
+                <div class="card">
+                  <h3>Transcribe</h3>
+                  <p>Загрузите файл или говорите в микрофон. Language token, размер модели и переключатель transcribe/translate вынесены наружу, так что ловушки выше воспроизводятся вживую одним кликом.</p>
+                </div>
+                <div class="card">
+                  <h3>Speak</h3>
+                  <p>Напечатайте текст, выберите auto / voice design / voice clone и послушайте. Если скормить ему прозу вместо разрешённых атрибутов, он покажет сообщение об отказе — в этом и смысл.</p>
+                </div>
+                <div class="card">
+                  <h3>Round trip</h3>
+                  <p>Произнесите и распознайте обратно, с оценкой и с ошибкой Whisper на человеческой речи рядом, чтобы число можно было прочитать правильно.</p>
+                </div>
+              </div>
+
+              <div class="note" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  Всё локально: <code>whisper-small</code> около 1&#8202;ГБ, OmniVoice около 2.5&#8202;ГБ, скачиваются один раз. Без API-ключа, и ни один звук не покидает аудиторию — что для записанной речи, самых личных данных в этом курсе, деталь не маленькая.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="knowledge-check">
+            <div class="container">
+              <span class="section__eyebrow">В аудитории</span>
+              <h2 id="knowledge-check">Проверка знаний</h2>
+              <p class="narrow lead">Восемь вопросов, на которые мы отвечаем вместе перед завершением.</p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Вопрос 1</h3>
+                  <p class="challenge__task">Почему аудио должно стать спектрограммой, прежде чем его увидит Transformer?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">В основном из-за длины. Attention квадратичен по длине последовательности, а 30 секунд на 16&#8202;кГц — это 480 000 отсчётов. Спектрограмма превращает их примерно в 1 500 кадров по 80 чисел — сокращение в 300&#215; — сохраняя частотную структуру, которая различает звуки речи. После этого это просто последовательность векторов, а её encoder из Лекции 6 уже принимал.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 2</h3>
+                  <p class="challenge__task">Whisper получил WER 2.099 на казахском с моделью <code>tiny</code>. Как ошибка может быть больше 1?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Потому что WER считает вставки и делится на длину <em>эталона</em>, а не гипотезы. Модель, написавшая 60 слов там, где произнесли 21, может совершить больше ошибок, чем есть эталонных слов. Decoder — это языковая модель; лишённая пригодного аудиосигнала, она начинает выдавать собственный беглый текст.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 3</h3>
+                  <p class="challenge__task">Казахский WER в 7.5&#215; больше английского, а CER — только в 4.3&#215;. О чём говорит этот разрыв?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">О том, что модель слышит примерно верные звуки и пишет неверные слова. <code>гимнастика</code> вышла как <code>димнастика</code> — один неверный символ, одно целиком неверное слово. Будь CER тоже катастрофическим, модель вообще не разбирала бы казахскую фонетику, и исправление было бы другим. Разрыв указывает на обучающие данные и написание, а не на акустику.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 4</h3>
+                  <p class="challenge__task">Коллега зашивает <code>language="ru"</code>, потому что большинство звонящих говорят по-русски. Что будет с казахоязычными?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Они получат беглую транслитерированную чушь, и ничто в выводе не укажет на проблему — WER 0.905 вместо 0.762 в нашем измерении, и, хуже того, это <em>выглядит</em> как русский. Language token — это token, с которого decoder обязан начать, а не подсказка, которую он может отвергнуть. Дайте Whisper предсказывать язык и логируйте вероятность.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 5</h3>
+                  <p class="challenge__task">Круговой рейс на казахском дал WER 0.787. Плохой ли это казахский голос?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Нет, и по одному этому числу сказать нельзя — в этом и урок. Whisper даёт 0.744 на <em>человеческом</em> казахском, так что почти всё в 0.787 — это распознаватель. Английский контроль решает дело: круговой рейс на английском — 0.083, лучше, чем Whisper на человеческом английском (0.099). Синтезатор работает; узкое место — распознаватель.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 6</h3>
+                  <p class="challenge__task">Круговой рейс на английском дал WER <em>ниже</em>, чем ошибка Whisper на человеческом английском. Должно ли это тревожить?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Это должно сделать вас осторожнее в том, что метрика означает. Синтетическая речь чистая, ровная, без шума, без запинок и акцента, поэтому её действительно легче распознать, чем настоящую запись. Круговой рейс измеряет разборчивость для машины — не естественность, не приятность, не верное ударение. Плоский роботизированный монотон мог бы получить идеальный балл.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 7</h3>
+                  <p class="challenge__task">Клонирование с верной расшифровкой дало 0.667; клонирование с расшифровкой Whisper того же клипа — 1.000. Почему так резко?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Клонировщик выравнивает референсное аудио с референсным текстом, чтобы понять, как этот говорящий произносит каждый звук. Дайте ему текст, не соответствующий аудио, — и выравнивание везде неверно, так что и извлечённый голос везде неверен. Обнаружить несогласованность он не может и выдаёт уверенную, беглую, непригодную речь. Две составляющие, каждая из которых по отдельности выглядит приемлемо, дали систему, которая проваливается целиком.</p>
+                  </details>
+                </article>
+                <article class="challenge">
+                  <h3>Вопрос 8</h3>
+                  <p class="challenge__task">Вас просят построить казахский голосовой поиск для казахстанского приложения. Что вы скажете?</p>
+                  <details class="answer">
+                    <summary>Показать ответ</summary>
+                    <p style="margin-bottom: 0">Что при WER 0.744 с <code>whisper-small</code> в заявленном виде это работать не будет, и вот измерение. Затем варианты: более крупный checkpoint, дообучение на казахских речевых корпусах, сведение к небольшому словарю команд, где ограниченный декодер бывает прав гораздо чаще, или откат к вводу с клавиатуры при низкой уверенности. Полезный вклад — это число, снятое на своём языке, до того как кто-то что-то построил.</p>
+                  </details>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="practice">
+            <div class="container">
+              <span class="section__eyebrow">Практика</span>
+              <h2 id="practice">Практические задания</h2>
+              <p class="narrow lead">
+                Работайте в <code>code_files/lesson11/</code>. Скачайте аудио один раз, дальше всё — одна команда или одна небольшая правка.
+              </p>
+              <div class="grid" style="margin-top: 28px">
+                <article class="challenge">
+                  <h3>Задание 1 — Ваш собственный голос</h3>
+                  <p class="challenge__task">Запишите себя, читающего казахское и русское предложение, во вкладке Transcribe. Сравните WER с числами FLEURS. Студийные дикторы — лёгкий случай; настоящий случай — это вы.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 2 — Сломайте language token</h3>
+                  <p class="challenge__task">Возьмите один казахский клип и распознайте его как <code>kk</code>, <code>ru</code>, <code>tr</code> и <code>en</code>. Прочитайте английский вывод соседу вслух, не говоря об источнике. Догадался бы он, что это выдумка?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 3 — Где размер перестаёт окупаться?</h3>
+                  <p class="challenge__task">Добавьте <code>openai/whisper-medium</code> в <code>MODELS</code> в <code>asr.py</code> и перезапустите <code>--sizes</code>. Постройте график WER от числа параметров. Достигает ли казахский пригодного уровня где-нибудь на этой кривой?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 4 — Нормализация важна</h3>
+                  <p class="challenge__task">Отключите удаление пунктуации в <code>asr.normalise</code> и перезапустите сравнение языков. Какая часть заявленной ошибки вообще была про пунктуацию? Теперь вы знаете, почему опубликованные WER так трудно сравнивать.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 5 — Более трудная проверка слуха</h3>
+                  <p class="challenge__task">Добавьте шум к клипу через <code>librosa</code> перед распознаванием, на нескольких отношениях сигнал/шум. Постройте график WER от SNR для казахского и английского. Разрыв низкоресурсности расширяется или сужается по мере ухудшения условий?</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 6 — Спроектируйте голос</h3>
+                  <p class="challenge__task">Пройдитесь по 23 атрибутам voice design и найдите комбинацию, ближайшую к казахскому объявлению в госучреждении. Затем попробуйте выразить то же самое свободной прозой и внимательно прочитайте сообщение об ошибке.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 7 — Клонируйте себя</h3>
+                  <p class="challenge__task">Запишите десять секунд собственной речи, наберите расшифровку руками и клонируйте. Затем клонируйте ещё раз, используя расшифровку Whisper. Измерьте оба круговых рейса, как лекция сделала для казахского.</p>
+                </article>
+                <article class="challenge">
+                  <h3>Задание 8 — Весь курс в одном конвейере</h3>
+                  <p class="challenge__task">Соедините: речь &#8594; Whisper &#8594; классификатор тональности из Лекции 7 &#8594; произнесённый ответ от OmniVoice. Измерьте сквозную точность и сравните с точностью классификатора на набранном тексте. Во что вам обошёлся микрофон?</p>
+                </article>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--surface" aria-labelledby="takeaways">
+            <div class="container">
+              <span class="section__eyebrow">Итоги</span>
+              <h2 id="takeaways">Сегодня мы узнали</h2>
+              <ul class="takeaways" style="margin-top: 28px">
+                <li>Речь доходит до модели как спектрограмма: 80 mel-полос, 50 кадров в секунду — то есть просто последовательность векторов</li>
+                <li>Whisper — это encoder–decoder из Лекции 6 со звуком на входе; в attention не изменилось ничего</li>
+                <li>Его decoder — языковая модель, поэтому его ошибки выглядят беглыми настоящими словами, а не шумом</li>
+                <li>Language token — это точка старта decoder-а, а не подсказка: назовите не тот, и получите уверенную транслитерацию</li>
+                <li>WER считает замены, пропуски и вставки на слово эталона, поэтому может превысить 1.0; whisper-tiny дал 2.099 на казахском</li>
+                <li>На тех же предложениях FLEURS: английский WER 0.099, русский 0.108, <strong>казахский 0.744</strong> — хуже в 7.5&#215;</li>
+                <li>Но казахский CER хуже только в 4.3&#215;: модель слышит звуки и пишет неверные слова</li>
+                <li>Переход tiny &#8594; base &#8594; small довёл казахский CER с 0.894 до 0.322 и до 0.180 — и всё равно не до пригодного</li>
+                <li>Распознавание идёт при RTF 0.02&#8211;0.03 на ноутбуке; дорого обходится правильность, а не скорость</li>
+                <li>Синтез — та же задача наоборот, без единственного верного ответа: текст становится аудио-tokens, затем волной</li>
+                <li>OmniVoice выбирает голос тремя способами: auto, voice design из фиксированного словаря или клонирование с референсного клипа</li>
+                <li>Voice design отвергает свободную прозу и перечисляет 23 разрешённых атрибута — структура это не словарь, как и в Лекции 10</li>
+                <li>Оценивайте синтезатор, произнося и распознавая обратно, — но только против контроля, иначе число винит две системы сразу</li>
+                <li>Круговой рейс на английском дал 0.083, лучше Whisper на человеческом английском: синтезатор хорош, а казахские 0.787 — дело распознавателя</li>
+                <li>Подача расшифровки Whisper в клонировщик голоса подняла WER с 0.667 до 1.000 — ошибки распространяются и накапливаются</li>
+                <li>Казахский штраф теперь измерен на пяти слоях этого курса, и вдоль конвейера он накапливается</li>
+              </ul>
+            </div>
+          </section>
+        </main>
+
+        <footer class="site-footer">
+          <div class="container">
+            <p>NLP Course &middot; Лекция 11 &middot; 28 сентября 2026</p>
+          </div>
+        </footer>
+      </div>
+    </div>
+
+    <script src="../../page/js/course.js"></script>
+    <script src="../../page/js/main.js"></script>
+  </body>
+</html>

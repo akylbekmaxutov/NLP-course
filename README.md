@@ -313,3 +313,39 @@ Changed:
 - `index.html` — link to Lecture 10
 
 All 21 inline SVGs across the three Lecture 10 pages are valid XML, `tools/check-figures.py` and `tools/check-render.py` both report zero problems at 1920, 1400, 900 and 420 px, section and figure counts match across en/kk/ru, and all 9 code blocks are byte-identical in all three languages.
+
+### 28.09.2026
+
+Added:
+
+- `code_files/lesson11/` — speech, both directions, both models local and keyless. `openai/whisper-small` (244 M) for recognition, `k2-fsa/OmniVoice` (Qwen3-0.6B plus an audio tokenizer, 651 languages including Kazakh) for synthesis
+  - `data.py` — streams **FLEURS** and caches 12 clips each of `kk_kz`, `ru_ru`, `en_us` as plain 16 kHz wav with transcripts. FLEURS reads the same source sentences in every language, which is what makes the comparison below a measurement rather than an impression
+  - `asr.py` — transcription, WER and CER after a stated normalisation, three languages, three model sizes, the language token, transcribe against translate
+  - `tts.py` — the three voice modes, and the round-trip score
+  - `app.py` — Gradio on port 7862: Transcribe, Speak, Round trip
+- `language/{en,kk,ru}/11-speech-asr-tts.html` — Lecture 11. 16 sections and 7 inline SVG figures per language: waveform to spectrogram to frames, Whisper as Lecture 6's encoder–decoder with a microphone, the forced decoder prefix, how WER and CER are computed, the measured results, then synthesis, voice cloning, the round trip, and error propagation
+
+Measured (Apple M4 Pro, 12 FLEURS clips per language):
+
+| language | WER | CER | RTF |
+|---|---|---|---|
+| English | 0.099 | 0.042 | 0.02 |
+| Russian | 0.108 | 0.028 | 0.02 |
+| **Kazakh** | **0.744** | **0.180** | 0.03 |
+
+- **Kazakh WER is 7.5× English — but Kazakh CER is only 4.3×.** That divergence is the finding: Whisper hears roughly the right *sounds* and writes the wrong *words* (`гимнастика` → `димнастика`). It is a training-data and orthography problem, not deafness, and it points at a different fix than "the model can't hear Kazakh"
+- **Model size does not rescue it.** tiny 39 M → WER 2.099, base 74 M → 0.934, small 244 M → 0.744. The 2.099 is not a typo: `tiny` inserts more words than the reference contains, which is the clearest possible demonstration that WER is errors per reference word and not a percentage correct
+- **The language token is not a hint.** Same Kazakh clip decoded as `kk` / `ru` / `tr` / `en`: WER 0.762 → 0.905 → 1.095 → 1.095. Told the audio is English, Whisper produces a grammatical English sentence about an Olympic committee chairman — fluent, confident, invented
+- **Round trip — speak it with OmniVoice, transcribe it back with Whisper:** English 0.083, Russian 0.146, Kazakh 0.787, against Whisper's human-speech error of 0.099 / 0.108 / 0.744. Synthetic English is *easier* to recognise than human English, so the synthesiser is genuinely good and the Kazakh number is almost entirely the recogniser's. Without the English control that conclusion is unavailable, which is the methodological point of the section
+- **Errors propagate.** Voice cloning needs the reference audio *and its transcript*. With the true transcript the clone scores round-trip WER 0.667; with Whisper's own transcript of the same clip, **1.000** — every word wrong. Two components that each look acceptable alone produce a system that fails completely
+- **Voice design takes a controlled vocabulary, not prose.** "A calm, warm female voice speaking slowly and clearly" is rejected with a list of the 23 attributes it accepts (`female`, `elderly`, `low pitch`, ten accents, …). The same lesson Lecture 10 found in JSON schemas: structure is not vocabulary
+
+The page closes by putting the Kazakh penalty from five lectures side by side — sentiment 0.937/0.799 (L7), tokens 19/38 (L8), API cost $130/$336 (L8), geocoding found/not-found (L10), and speech 0.099/0.744 (L11) — because the compounding is the argument, not any single row.
+
+Changed:
+
+- `page/js/course.js` — Lecture 11 published as "Speech: ASR and TTS". **Every lecture in the roadmap now has a page**
+- `index.html` — link to Lecture 11
+- `code_files/lesson11/requirements.txt` — adds `torchcodec`, `librosa`, `soundfile`, `jiwer`, `omnivoice`; `ffmpeg` must be on the PATH
+
+All 21 inline SVGs across the three Lecture 11 pages are valid XML, `tools/check-figures.py` and `tools/check-render.py` report zero problems at 1920, 1400, 900 and 420 px, section and figure counts match across en/kk/ru, and every code block is byte-identical in all three languages.

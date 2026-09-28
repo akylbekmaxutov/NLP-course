@@ -1,0 +1,17 @@
+# Lecture 11 — speech: ASR and TTS
+#
+# Both models run locally and need no API key. First run downloads
+# whisper-small (~1 GB) and OmniVoice (~2.5 GB).
+
+transformers>=4.40     # Whisper
+torch>=2.2             # runs both models (MPS on Apple silicon)
+torchaudio>=2.2
+datasets>=2.19         # streaming FLEURS
+torchcodec>=0.2        # datasets needs this to decode audio
+librosa>=0.10          # loading and resampling wav files
+soundfile>=0.12        # writing wav files
+jiwer>=3.0             # word and character error rate
+omnivoice>=0.2         # k2-fsa OmniVoice text-to-speech
+gradio>=6.0            # the browser lab
+
+# ffmpeg must be on the PATH for audio decoding:  brew install ffmpeg
