@@ -6,7 +6,7 @@
     <title>Речь: ASR и TTS | NLP Course</title>
     <meta
       name="description"
-      content="Лекция 11: как речь становится текстом и текст речью. Спектрограммы, Whisper как encoder-decoder, language token, word и character error rate, измеренные на казахском, русском и английском, затем OmniVoice для синтеза, клонирование голоса и круговой рейс, который оценивает обе системы сразу."
+      content="Лекция 11: как речь становится текстом и текст речью. Спектрограммы, устройство audio encoder, Whisper как encoder-decoder, language token, как на самом деле считается WER и CER, затем нейронный аудиокодек и как модель делает голос, клонирование, и четыре оси оценки синтезатора."
     />
     <link rel="stylesheet" href="../../page/css/styles.css" />
   </head>
@@ -136,12 +136,12 @@
                   <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
                   <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
                   <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel-полос</text>
-                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 кадров/с</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 100 кадров/с</text>
 
                   <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
-                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder сжимает ещё вдвое, затем decoder пишет слова</text>
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder сжимает вдвое, затем decoder пишет слова</text>
                   <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
-                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/с</text>
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">50/с</text>
                   <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
                   <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
                   <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
@@ -163,7 +163,7 @@
                   <dt>спектрограмма</dt>
                   <dd>Режем сигнал на перекрывающиеся окна по 25&#8202;мс каждые 10&#8202;мс и для каждого окна измеряем, сколько энергии приходится на каждую из 80 частотных полос, расставленных так, как их расставляет человеческий слух. Получается картинка: время по горизонтали, частота по вертикали.</dd>
                   <dt>теперь это последовательность</dt>
-                  <dd>80 чисел на кадр, 50 кадров в секунду. Это ровно та форма, которую ждёт encoder из Лекции 6 — последовательность векторов, — поэтому та же архитектура работает со звуком вообще без изменений в attention.</dd>
+                  <dd>80 чисел на кадр, 100 кадров в секунду. Это ровно та форма, которую ждёт encoder из Лекции 6 — последовательность векторов, — поэтому та же архитектура работает со звуком вообще без изменений в attention.</dd>
                 </dl>
                 <p class="breakdown__reading">
                   Ничто внутри Transformer не знает, что это аудио. Замените таблицу embeddings на спектрограмму, и остальная часть Лекции 6 работает без правок.
@@ -263,6 +263,88 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
             </div>
           </section>
 
+          <section class="section" aria-labelledby="encoder">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Внутри encoder-а</span>
+              <h2 id="encoder">Что на самом деле делает audio encoder</h2>
+              <p class="narrow lead">
+                «Encoder читает спектрограмму» — правда и не очень полезно. Вот каждый шаг, с настоящими формами тензоров, распечатанными из <code>whisper-small</code>.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-enc-t">
+                  <title id="fig-enc-t">Каждая форма от сырых отсчётов до выхода encoder-а в whisper-small</title>
+                  <rect x="8" y="16" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="30" font-size="7.5" fill="#2563eb">480 000</text>
+                  <text x="70" y="30" font-size="7.5" fill="#111111">сырых отсчётов — 30 с на 16 кГц (короткие клипы дополняются)</text>
+
+                  <line x1="170" y1="36" x2="170" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="45" font-size="7" fill="#5b6270">окно 25 мс, шаг 10 мс</text>
+
+                  <rect x="8" y="48" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="62" font-size="7.5" fill="#2563eb">80 &#215; 3 000</text>
+                  <text x="70" y="62" font-size="7.5" fill="#111111">log-mel спектрограмма — 100 кадров в секунду</text>
+
+                  <line x1="170" y1="68" x2="170" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="77" font-size="7" fill="#5b6270">conv1: 80&#8594;768, ядро 3, stride 1</text>
+
+                  <rect x="8" y="80" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="94" font-size="7.5" fill="#2563eb">768 &#215; 3 000</text>
+                  <text x="70" y="94" font-size="7.5" fill="#111111">теперь один 768-вектор на 10 мс</text>
+
+                  <line x1="170" y1="100" x2="170" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="109" font-size="7" fill="#b91c1c">conv2: stride 2 — единственное сжатие</text>
+
+                  <rect x="8" y="112" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="126" font-size="7.5" fill="#2563eb">768 &#215; 1 500</text>
+                  <text x="70" y="126" font-size="7.5" fill="#111111">один вектор на 20 мс — 50 кадров в секунду</text>
+
+                  <line x1="170" y1="132" x2="170" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="141" font-size="7" fill="#5b6270">+ синусоидальные позиции (1 500 &#215; 768)</text>
+
+                  <rect x="8" y="144" width="324" height="26" rx="5" fill="#2563eb" />
+                  <text x="170" y="155" font-size="8" fill="#ffffff" text-anchor="middle">12 блоков Transformer &#183; 12 голов &#183; d_model 768</text>
+                  <text x="170" y="165" font-size="7" fill="#dbe7ff" text-anchor="middle">self-attention сразу по всем 1 500 кадрам, без причинной маски</text>
+
+                  <rect x="8" y="178" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="192" font-size="7.5" fill="#2563eb">1 500 &#215; 768</text>
+                  <text x="70" y="192" font-size="7.5" fill="#111111">то, что читает cross-attention в decoder-е</text>
+                  <text x="170" y="209" font-size="7.5" fill="#5b6270" text-anchor="middle">encoder 88.2 M параметров &#183; decoder 153.6 M</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Распечатано скриптом, а не переписано из статьи. Три строки PyTorch воспроизводят весь этот столбец.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+encoder = model.model.encoder
+
+print(features.shape)                 # (1, 80, 3000)
+print(encoder.conv1, encoder.conv2)   # 80->768 stride 1, 768->768 stride 2
+print(encoder(features).last_hidden_state.shape)   # (1, 1500, 768)</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Пять вещей, которые удивляют</span>
+                <dl class="breakdown__list">
+                  <dt>вход всегда 30 секунд</dt>
+                  <dd>Трёхсекундный клип дополняется тишиной до 30, и encoder обрабатывает всё это. Форма фиксирована, поэтому короткий клип стоит столько же, сколько длинный. Вот почему пакетировать короткие реплики расточительно и почему длинное аудио приходится резать на куски по 30 секунд.</dd>
+                  <dt>свёртки — это весь входной блок</dt>
+                  <dd>Две одномерные свёртки по времени, ядро 3. Первая превращает 80 mel-полос в 768 каналов; у второй <code>stride 2</code>, и это единственное место, где последовательность укорачивается. 3 000 кадров становятся 1 500.</dd>
+                  <dt>50 кадров в секунду — рабочее разрешение</dt>
+                  <dd>Один вектор на 20 мс. Звуки речи длятся 50&#8211;150 мс, так что каждая фонема занимает несколько кадров — разрешения хватает, чтобы их различать, и кадров достаточно мало, чтобы attention по 1 500 позициям был по карману.</dd>
+                  <dt>позиции синусоидальные и замороженные</dt>
+                  <dd>Не обучаемые, в отличие от decoder-а. Лекция 6 представила оба вида; здесь взят фиксированный, потому что длина входа никогда не меняется.</dd>
+                  <dt>причинной маски нет</dt>
+                  <dd>Encoder видит все 30 секунд сразу, поэтому слово в конце может прояснить слово в начале. Именно от этого отказывается потоковое распознавание, и поэтому системы реального времени хуже офлайновых на том же аудио.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Decoder — бо́льшая половина: 153.6 M против 88.2 M. Большая часть Whisper не слушает, а пишет.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="scoring">
             <div class="container">
               <span class="section__eyebrow">Теория &#183; Измерение</span>
@@ -337,6 +419,114 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="editdistance">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Алгоритм</span>
+              <h2 id="editdistance">Как WER считается на самом деле</h2>
+              <p class="narrow lead">
+                Определение говорит «замены плюс пропуски плюс вставки», и отсюда встаёт настоящий вопрос: кто решает, какие слова заменены, а какие пропущены? Ответ — выравнивание, найденное динамическим программированием, и это то же расстояние Левенштейна, которое вы, возможно, встречали на символах.
+              </p>
+
+              <div class="definition">
+                <p>
+                  WER — это <strong>минимальное</strong> число словесных правок, превращающих гипотезу в эталон, делённое на длину эталона. Слово «минимальное» здесь главное: из множества способов сопоставить две последовательности оценка берёт самый дешёвый.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-dp-t">
+                  <title id="fig-dp-t">Таблица редакционного расстояния, находящая самое дешёвое выравнивание</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">в ячейке: самый дешёвый способ сопоставить i эталонных и j гипотезных слов</text>
+
+                  <text x="62" y="30" font-size="7" fill="#5b6270" text-anchor="middle">&#8709;</text>
+                  <text x="94" y="30" font-size="7" fill="#111111" text-anchor="middle">жол</text>
+                  <text x="126" y="30" font-size="7" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <text x="158" y="30" font-size="7" fill="#111111" text-anchor="middle">сағат</text>
+                  <text x="196" y="30" font-size="7" fill="#b91c1c" text-anchor="middle">болады</text>
+
+                  <text x="30" y="46" font-size="7" fill="#5b6270" text-anchor="end">&#8709;</text>
+                  <text x="30" y="64" font-size="7" fill="#111111" text-anchor="end">жол</text>
+                  <text x="30" y="82" font-size="7" fill="#111111" text-anchor="end">тоғыз</text>
+                  <text x="30" y="100" font-size="7" fill="#111111" text-anchor="end">сағат</text>
+
+                  <rect x="46" y="36" width="32" height="16" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="62" y="47" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="78" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="47" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="47" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="142" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="47" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="174" y="36" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="47" font-size="7" fill="#111111" text-anchor="middle">4</text>
+
+                  <rect x="46" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="78" y="54" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="94" y="65" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="110" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="65" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="174" y="54" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="65" font-size="7" fill="#111111" text-anchor="middle">3</text>
+
+                  <rect x="46" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="78" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="72" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="126" y="83" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="142" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="174" y="72" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+
+                  <rect x="46" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="101" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="78" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="101" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="110" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="90" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="158" y="101" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="174" y="90" width="42" height="16" fill="#fdeaea" stroke="#b91c1c" />
+                  <text x="195" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+
+                  <text x="232" y="66" font-size="7.5" fill="#5b6270">по диагонали = совпадение</text>
+                  <text x="232" y="78" font-size="7.5" fill="#5b6270">или замена</text>
+                  <text x="232" y="92" font-size="7.5" fill="#5b6270">влево = вставка</text>
+                  <text x="232" y="104" font-size="7.5" fill="#5b6270">вверх = пропуск</text>
+
+                  <rect x="8" y="118" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="132" font-size="8" fill="#111111" text-anchor="middle">правая нижняя ячейка и есть ответ: 1 правка</text>
+
+                  <text x="8" y="154" font-size="7.5" fill="#111111">cost(i, j) = минимум из трёх ходов:</text>
+                  <text x="20" y="166" font-size="7.5" fill="#5b6270">cost(i-1, j-1) + (0 если слова совпали, иначе 1) — замена</text>
+                  <text x="20" y="177" font-size="7.5" fill="#5b6270">cost(i-1, j) + 1 — пропуск</text>
+                  <text x="20" y="188" font-size="7.5" fill="#5b6270">cost(i, j-1) + 1 — вставка</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Заполняйте таблицу слева направо и сверху вниз; каждой ячейке нужны только три соседа. Затем пройдите назад из угла, чтобы восстановить, <em>какие именно</em> слова были неверны, — так и получен пословный список в трассировке выше.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Следствия того, что это минимум</span>
+                <dl class="breakdown__list">
+                  <dt>выравнивание — это догадка, а не истина</dt>
+                  <dd>Никто не записывал, какое слово модель «имела в виду». Алгоритм выбирает самую дешёвую историю, согласованную с двумя строками, а когда несколько историй стоят одинаково — выбирает произвольно. Для подсчёта ошибок это нормально; для обвинения конкретного слова — слабее, чем кажется.</dd>
+                  <dt>CER — тот же алгоритм на символах</dt>
+                  <dd>Одна функция, две токенизации. В этом вся разница, и поэтому два числа вообще сравнимы.</dd>
+                  <dt>стоимость O(N&#215;M)</dt>
+                  <dd>Для предложений нормально. Для двухчасовой расшифровки стоит резать на куски, что и делает любой настоящий инструмент оценки.</dd>
+                  <dt>слово — это то, что вы им назвали</dt>
+                  <dd>Мы режем по пробелам после удаления пунктуации. В агглютинативном языке это реальный выбор: казахское <code>кітаптарымыздан</code> здесь одно «слово», а лингвистически пять морфем, так что один неверный суффикс стоит целого слова. Проблема токенизации из Лекции 2, так и не решённая, теперь определяет метрику.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section" aria-labelledby="results-asr">
             <div class="container">
               <span class="section__eyebrow">Результат &#183; Распознавание</span>
@@ -604,6 +794,115 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
             </div>
           </section>
 
+          <section class="section" aria-labelledby="howvoice">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Внутри синтезатора</span>
+              <h2 id="howvoice">Как модель на самом деле делает голос</h2>
+              <p class="narrow lead">
+                Модель не может предсказывать 24 000 чисел в секунду по одному — этого не смог бы никто. Приём, на котором держится современный TTS, — придумать для звука словарь, чтобы порождение речи стало той же задачей, что и порождение текста.
+              </p>
+
+              <h3 style="margin-top: 36px">Шаг 1 — дать звуку алфавит</h3>
+              <p class="narrow">
+                <strong>Нейронный аудиокодек</strong> — это автоэнкодер, середину которого заставили быть дискретной. Он сжимает волну в короткую последовательность целых чисел и восстанавливает волну из них. OmniVoice использует кодек Higgs Audio v2, и мы можем просто спросить у него, что он делает:
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>tokenizer = model.audio_tokenizer          # HiggsAudioV2TokenizerModel
+codes = tokenizer.encode(torch.zeros(1, 1, 24000 * 2))   # 2 seconds
+print(codes.shape)                          # (1, 8, 50)
+print(tokenizer.decode(codes).shape)        # (1, 1, 48000) -> 2.00 s at 24 kHz</code></pre></div>
+
+              <div class="code-block" data-lang="output"><pre><code>  1 s -> codes (1, 8, 25)     25.0 frames/s   200 codes total (8 codebooks)
+  2 s -> codes (1, 8, 50)     25.0 frames/s   400 codes total (8 codebooks)
+  4 s -> codes (1, 8, 100)    25.0 frames/s   800 codes total (8 codebooks)
+  8 s -> codes (1, 8, 200)    25.0 frames/s  1600 codes total (8 codebooks)</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 182" role="img" aria-labelledby="fig-codec-t">
+                  <title id="fig-codec-t">Нейронный кодек превращает секунду звука в 200 целых чисел</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">одна секунда речи</text>
+                  <rect x="8" y="18" width="96" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="56" y="32" font-size="7.5" fill="#111111" text-anchor="middle">24 000 чисел</text>
+                  <line x1="104" y1="28" x2="120" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="120" y="18" width="62" height="20" rx="4" fill="#2563eb" />
+                  <text x="151" y="32" font-size="7.5" fill="#ffffff" text-anchor="middle">encoder</text>
+                  <line x1="182" y1="28" x2="198" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="198" y="18" width="134" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="265" y="32" font-size="7.5" fill="#111111" text-anchor="middle">25 кадров &#215; 8 кодов = 200 целых</text>
+
+                  <text x="8" y="58" font-size="8" fill="#5b6270">как выглядит один кадр — 8 кодовых книг, от грубой к точной</text>
+                  <rect x="8" y="64" width="38" height="16" rx="3" fill="#2563eb" />
+                  <text x="27" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">417</text>
+                  <rect x="48" y="64" width="38" height="16" rx="3" fill="#4d82ee" />
+                  <text x="67" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">92</text>
+                  <rect x="88" y="64" width="38" height="16" rx="3" fill="#7aa2f2" />
+                  <text x="107" y="75" font-size="6.5" fill="#111111" text-anchor="middle">1003</text>
+                  <rect x="128" y="64" width="38" height="16" rx="3" fill="#9dbcf6" />
+                  <text x="147" y="75" font-size="6.5" fill="#111111" text-anchor="middle">55</text>
+                  <rect x="168" y="64" width="38" height="16" rx="3" fill="#b8cef8" />
+                  <text x="187" y="75" font-size="6.5" fill="#111111" text-anchor="middle">640</text>
+                  <rect x="208" y="64" width="38" height="16" rx="3" fill="#cddefa" />
+                  <text x="227" y="75" font-size="6.5" fill="#111111" text-anchor="middle">311</text>
+                  <rect x="248" y="64" width="38" height="16" rx="3" fill="#dfe9fc" />
+                  <text x="267" y="75" font-size="6.5" fill="#111111" text-anchor="middle">8</text>
+                  <rect x="288" y="64" width="38" height="16" rx="3" fill="#eef3fe" />
+                  <text x="307" y="75" font-size="6.5" fill="#111111" text-anchor="middle">772</text>
+                  <text x="8" y="92" font-size="7" fill="#5b6270">кодовая книга 1: грубая форма</text>
+                  <text x="332" y="92" font-size="7" fill="#5b6270" text-anchor="end">книга 8: последние детали</text>
+                  <text x="170" y="104" font-size="7.5" fill="#111111" text-anchor="middle">каждый код — один из 1 024; каждая следующая книга исправляет предыдущие</text>
+
+                  <rect x="8" y="116" width="324" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="130" font-size="8" fill="#111111" text-anchor="middle">25 &#215; 8 &#215; 10 бит = 2 000 бит на секунду речи</text>
+
+                  <text x="170" y="154" font-size="8" fill="#5b6270" text-anchor="middle">24 000 чисел в секунду стали 200 — и кодек умеет</text>
+                  <text x="170" y="166" font-size="8" fill="#5b6270" text-anchor="middle">восстановить из них волну, ради чего всё и затевалось</text>
+                  <text x="170" y="178" font-size="7.5" fill="#15803d" text-anchor="middle">теперь речь — последовательность над словарём из 1 024 слов</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Это <strong>residual vector quantization</strong>. Одна кодовая книга слишком груба, чтобы восстановить речь, поэтому каждая следующая кодирует то, что предыдущие передали неверно. Конфиг модели взвешивает их как 8, 8, 6, 6, 4, 4, 2, 2 — важнее всего попасть в первые.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">Шаг 2 — предсказать эти числа по тексту</h3>
+              <p class="narrow">
+                Теперь задача знакомая: по тексту выдать последовательность кодов. Основа OmniVoice — Qwen3, 28 слоёв, то же архитектурное семейство, что и языковые модели Лекции 8, — с приделанным рядом с текстовым аудиословарём.
+              </p>
+              <p class="narrow">
+                Один поворот: это <strong>диффузионная</strong> языковая модель, а не слева-направо. В аудиословаре 1 025 записей, и лишняя — это <code>&lt;mask&gt;</code>. Генерация начинается с того, что все аудиопозиции замаскированы, и снимает маски за несколько проходов, уточняя всё высказывание целиком, вместо того чтобы зафиксировать первые 40 мс до того, как решено, чем кончится предложение. Поэтому просодия выходит связной, и поэтому real-time factor (0.62) хуже, чем у распознавателя (0.03): несколько проходов по последовательности вместо одного.
+              </p>
+
+              <h3 style="margin-top: 44px">Шаг 3 — так что <em>такое</em> голос?</h3>
+              <div class="grid grid--2" style="margin-top: 24px">
+                <div class="card">
+                  <h3>Не настройка</h3>
+                  <p>
+                    Нет параметра «говорящий» и нет хранимой библиотеки людей. Личность целиком живёт в том условии, которое вы ставите перед текстом.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Это контекст</h3>
+                  <p>
+                    При клонировании референсный клип кодируется в те же аудиокоды, и эти коды кладутся в контекст. Дальше модель продолжает согласованно с ними — то же обучение в контексте, что и few-shot из Лекции 9, только примерами служат аудио-tokens.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 28px">
+                <span class="breakdown__label">Чем и объясняются три режима и их цена</span>
+                <dl class="breakdown__list">
+                  <dt>auto — без условия</dt>
+                  <dd>Голос ничем не ограничен, поэтому модель сэмплирует тот, что согласуется с языком и текстом. Самое дешёвое: 2.96 с аудио за 1.9 с.</dd>
+                  <dt>voice design — условие ярлыком</dt>
+                  <dd><code>female, elderly, low pitch</code> — это специальные tokens, вместе с которыми модель обучалась, и именно поэтому свободная проза отвергается: невиданная фраза — не тот token, на котором её когда-либо обусловливали. Словарь и есть интерфейс.</dd>
+                  <dt>voice clone — условие примером</dt>
+                  <dd>Референс кодируется в коды и ставится впереди, так что 14.9-секундный референс — это примерно 14.9 &#215; 200 = 3 000 дополнительных tokens контекста. Поэтому клонирование заняло 11.6 с против 1.9 с: вы каждый раз платите за чтение референса.</dd>
+                  <dt>и почему нужна расшифровка референса</dt>
+                  <dd>Модели дают референсное аудио <em>и</em> слова, которые в нём звучат, чтобы она вывела отображение из этих слов в звуки этого говорящего. Дайте расшифровку, которая не совпадает, — и выведенное отображение везде неверно; ниже это измерено как переход WER с 0.667 на 1.000.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="roundtrip">
             <div class="container">
               <span class="section__eyebrow">Результат &#183; Оценка голоса</span>
@@ -714,6 +1013,106 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="ttseval">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Оценка</span>
+              <h2 id="ttseval">Как правильно оценивать синтезатор</h2>
+              <p class="narrow lead">
+                Наш круговой рейс хорошо измеряет одно и совсем не измеряет три других. Синтезатор судят по четырём отдельным осям, они между собой не коррелируют, и система может быть превосходна по одной и провальна по другой.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Четыре оси оценки TTS</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Что вы хотите знать</th>
+                      <th scope="col">Как это измеряют</th>
+                      <th scope="col">Нужны люди?</th>
+                      <th scope="col">Мы измерили?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Разборчивость</strong><br />можно ли восстановить слова</td>
+                      <td>WER/CER расшифровки синтетического аудио через ASR</td>
+                      <td>нет</td>
+                      <td class="yes">да — 0.083 en / 0.787 kk</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Естественность</strong><br />звучит ли как человек</td>
+                      <td>MOS: слушатели ставят 1&#8211;5; или CMOS, A/B против эталона</td>
+                      <td>да</td>
+                      <td class="no">нет</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Сходство говорящего</strong><br />тот ли это человек</td>
+                      <td>косинус между speaker embeddings референса и результата</td>
+                      <td>нет</td>
+                      <td class="no">нет</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Просодия</strong><br />верный ритм, ударение, интонация</td>
+                      <td>статистики длительности и высоты тона против человеческого чтения; или слушатели</td>
+                      <td>частично</td>
+                      <td class="no">нет</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 166" role="img" aria-labelledby="fig-eval-t">
+                  <title id="fig-eval-t">Что каждая метрика видит и чего не видит</title>
+                  <rect x="8" y="16" width="156" height="60" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="86" y="31" font-size="8.5" fill="#111111" text-anchor="middle">автоматически и воспроизводимо</text>
+                  <text x="86" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">круговой рейс WER &#183; CER</text>
+                  <text x="86" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">косинус speaker embedding</text>
+                  <text x="86" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">статистики длительности и тона</text>
+
+                  <rect x="176" y="16" width="156" height="60" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="254" y="31" font-size="8.5" fill="#111111" text-anchor="middle">нужны слушатели, стоит денег</text>
+                  <text x="254" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">MOS 1&#8211;5, много оценщиков</text>
+                  <text x="254" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">CMOS, A/B предпочтение</text>
+                  <text x="254" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">«вы бы это выпустили?»</text>
+
+                  <rect x="8" y="88" width="324" height="24" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="103" font-size="8" fill="#111111" text-anchor="middle">роботизированный монотон получит идеал по всей левой колонке</text>
+
+                  <text x="170" y="130" font-size="8" fill="#5b6270" text-anchor="middle">левой колонкой ловите регрессии дёшево и часто;</text>
+                  <text x="170" y="142" font-size="8" fill="#5b6270" text-anchor="middle">правой — перед выпуском, и не чаще</text>
+                  <text x="170" y="158" font-size="7.5" fill="#15803d" text-anchor="middle">ни одна из колонок не лишняя, и ни одна не заменяет другую</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Неудобный факт синтеза речи: свойство, которое важнее всего пользователям, — звучит ли это по-человечески — как раз то, у которого нет дешёвой автоматической меры.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Как каждую из них делают на практике</span>
+                <dl class="breakdown__list">
+                  <dt>MOS и почему он труднее, чем кажется</dt>
+                  <dd>Слушатели оценивают каждый клип от 1 до 5, а вы усредняете. Оценки несравнимы между исследованиями — разные оценщики, инструкции и эталонные клипы сдвигают среднее сильнее, чем большинство улучшений модели, — так что MOS 4.1 в одной статье и 3.9 в другой не говорят ничего. Внутри одного эксперимента, где те же люди слышат обе системы, это осмысленно.</dd>
+                  <dt>CMOS, которым команды пользуются на деле</dt>
+                  <dd>Проиграйте A и B и спросите, что лучше, по шкале от &#8722;3 до +3. Сравнительные суждения куда устойчивее абсолютных, и они отвечают на вопрос, который у вас реально есть: новый checkpoint лучше старого или нет?</dd>
+                  <dt>сходство говорящего</dt>
+                  <dd>Прогоните референс и результат через модель верификации диктора — ту самую, которой определяют, один ли человек на двух записях, — и возьмите косинус между embeddings. Это число нужно смотреть при клонировании, а мы его не измеряли: наш раздел о клонировании оценивал разборчивость, которая может остаться высокой, пока голос уходит к совсем другому человеку.</dd>
+                  <dt>просодия</dt>
+                  <dd>Сравните синтетическое высказывание с человеческим чтением той же фразы: общая длительность, расстановка пауз, контур тона. Полезно как проверка на регрессию, слабо как мера качества, потому что у любой фразы много приемлемых прочтений — та самая неоднозначность, из-за которой TTS оценивать труднее, чем ASR.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Для казахского продукта важна ещё одна ось, которую не покрывает ни одна из четырёх: правильное ли это <em>казахское произношение</em>, а не просто разборчивое. Для этого нужен носитель, и никакая автоматическая оценка не заменит десяти минут, за которые его можно спросить.
+                </p>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>Что мы добавили бы дальше, по порядку.</strong> Сначала косинус сходства диктора, потому что он автоматический и именно к нему наш эксперимент с клонированием слеп. Затем CMOS-тест с несколькими носителями казахского, сравнивающий OmniVoice с человеческой записью, — двадцать клипов и один день. Всё остальное — доводка.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="kazakh">
             <div class="container">
               <span class="section__eyebrow">Теория &#183; Сквозная линия</span>
@@ -800,7 +1199,7 @@ python3 app.py               # http://127.0.0.1:7862</code></pre></div>
                   <p class="challenge__task">Почему аудио должно стать спектрограммой, прежде чем его увидит Transformer?</p>
                   <details class="answer">
                     <summary>Показать ответ</summary>
-                    <p style="margin-bottom: 0">В основном из-за длины. Attention квадратичен по длине последовательности, а 30 секунд на 16&#8202;кГц — это 480 000 отсчётов. Спектрограмма превращает их примерно в 1 500 кадров по 80 чисел — сокращение в 300&#215; — сохраняя частотную структуру, которая различает звуки речи. После этого это просто последовательность векторов, а её encoder из Лекции 6 уже принимал.</p>
+                    <p style="margin-bottom: 0">В основном из-за длины. Attention квадратичен по длине последовательности, а 30 секунд на 16&#8202;кГц — это 480 000 отсчётов. Спектрограмма превращает их в 3 000 кадров по 80 чисел, а свёртка encoder-а со stride 2 сокращает это вдвое, до 1 500, — в 320&#215; меньше шагов по времени — сохраняя частотную структуру, которая различает звуки речи. После этого это просто последовательность векторов, а её encoder из Лекции 6 уже принимал.</p>
                   </details>
                 </article>
                 <article class="challenge">

@@ -349,3 +349,19 @@ Changed:
 - `code_files/lesson11/requirements.txt` — adds `torchcodec`, `librosa`, `soundfile`, `jiwer`, `omnivoice`; `ffmpeg` must be on the PATH
 
 All 21 inline SVGs across the three Lecture 11 pages are valid XML, `tools/check-figures.py` and `tools/check-render.py` report zero problems at 1920, 1400, 900 and 420 px, section and figure counts match across en/kk/ru, and every code block is byte-identical in all three languages.
+
+### 28.09.2026 (expanded)
+
+Changed, after a request to explain the mechanisms rather than just report the numbers:
+
+- `language/*/11-speech-asr-tts.html` grows from 16 sections and 7 figures to **20 and 11**, with four new sections in all three languages:
+  - **What the audio encoder actually does** — every tensor shape from 480 000 raw samples to the 1 500 × 768 the decoder reads, printed out of `whisper-small` rather than copied from the paper: 80 × 3 000 log-mel → `conv1` 80→768 stride 1 → `conv2` 768→768 **stride 2** (the only downsampling) → 12 blocks, 12 heads, d_model 768. Plus the five things that surprise people: the input is always 30 s, positions are frozen sinusoids, there is no causal mask, and the decoder (153.6 M) is bigger than the encoder (88.2 M)
+  - **How WER is actually computed** — the Levenshtein dynamic-programming table, drawn as a grid, with the three-way recurrence and the backtrace that recovers *which* words were wrong. Ends on the point that a "word" is a choice: `кітаптарымыздан` is one word to the metric and five morphemes linguistically, so one wrong suffix costs a whole word
+  - **How a model actually makes a voice** — the neural audio codec measured live: `tokenizer.encode` on 1/2/4/8 s returns 25 frames a second, 8 codebooks of 1 024, i.e. 200 integers and **2 kbps** per second of speech, and `decode` rebuilds 24 kHz exactly. Then residual vector quantization (coarse→fine, weighted 8,8,6,6,4,4,2,2), the Qwen3 backbone, the fact that it is a **diffusion** LM over audio tokens (vocab 1 025 = 1 024 + `<mask>`, unmasked over several passes — which is why RTF is 0.62 against a recogniser's 0.03), and the answer to "what is a voice": not a setting, but conditioning — which is why a 14.9 s reference adds ~3 000 tokens of context and cloning took 11.6 s against 1.9 s
+  - **Evaluating a synthesiser properly** — the four axes (intelligibility, naturalness, speaker similarity, prosody), which are automatic and which need listeners, MOS against CMOS and why absolute MOS is not comparable across papers, and an explicit statement of what this lecture did *not* measure: speaker-similarity cosine, which is exactly what the cloning experiment is blind to
+
+Fixed:
+
+- **The frame rate in the opening figure was wrong.** It said the log-mel is 50 frames/s and the encoder halves it to ~25. Measuring it gave 3 000 mel frames for 30 s (**100 frames/s**, consistent with the 10 ms hop the same section describes) and 1 500 after the stride-2 convolution (**50 frames/s**). Corrected in all three languages, along with the knowledge-check answer that repeated it — which also became more precise: 480 000 samples → 3 000 frames → 1 500 is **320×** fewer time steps, not "about 1 500 frames of 80 numbers, a 300× reduction"
+
+Verified: 20 sections and 11 SVGs per language, tags balanced, all SVGs valid XML, 14 code blocks byte-identical across en/kk/ru, and `tools/check-figures.py` and `tools/check-render.py` both report zero problems at 1920, 1400, 900 and 420 px.

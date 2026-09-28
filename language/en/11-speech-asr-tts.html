@@ -148,12 +148,12 @@
                   <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
                   <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
                   <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel bands</text>
-                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 frames/s</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 100 frames/s</text>
 
                   <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
-                  <text x="8" y="154" font-size="9" fill="#5b6270">3. the encoder halves it again, then the decoder writes words</text>
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. the encoder halves it, then the decoder writes words</text>
                   <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
-                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/s</text>
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">50/s</text>
                   <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
                   <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
                   <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
@@ -178,7 +178,7 @@
                   <dt>the spectrogram</dt>
                   <dd>Cut the signal into overlapping 25&#8202;ms windows every 10&#8202;ms, and for each window measure how much energy sits in each of 80 frequency bands, spaced the way human hearing spaces them. The result is a picture: time across, frequency up.</dd>
                   <dt>it is now a sequence</dt>
-                  <dd>80 numbers per frame, 50 frames per second. That is exactly the shape Lecture 6&#8217;s encoder expects &#8212; a sequence of vectors &#8212; which is why the same architecture works on sound with no change to the attention at all.</dd>
+                  <dd>80 numbers per frame, 100 frames per second. That is exactly the shape Lecture 6&#8217;s encoder expects &#8212; a sequence of vectors &#8212; which is why the same architecture works on sound with no change to the attention at all.</dd>
                 </dl>
                 <p class="breakdown__reading">
                   Nothing in the Transformer knows this is audio. Swap the
@@ -289,6 +289,92 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
             </div>
           </section>
 
+          <section class="section" aria-labelledby="encoder">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Inside the encoder</span>
+              <h2 id="encoder">What the audio encoder actually does</h2>
+              <p class="narrow lead">
+                &#8220;An encoder reads the spectrogram&#8221; is true and not
+                very useful. Here is every step, with the real tensor shapes
+                printed out of <code>whisper-small</code>.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-enc-t">
+                  <title id="fig-enc-t">Every shape from raw samples to encoder output in whisper-small</title>
+                  <rect x="8" y="16" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="30" font-size="7.5" fill="#2563eb">480 000</text>
+                  <text x="70" y="30" font-size="7.5" fill="#111111">raw samples &#8212; 30 s at 16 kHz (short clips are padded)</text>
+
+                  <line x1="170" y1="36" x2="170" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="45" font-size="7" fill="#5b6270">25 ms window, 10 ms hop</text>
+
+                  <rect x="8" y="48" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="62" font-size="7.5" fill="#2563eb">80 &#215; 3 000</text>
+                  <text x="70" y="62" font-size="7.5" fill="#111111">log-mel spectrogram &#8212; 100 frames a second</text>
+
+                  <line x1="170" y1="68" x2="170" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="77" font-size="7" fill="#5b6270">conv1: 80&#8594;768, kernel 3, stride 1</text>
+
+                  <rect x="8" y="80" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="94" font-size="7.5" fill="#2563eb">768 &#215; 3 000</text>
+                  <text x="70" y="94" font-size="7.5" fill="#111111">now one 768-vector per 10 ms</text>
+
+                  <line x1="170" y1="100" x2="170" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="109" font-size="7" fill="#b91c1c">conv2: stride 2 &#8212; the only downsampling</text>
+
+                  <rect x="8" y="112" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="126" font-size="7.5" fill="#2563eb">768 &#215; 1 500</text>
+                  <text x="70" y="126" font-size="7.5" fill="#111111">one vector per 20 ms &#8212; 50 frames a second</text>
+
+                  <line x1="170" y1="132" x2="170" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="141" font-size="7" fill="#5b6270">+ fixed sinusoidal positions (1 500 &#215; 768)</text>
+
+                  <rect x="8" y="144" width="324" height="26" rx="5" fill="#2563eb" />
+                  <text x="170" y="155" font-size="8" fill="#ffffff" text-anchor="middle">12 Transformer blocks &#183; 12 heads &#183; d_model 768</text>
+                  <text x="170" y="165" font-size="7" fill="#dbe7ff" text-anchor="middle">self-attention over all 1 500 frames at once, no causal mask</text>
+
+                  <rect x="8" y="178" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="192" font-size="7.5" fill="#2563eb">1 500 &#215; 768</text>
+                  <text x="70" y="192" font-size="7.5" fill="#111111">what cross-attention in the decoder reads</text>
+                  <text x="170" y="209" font-size="7.5" fill="#5b6270" text-anchor="middle">encoder 88.2 M parameters &#183; decoder 153.6 M</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Printed by the script, not copied from the paper. Three lines
+                  of PyTorch reproduce the whole column.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+encoder = model.model.encoder
+
+print(features.shape)                 # (1, 80, 3000)
+print(encoder.conv1, encoder.conv2)   # 80->768 stride 1, 768->768 stride 2
+print(encoder(features).last_hidden_state.shape)   # (1, 1500, 768)</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Five things that surprise people</span>
+                <dl class="breakdown__list">
+                  <dt>the input is always 30 seconds</dt>
+                  <dd>A 3-second clip is padded with silence to 30 and the encoder runs on all of it. The shape is fixed, so a short clip costs the same as a long one. This is why batching short utterances is wasteful, and why long audio has to be cut into 30-second chunks.</dd>
+                  <dt>the convolutions are the whole front end</dt>
+                  <dd>Two 1-D convolutions over time, kernel 3. The first turns 80 mel bins into 768 channels; the second has <code>stride 2</code> and is the only place the sequence gets shorter. 3 000 frames become 1 500.</dd>
+                  <dt>50 frames a second is the working resolution</dt>
+                  <dd>One vector per 20 ms. Speech sounds last 50&#8211;150 ms, so every phoneme spans several frames &#8212; enough resolution to distinguish them, few enough that attention over 1 500 positions is affordable.</dd>
+                  <dt>positions are sinusoidal and frozen</dt>
+                  <dd>Not learned, unlike the decoder&#8217;s. Lecture 6 introduced both kinds; here the fixed variety is used because the input length never varies.</dd>
+                  <dt>no causal mask</dt>
+                  <dd>The encoder sees the entire 30 seconds at once, so a word at the end can disambiguate a word at the start. That is precisely what streaming recognition gives up, and why real-time systems are worse than offline ones on the same audio.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  The decoder is the bigger half &#8212; 153.6 M against 88.2 M.
+                  Most of Whisper is not listening; it is writing.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="scoring">
             <div class="container">
               <span class="section__eyebrow">Theory &#183; Measurement</span>
@@ -372,6 +458,125 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="editdistance">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; The algorithm</span>
+              <h2 id="editdistance">How WER is actually computed</h2>
+              <p class="narrow lead">
+                The definition says &#8220;substitutions plus deletions plus
+                insertions&#8221;, which raises the real question: who decides
+                which words were substituted and which were deleted? The answer
+                is an alignment, found by dynamic programming, and it is the
+                same Levenshtein edit distance you may have met on characters.
+              </p>
+
+              <div class="definition">
+                <p>
+                  WER is the <strong>minimum</strong> number of word edits that
+                  turn the hypothesis into the reference, divided by the length
+                  of the reference. &#8220;Minimum&#8221; is doing the work: of
+                  the many ways to line up two sequences, the score uses the
+                  cheapest one.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-dp-t">
+                  <title id="fig-dp-t">The edit-distance table that finds the cheapest alignment</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">each cell: cheapest way to match i reference with j hypothesis words</text>
+
+                  <text x="62" y="30" font-size="7" fill="#5b6270" text-anchor="middle">&#8709;</text>
+                  <text x="94" y="30" font-size="7" fill="#111111" text-anchor="middle">жол</text>
+                  <text x="126" y="30" font-size="7" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <text x="158" y="30" font-size="7" fill="#111111" text-anchor="middle">сағат</text>
+                  <text x="196" y="30" font-size="7" fill="#b91c1c" text-anchor="middle">болады</text>
+
+                  <text x="30" y="46" font-size="7" fill="#5b6270" text-anchor="end">&#8709;</text>
+                  <text x="30" y="64" font-size="7" fill="#111111" text-anchor="end">жол</text>
+                  <text x="30" y="82" font-size="7" fill="#111111" text-anchor="end">тоғыз</text>
+                  <text x="30" y="100" font-size="7" fill="#111111" text-anchor="end">сағат</text>
+
+                  <rect x="46" y="36" width="32" height="16" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="62" y="47" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="78" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="47" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="47" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="142" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="47" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="174" y="36" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="47" font-size="7" fill="#111111" text-anchor="middle">4</text>
+
+                  <rect x="46" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="78" y="54" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="94" y="65" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="110" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="65" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="174" y="54" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="65" font-size="7" fill="#111111" text-anchor="middle">3</text>
+
+                  <rect x="46" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="78" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="72" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="126" y="83" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="142" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="174" y="72" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+
+                  <rect x="46" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="101" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="78" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="101" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="110" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="90" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="158" y="101" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="174" y="90" width="42" height="16" fill="#fdeaea" stroke="#b91c1c" />
+                  <text x="195" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+
+                  <text x="232" y="66" font-size="7.5" fill="#5b6270">diagonal = match</text>
+                  <text x="232" y="78" font-size="7.5" fill="#5b6270">or substitution</text>
+                  <text x="232" y="92" font-size="7.5" fill="#5b6270">left = insertion</text>
+                  <text x="232" y="104" font-size="7.5" fill="#5b6270">up = deletion</text>
+
+                  <rect x="8" y="118" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="132" font-size="8" fill="#111111" text-anchor="middle">the bottom-right cell is the answer: 1 edit</text>
+
+                  <text x="8" y="154" font-size="7.5" fill="#111111">cost(i, j) = min of three moves:</text>
+                  <text x="20" y="166" font-size="7.5" fill="#5b6270">cost(i-1, j-1) + (0 if the words match else 1)   &#8212; substitution</text>
+                  <text x="20" y="177" font-size="7.5" fill="#5b6270">cost(i-1, j) + 1   &#8212; deletion</text>
+                  <text x="20" y="188" font-size="7.5" fill="#5b6270">cost(i, j-1) + 1   &#8212; insertion</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Fill the grid left to right, top to bottom; every cell needs
+                  only its three neighbours. Then walk backwards from the
+                  corner to recover <em>which</em> words were wrong &#8212; which
+                  is how the per-word list in the trace above was produced.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Consequences of it being a minimum</span>
+                <dl class="breakdown__list">
+                  <dt>the alignment is a guess, not ground truth</dt>
+                  <dd>Nobody recorded which word the model &#8220;meant&#8221;. The algorithm picks the cheapest story consistent with the two strings, and when several stories cost the same it picks one arbitrarily. For counting errors that is fine; for blaming a particular word it is weaker than it looks.</dd>
+                  <dt>CER is the same algorithm on characters</dt>
+                  <dd>One function, two tokenisations. That is the entire difference, and it is why the two numbers can be compared at all.</dd>
+                  <dt>it costs O(N&#215;M)</dt>
+                  <dd>Fine for sentences. For a two-hour transcript it is worth chunking, which is what every real evaluation toolkit does.</dd>
+                  <dt>a word is whatever you say it is</dt>
+                  <dd>We split on whitespace after stripping punctuation. In an agglutinative language that is a real choice: Kazakh <code>кітаптарымыздан</code> is one &#8220;word&#8221; here and five morphemes linguistically, so one wrong suffix costs a whole word. Lecture 2&#8217;s tokenisation problem, still unresolved, now deciding a metric.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section" aria-labelledby="results-asr">
             <div class="container">
               <span class="section__eyebrow">Result &#183; Recognition</span>
@@ -680,6 +885,143 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
             </div>
           </section>
 
+          <section class="section" aria-labelledby="howvoice">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Inside the synthesiser</span>
+              <h2 id="howvoice">How a model actually makes a voice</h2>
+              <p class="narrow lead">
+                A model cannot predict 24 000 numbers a second one at a time
+                &#8212; nothing could. The trick that makes modern TTS work is
+                to invent a vocabulary for sound, so that generating speech
+                becomes the same problem as generating text.
+              </p>
+
+              <h3 style="margin-top: 36px">Step 1 &#8212; give sound an alphabet</h3>
+              <p class="narrow">
+                A <strong>neural audio codec</strong> is an autoencoder whose
+                middle is forced to be discrete. It compresses a waveform into
+                a short sequence of integers and reconstructs the waveform from
+                them. OmniVoice uses one called Higgs Audio v2, and we can just
+                ask it what it does:
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>tokenizer = model.audio_tokenizer          # HiggsAudioV2TokenizerModel
+codes = tokenizer.encode(torch.zeros(1, 1, 24000 * 2))   # 2 seconds
+print(codes.shape)                          # (1, 8, 50)
+print(tokenizer.decode(codes).shape)        # (1, 1, 48000) -> 2.00 s at 24 kHz</code></pre></div>
+
+              <div class="code-block" data-lang="output"><pre><code>  1 s -> codes (1, 8, 25)     25.0 frames/s   200 codes total (8 codebooks)
+  2 s -> codes (1, 8, 50)     25.0 frames/s   400 codes total (8 codebooks)
+  4 s -> codes (1, 8, 100)    25.0 frames/s   800 codes total (8 codebooks)
+  8 s -> codes (1, 8, 200)    25.0 frames/s  1600 codes total (8 codebooks)</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 182" role="img" aria-labelledby="fig-codec-t">
+                  <title id="fig-codec-t">A neural codec turns one second of sound into 200 integers</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">one second of speech</text>
+                  <rect x="8" y="18" width="96" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="56" y="32" font-size="7.5" fill="#111111" text-anchor="middle">24 000 floats</text>
+                  <line x1="104" y1="28" x2="120" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="120" y="18" width="62" height="20" rx="4" fill="#2563eb" />
+                  <text x="151" y="32" font-size="7.5" fill="#ffffff" text-anchor="middle">encoder</text>
+                  <line x1="182" y1="28" x2="198" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="198" y="18" width="134" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="265" y="32" font-size="7.5" fill="#111111" text-anchor="middle">25 frames &#215; 8 codes = 200 ints</text>
+
+                  <text x="8" y="58" font-size="8" fill="#5b6270">what one frame looks like &#8212; 8 codebooks, coarse to fine</text>
+                  <rect x="8" y="64" width="38" height="16" rx="3" fill="#2563eb" />
+                  <text x="27" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">417</text>
+                  <rect x="48" y="64" width="38" height="16" rx="3" fill="#4d82ee" />
+                  <text x="67" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">92</text>
+                  <rect x="88" y="64" width="38" height="16" rx="3" fill="#7aa2f2" />
+                  <text x="107" y="75" font-size="6.5" fill="#111111" text-anchor="middle">1003</text>
+                  <rect x="128" y="64" width="38" height="16" rx="3" fill="#9dbcf6" />
+                  <text x="147" y="75" font-size="6.5" fill="#111111" text-anchor="middle">55</text>
+                  <rect x="168" y="64" width="38" height="16" rx="3" fill="#b8cef8" />
+                  <text x="187" y="75" font-size="6.5" fill="#111111" text-anchor="middle">640</text>
+                  <rect x="208" y="64" width="38" height="16" rx="3" fill="#cddefa" />
+                  <text x="227" y="75" font-size="6.5" fill="#111111" text-anchor="middle">311</text>
+                  <rect x="248" y="64" width="38" height="16" rx="3" fill="#dfe9fc" />
+                  <text x="267" y="75" font-size="6.5" fill="#111111" text-anchor="middle">8</text>
+                  <rect x="288" y="64" width="38" height="16" rx="3" fill="#eef3fe" />
+                  <text x="307" y="75" font-size="6.5" fill="#111111" text-anchor="middle">772</text>
+                  <text x="8" y="92" font-size="7" fill="#5b6270">codebook 1: the rough shape</text>
+                  <text x="332" y="92" font-size="7" fill="#5b6270" text-anchor="end">codebook 8: the last details</text>
+                  <text x="170" y="104" font-size="7.5" fill="#111111" text-anchor="middle">each code is one of 1 024; each later book corrects the earlier ones</text>
+
+                  <rect x="8" y="116" width="324" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="130" font-size="8" fill="#111111" text-anchor="middle">25 &#215; 8 &#215; 10 bits = 2 000 bits per second of speech</text>
+
+                  <text x="170" y="154" font-size="8" fill="#5b6270" text-anchor="middle">24 000 numbers a second became 200 &#8212; and the codec can</text>
+                  <text x="170" y="166" font-size="8" fill="#5b6270" text-anchor="middle">rebuild the waveform from them, which is why this is worth doing</text>
+                  <text x="170" y="178" font-size="7.5" fill="#15803d" text-anchor="middle">speech is now a sequence over a 1 024-word vocabulary</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  This is <strong>residual vector quantization</strong>. One
+                  codebook is too coarse to reconstruct speech, so each
+                  successive book encodes what the previous ones got wrong. The
+                  model&#8217;s config weights them 8, 8, 6, 6, 4, 4, 2, 2 &#8212;
+                  getting the first ones right matters most.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">Step 2 &#8212; predict those integers from text</h3>
+              <p class="narrow">
+                Now the job is familiar: given text, produce a sequence of
+                codes. OmniVoice&#8217;s backbone is Qwen3 &#8212; 28 layers, the
+                same architecture family as Lecture 8&#8217;s language models
+                &#8212; with the audio vocabulary bolted on beside the text one.
+              </p>
+              <p class="narrow">
+                One twist: it is a <strong>diffusion</strong> language model,
+                not a left-to-right one. The audio vocabulary has 1 025 entries,
+                and the extra one is a <code>&lt;mask&gt;</code>. Generation
+                starts with every audio position masked and unmasks them over
+                several passes, refining the whole utterance at once rather
+                than committing to the first 40 ms before it has decided how
+                the sentence ends. That is why prosody comes out coherent, and
+                why the real-time factor (0.62) is worse than a recogniser&#8217;s
+                (0.03) &#8212; several passes over the sequence instead of one.
+              </p>
+
+              <h3 style="margin-top: 44px">Step 3 &#8212; so what <em>is</em> a voice?</h3>
+              <div class="grid grid--2" style="margin-top: 24px">
+                <div class="card">
+                  <h3>Not a setting</h3>
+                  <p>
+                    There is no &#8220;speaker&#8221; parameter and no stored
+                    library of people. The identity lives entirely in the
+                    conditioning you put in front of the text.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>It is context</h3>
+                  <p>
+                    For cloning, the reference clip is encoded into the same
+                    audio codes, and those codes are placed in the context. The
+                    model then continues in a way that is consistent with them
+                    &#8212; the same in-context learning as Lecture 9&#8217;s
+                    few-shot prompting, with audio tokens as the examples.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 28px">
+                <span class="breakdown__label">Which explains the three modes, and their costs</span>
+                <dl class="breakdown__list">
+                  <dt>auto &#8212; no conditioning</dt>
+                  <dd>Nothing constrains the voice, so the model samples one consistent with the language and the text. Cheapest: 2.96 s of audio in 1.9 s.</dd>
+                  <dt>voice design &#8212; conditioning by label</dt>
+                  <dd><code>female, elderly, low pitch</code> are special tokens the model was trained alongside, which is exactly why free prose is rejected: an unseen phrase is not a token it has ever been conditioned on. The vocabulary is the interface.</dd>
+                  <dt>voice clone &#8212; conditioning by example</dt>
+                  <dd>The reference is encoded to codes and prepended, so a 14.9-second reference is roughly 14.9 &#215; 200 = 3 000 extra tokens of context. That is why cloning took 11.6 s against 1.9 s: you are paying to read the reference, every time.</dd>
+                  <dt>and why the reference transcript is needed</dt>
+                  <dd>The model is given the reference audio <em>and</em> the words it contains, so it can learn the mapping from those words to that speaker&#8217;s sounds. Give it a transcript that does not match and the mapping it infers is wrong everywhere &#8212; measured below as WER 0.667 becoming 1.000.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="roundtrip">
             <div class="container">
               <span class="section__eyebrow">Result &#183; Scoring a voice</span>
@@ -804,6 +1146,120 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="ttseval">
+            <div class="container">
+              <span class="section__eyebrow">Theory &#183; Evaluation</span>
+              <h2 id="ttseval">Evaluating a synthesiser properly</h2>
+              <p class="narrow lead">
+                Our round trip measures one thing well and three things not at
+                all. A synthesiser is judged on four separate axes, they do not
+                correlate, and a system can be excellent on one while failing
+                on another.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">Four axes of TTS evaluation</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">What you want to know</th>
+                      <th scope="col">How it is measured</th>
+                      <th scope="col">Needs people?</th>
+                      <th scope="col">Did we?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Intelligibility</strong><br />can the words be recovered</td>
+                      <td>WER/CER of an ASR transcript of the synthetic audio</td>
+                      <td>no</td>
+                      <td class="yes">yes &#8212; 0.083 en / 0.787 kk</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Naturalness</strong><br />does it sound like a person</td>
+                      <td>MOS: listeners rate 1&#8211;5; or CMOS, A/B against a reference</td>
+                      <td>yes</td>
+                      <td class="no">no</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Speaker similarity</strong><br />is it the right person</td>
+                      <td>cosine similarity between speaker embeddings of reference and output</td>
+                      <td>no</td>
+                      <td class="no">no</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Prosody</strong><br />right rhythm, stress, intonation</td>
+                      <td>duration and pitch statistics against a human reading; or listeners</td>
+                      <td>partly</td>
+                      <td class="no">no</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 166" role="img" aria-labelledby="fig-eval-t">
+                  <title id="fig-eval-t">What each metric can and cannot see</title>
+                  <rect x="8" y="16" width="156" height="60" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="86" y="31" font-size="8.5" fill="#111111" text-anchor="middle">automatic, free, repeatable</text>
+                  <text x="86" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">round-trip WER &#183; CER</text>
+                  <text x="86" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">speaker-embedding cosine</text>
+                  <text x="86" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">duration, pitch statistics</text>
+
+                  <rect x="176" y="16" width="156" height="60" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="254" y="31" font-size="8.5" fill="#111111" text-anchor="middle">needs listeners, costs money</text>
+                  <text x="254" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">MOS 1&#8211;5, many raters</text>
+                  <text x="254" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">CMOS, A/B preference</text>
+                  <text x="254" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">&#8220;would you ship this?&#8221;</text>
+
+                  <rect x="8" y="88" width="324" height="24" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="103" font-size="8" fill="#111111" text-anchor="middle">a flat robotic monotone can score perfectly on every box in the left column</text>
+
+                  <text x="170" y="130" font-size="8" fill="#5b6270" text-anchor="middle">use the left column to catch regressions cheaply and often;</text>
+                  <text x="170" y="142" font-size="8" fill="#5b6270" text-anchor="middle">use the right column before you ship, and not more than that</text>
+                  <text x="170" y="158" font-size="7.5" fill="#15803d" text-anchor="middle">neither column is optional, and neither substitutes for the other</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  The uncomfortable fact of speech synthesis: the property users
+                  care about most &#8212; does it sound human &#8212; is the one
+                  with no cheap automatic measure.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">How each one is really done</span>
+                <dl class="breakdown__list">
+                  <dt>MOS, and why it is harder than it sounds</dt>
+                  <dd>Listeners rate each clip 1 to 5 and you average. Scores are not comparable between studies &#8212; different raters, instructions and reference clips move the mean by more than most model improvements &#8212; so a MOS of 4.1 in one paper and 3.9 in another says nothing. Within a single experiment, with the same raters hearing both systems, it is meaningful.</dd>
+                  <dt>CMOS, which is what teams actually use</dt>
+                  <dd>Play A and B and ask which is better, on a scale from &#8722;3 to +3. Comparative judgements are far more stable than absolute ones, and it answers the question you actually have: is the new checkpoint better than the old one?</dd>
+                  <dt>speaker similarity</dt>
+                  <dd>Run reference and output through a speaker-verification model &#8212; the same kind used to tell whether two recordings are the same person &#8212; and take the cosine between the embeddings. This is the number to watch for cloning, and we did not measure it: our cloning section scored intelligibility, which can stay high while the voice drifts to someone else entirely.</dd>
+                  <dt>prosody</dt>
+                  <dd>Compare the synthetic utterance with a human reading of the same sentence: total duration, pause placement, pitch contour. Useful as a regression check, weak as a quality measure, because there are many acceptable readings of any sentence &#8212; exactly the ambiguity that makes TTS harder to score than ASR.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  For a Kazakh product, one more axis matters and none of the
+                  four covers it: whether the pronunciation is <em>correct
+                  Kazakh</em> rather than merely intelligible. That needs a
+                  native speaker, and no amount of automatic scoring replaces
+                  the ten minutes it takes to ask one.
+                </p>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>What we would add next, in order.</strong> First
+                  speaker-similarity cosine, because it is automatic and it is
+                  the thing our cloning experiment is blind to. Then a CMOS test
+                  with a handful of Kazakh speakers comparing OmniVoice against
+                  a human recording &#8212; twenty clips and an afternoon.
+                  Everything else is refinement.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="kazakh">
             <div class="container">
               <span class="section__eyebrow">Theory &#183; The through-line</span>
@@ -896,7 +1352,7 @@ python3 app.py               # http://127.0.0.1:7862</code></pre></div>
                   <p class="challenge__task">Why does audio have to become a spectrogram before a Transformer sees it?</p>
                   <details class="answer">
                     <summary>Show Answer</summary>
-                    <p style="margin-bottom: 0">Length, mostly. Attention is quadratic in sequence length, and 30 seconds at 16&#8202;kHz is 480 000 samples. The spectrogram turns that into about 1 500 frames of 80 numbers &#8212; a 300&#215; reduction &#8212; while keeping the frequency structure that distinguishes speech sounds. After that it is just a sequence of vectors, which is what Lecture 6&#8217;s encoder already accepted.</p>
+                    <p style="margin-bottom: 0">Length, mostly. Attention is quadratic in sequence length, and 30 seconds at 16&#8202;kHz is 480 000 samples. The spectrogram turns that into 3 000 frames of 80 numbers, and the encoder&#8217;s stride-2 convolution halves it again to 1 500 &#8212; 320&#215; fewer time steps &#8212; while keeping the frequency structure that distinguishes speech sounds. After that it is just a sequence of vectors, which is what Lecture 6&#8217;s encoder already accepted.</p>
                   </details>
                 </article>
                 <article class="challenge">

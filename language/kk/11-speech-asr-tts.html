@@ -6,7 +6,7 @@
     <title>Сөйлеу: ASR және TTS | NLP Course</title>
     <meta
       name="description"
-      content="11-дәріс: сөйлеу қалай мәтінге, мәтін қалай сөйлеуге айналады. Спектрограммалар, encoder-decoder ретіндегі Whisper, language token, қазақ, орыс және ағылшын тілдерінде өлшенген word және character error rate, содан соң синтезге OmniVoice, дауысты клондау және екі жүйені бірден бағалайтын айналма рейс."
+      content="11-дәріс: сөйлеу қалай мәтінге, мәтін қалай сөйлеуге айналады. Спектрограммалар, audio encoder құрылысы, encoder-decoder ретіндегі Whisper, language token, WER мен CER шын мәнінде қалай есептелетіні, содан соң нейрондық аудиокодек және модель дауысты қалай жасайтыны, клондау және синтезаторды бағалаудың төрт осі."
     />
     <link rel="stylesheet" href="../../page/css/styles.css" />
   </head>
@@ -136,12 +136,12 @@
                   <rect x="222" y="96" width="8" height="26" fill="#2563eb" opacity="0.60" />
                   <rect x="232" y="100" width="8" height="22" fill="#2563eb" opacity="0.30" />
                   <text x="256" y="98" font-size="7.5" fill="#5b6270">80 mel жолағы</text>
-                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 50 кадр/с</text>
+                  <text x="256" y="108" font-size="7.5" fill="#5b6270">&#215; 100 кадр/с</text>
 
                   <line x1="128" y1="132" x2="128" y2="142" stroke="#5b6270" stroke-width="1.2" />
-                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder оны тағы жартылайды, содан соң decoder сөз жазады</text>
+                  <text x="8" y="154" font-size="9" fill="#5b6270">3. encoder оны жартылайды, содан соң decoder сөз жазады</text>
                   <rect x="8" y="160" width="46" height="18" rx="3" fill="#eff4ff" stroke="#c7d9ff" />
-                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">~25/с</text>
+                  <text x="31" y="172" font-size="7" fill="#111111" text-anchor="middle">50/с</text>
                   <line x1="54" y1="169" x2="68" y2="169" stroke="#5b6270" stroke-width="1.2" />
                   <rect x="68" y="160" width="84" height="18" rx="3" fill="#2563eb" />
                   <text x="110" y="172" font-size="7" fill="#ffffff" text-anchor="middle">text decoder</text>
@@ -163,7 +163,7 @@
                   <dt>спектрограмма</dt>
                   <dd>Сигналды әр 10&#8202;мс сайын 25&#8202;мс қабаттасатын терезелерге кесіп, әр терезе үшін адам құлағы орналастыратындай орналасқан 80 жиілік жолағының әрқайсысына қанша энергия түсетінін өлшейміз. Нәтижесі — сурет: уақыт көлденең, жиілік тік.</dd>
                   <dt>енді бұл тізбек</dt>
-                  <dd>Кадрына 80 сан, секундына 50 кадр. Бұл — 6-дәрістегі encoder күтетін дәл сол пішін, векторлар тізбегі, — сондықтан сол архитектура attention-де мүлдем өзгеріссіз дыбыспен жұмыс істейді.</dd>
+                  <dd>Кадрына 80 сан, секундына 100 кадр. Бұл — 6-дәрістегі encoder күтетін дәл сол пішін, векторлар тізбегі, — сондықтан сол архитектура attention-де мүлдем өзгеріссіз дыбыспен жұмыс істейді.</dd>
                 </dl>
                 <p class="breakdown__reading">
                   Transformer ішінде мұның аудио екенін білетін ештеңе жоқ. Embeddings кестесін спектрограммаға ауыстырыңыз да, 6-дәрістің қалғаны өзгеріссіз жұмыс істейді.
@@ -263,6 +263,88 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
             </div>
           </section>
 
+          <section class="section" aria-labelledby="encoder">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Encoder ішінде</span>
+              <h2 id="encoder">Audio encoder шын мәнінде не істейді</h2>
+              <p class="narrow lead">
+                «Encoder спектрограмманы оқиды» дегені рас, әрі онша пайдалы емес. Міне әр қадам, <code>whisper-small</code>-дан басып шығарылған нағыз тензор пішіндерімен.
+              </p>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 214" role="img" aria-labelledby="fig-enc-t">
+                  <title id="fig-enc-t">whisper-small ішінде шикі үлгілерден encoder шығысына дейінгі әр пішін</title>
+                  <rect x="8" y="16" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="30" font-size="7.5" fill="#2563eb">480 000</text>
+                  <text x="70" y="30" font-size="7.5" fill="#111111">шикі үлгі — 16 кГц-те 30 с (қысқа клиптер толтырылады)</text>
+
+                  <line x1="170" y1="36" x2="170" y2="46" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="45" font-size="7" fill="#5b6270">25 мс терезе, 10 мс қадам</text>
+
+                  <rect x="8" y="48" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="62" font-size="7.5" fill="#2563eb">80 &#215; 3 000</text>
+                  <text x="70" y="62" font-size="7.5" fill="#111111">log-mel спектрограмма — секундына 100 кадр</text>
+
+                  <line x1="170" y1="68" x2="170" y2="78" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="77" font-size="7" fill="#5b6270">conv1: 80&#8594;768, ядро 3, stride 1</text>
+
+                  <rect x="8" y="80" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="94" font-size="7.5" fill="#2563eb">768 &#215; 3 000</text>
+                  <text x="70" y="94" font-size="7.5" fill="#111111">енді 10 мс сайын бір 768-вектор</text>
+
+                  <line x1="170" y1="100" x2="170" y2="110" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="109" font-size="7" fill="#b91c1c">conv2: stride 2 — жалғыз сығу</text>
+
+                  <rect x="8" y="112" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="14" y="126" font-size="7.5" fill="#2563eb">768 &#215; 1 500</text>
+                  <text x="70" y="126" font-size="7.5" fill="#111111">20 мс сайын бір вектор — секундына 50 кадр</text>
+
+                  <line x1="170" y1="132" x2="170" y2="142" stroke="#5b6270" stroke-width="1.2" />
+                  <text x="178" y="141" font-size="7" fill="#5b6270">+ синусоидалық позициялар (1 500 &#215; 768)</text>
+
+                  <rect x="8" y="144" width="324" height="26" rx="5" fill="#2563eb" />
+                  <text x="170" y="155" font-size="8" fill="#ffffff" text-anchor="middle">12 Transformer блогы &#183; 12 бас &#183; d_model 768</text>
+                  <text x="170" y="165" font-size="7" fill="#dbe7ff" text-anchor="middle">бүкіл 1 500 кадр бойынша бірден self-attention, себепті маскасыз</text>
+
+                  <rect x="8" y="178" width="324" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="14" y="192" font-size="7.5" fill="#2563eb">1 500 &#215; 768</text>
+                  <text x="70" y="192" font-size="7.5" fill="#111111">decoder-дегі cross-attention оқитын нәрсе</text>
+                  <text x="170" y="209" font-size="7.5" fill="#5b6270" text-anchor="middle">encoder 88.2 M параметр &#183; decoder 153.6 M</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Мақаладан көшірілмей, скриптпен басып шығарылған. PyTorch-тың үш жолы осы бағананы түгел қайталайды.
+                </figcaption>
+              </div>
+
+              <div class="code-block" data-lang="python"><pre><code>features = processor(samples, sampling_rate=16000,
+                     return_tensors="pt").input_features
+encoder = model.model.encoder
+
+print(features.shape)                 # (1, 80, 3000)
+print(encoder.conv1, encoder.conv2)   # 80->768 stride 1, 768->768 stride 2
+print(encoder(features).last_hidden_state.shape)   # (1, 1500, 768)</code></pre></div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Адамдарды таңқалдыратын бес нәрсе</span>
+                <dl class="breakdown__list">
+                  <dt>кіріс әрқашан 30 секунд</dt>
+                  <dd>Үш секундтық клип 30-ға дейін үнсіздікпен толтырылады да, encoder соның бәрін өңдейді. Пішін бекітілген, сондықтан қысқа клип ұзынымен бірдей тұрады. Сол себепті қысқа сөйленістерді топтау ысырапты, әрі ұзақ аудионы 30 секундтық бөліктерге кесуге тура келеді.</dd>
+                  <dt>конволюциялар — бүкіл кіріс блогы</dt>
+                  <dd>Уақыт бойынша екі бір өлшемді конволюция, ядросы 3. Біріншісі 80 mel жолағын 768 арнаға айналдырады; екіншісінде <code>stride 2</code> бар, әрі тізбек қысқаратын жалғыз жер — сол. 3 000 кадр 1 500 болады.</dd>
+                  <dt>секундына 50 кадр — жұмыс ажыратымдылығы</dt>
+                  <dd>20 мс сайын бір вектор. Сөйлеу дыбыстары 50&#8211;150 мс созылады, сондықтан әр фонема бірнеше кадрды алады — ажыратуға ажыратымдылық жетеді, ал 1 500 позиция бойынша attention әлі де қолжетімді.</dd>
+                  <dt>позициялар синусоидалық әрі мұздатылған</dt>
+                  <dd>Decoder-дікінен өзгеше, олар оқытылмайды. 6-дәріс екі түрін де таныстырды; мұнда бекітілгені алынған, өйткені кіріс ұзындығы ешқашан өзгермейді.</dd>
+                  <dt>себепті маска жоқ</dt>
+                  <dd>Encoder бүкіл 30 секундты бірден көреді, сондықтан соңындағы сөз басындағы сөзді айқындай алады. Ағынды тану дәл осыдан бас тартады, әрі сондықтан нақты уақыт жүйелері сол аудиода офлайндағыдан нашар.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Decoder — үлкен жартысы: 88.2 M-ге қарсы 153.6 M. Whisper-дің көп бөлігі тыңдамайды, ол жазады.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="scoring">
             <div class="container">
               <span class="section__eyebrow">Теория &#183; Өлшеу</span>
@@ -337,6 +419,114 @@ print(processor.batch_decode(ids, skip_special_tokens=True)[0])</code></pre></di
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="editdistance">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Алгоритм</span>
+              <h2 id="editdistance">WER шын мәнінде қалай есептеледі</h2>
+              <p class="narrow lead">
+                Анықтама «ауыстырулар қосу түсірулер қосу қыстырулар» дейді, ал бұдан нағыз сұрақ туады: қай сөз ауыстырылды, қайсысы түсіп қалды дегенді кім шешеді? Жауабы — динамикалық бағдарламалаумен табылған туралау, әрі бұл сіз таңбаларда кездестірген болуыңыз мүмкін сол Левенштейн қашықтығы.
+              </p>
+
+              <div class="definition">
+                <p>
+                  WER — болжамды эталонға айналдыратын сөз түзетулерінің <strong>ең аз</strong> саны, эталон ұзындығына бөлінген. «Ең аз» деген сөз бәрін шешеді: екі тізбекті қатарластырудың көп тәсілінен ұпай ең арзанын алады.
+                </p>
+              </div>
+
+              <div class="figure">
+                <svg viewBox="0 0 340 196" role="img" aria-labelledby="fig-dp-t">
+                  <title id="fig-dp-t">Ең арзан туралауды табатын редакциялау қашықтығы кестесі</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">ұяшықта: i эталон мен j болжам сөзін сәйкестендірудің ең арзан жолы</text>
+
+                  <text x="62" y="30" font-size="7" fill="#5b6270" text-anchor="middle">&#8709;</text>
+                  <text x="94" y="30" font-size="7" fill="#111111" text-anchor="middle">жол</text>
+                  <text x="126" y="30" font-size="7" fill="#111111" text-anchor="middle">тоғыз</text>
+                  <text x="158" y="30" font-size="7" fill="#111111" text-anchor="middle">сағат</text>
+                  <text x="196" y="30" font-size="7" fill="#b91c1c" text-anchor="middle">болады</text>
+
+                  <text x="30" y="46" font-size="7" fill="#5b6270" text-anchor="end">&#8709;</text>
+                  <text x="30" y="64" font-size="7" fill="#111111" text-anchor="end">жол</text>
+                  <text x="30" y="82" font-size="7" fill="#111111" text-anchor="end">тоғыз</text>
+                  <text x="30" y="100" font-size="7" fill="#111111" text-anchor="end">сағат</text>
+
+                  <rect x="46" y="36" width="32" height="16" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="62" y="47" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="78" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="47" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="47" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="142" y="36" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="47" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="174" y="36" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="47" font-size="7" fill="#111111" text-anchor="middle">4</text>
+
+                  <rect x="46" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="78" y="54" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="94" y="65" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="110" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="65" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="54" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="65" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="174" y="54" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="65" font-size="7" fill="#111111" text-anchor="middle">3</text>
+
+                  <rect x="46" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="78" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="110" y="72" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="126" y="83" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="142" y="72" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="158" y="83" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="174" y="72" width="42" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="195" y="83" font-size="7" fill="#111111" text-anchor="middle">2</text>
+
+                  <rect x="46" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="62" y="101" font-size="7" fill="#111111" text-anchor="middle">3</text>
+                  <rect x="78" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="94" y="101" font-size="7" fill="#111111" text-anchor="middle">2</text>
+                  <rect x="110" y="90" width="32" height="16" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="126" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+                  <rect x="142" y="90" width="32" height="16" fill="#dbe7ff" stroke="#2563eb" />
+                  <text x="158" y="101" font-size="7" fill="#111111" text-anchor="middle">0</text>
+                  <rect x="174" y="90" width="42" height="16" fill="#fdeaea" stroke="#b91c1c" />
+                  <text x="195" y="101" font-size="7" fill="#111111" text-anchor="middle">1</text>
+
+                  <text x="232" y="66" font-size="7.5" fill="#5b6270">диагональ = сәйкестік</text>
+                  <text x="232" y="78" font-size="7.5" fill="#5b6270">немесе ауыстыру</text>
+                  <text x="232" y="92" font-size="7.5" fill="#5b6270">солға = қыстыру</text>
+                  <text x="232" y="104" font-size="7.5" fill="#5b6270">жоғары = түсіру</text>
+
+                  <rect x="8" y="118" width="324" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="170" y="132" font-size="8" fill="#111111" text-anchor="middle">оң жақ төменгі ұяшық — жауап: 1 түзету</text>
+
+                  <text x="8" y="154" font-size="7.5" fill="#111111">cost(i, j) = үш қадамның ең кішісі:</text>
+                  <text x="20" y="166" font-size="7.5" fill="#5b6270">cost(i-1, j-1) + (сөздер сәйкес келсе 0, әйтпесе 1) — ауыстыру</text>
+                  <text x="20" y="177" font-size="7.5" fill="#5b6270">cost(i-1, j) + 1 — түсіру</text>
+                  <text x="20" y="188" font-size="7.5" fill="#5b6270">cost(i, j-1) + 1 — қыстыру</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Кестені солдан оңға, жоғарыдан төмен толтырыңыз; әр ұяшыққа тек үш көршісі керек. Содан соң бұрыштан кері жүріп, <em>қай</em> сөздер қате болғанын қалпына келтіріңіз — жоғарыдағы трассировкадағы сөзбе-сөз тізім солай алынған.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Бұның ең аз шама болуының салдары</span>
+                <dl class="breakdown__list">
+                  <dt>туралау — шындық емес, болжам</dt>
+                  <dd>Модель қай сөзді «меңзегенін» ешкім жазып алған жоқ. Алгоритм екі жолмен үйлесетін ең арзан әңгімені таңдайды, ал бірнеше әңгіме бірдей тұрса — еркін таңдайды. Қатені санауға бұл жарайды; нақты бір сөзді кінәлауға — көрінгеннен әлсіз.</dd>
+                  <dt>CER — таңбалардағы сол алгоритм</dt>
+                  <dd>Бір функция, екі токенизация. Бүкіл айырма сонда, әрі екі сан сондықтан ғана салыстырылады.</dd>
+                  <dt>құны O(N&#215;M)</dt>
+                  <dd>Сөйлемдерге жарайды. Екі сағаттық транскрипция үшін бөліктеп кескен жөн, кез келген нақты бағалау құралы солай істейді.</dd>
+                  <dt>сөз дегеніңіз — сіз сөз деп атағаныңыз</dt>
+                  <dd>Біз тыныс белгілерін алып тастаған соң бос орындар бойынша бөлеміз. Агглютинативті тілде бұл нағыз таңдау: қазақша <code>кітаптарымыздан</code> мұнда бір «сөз», ал тіл білімі бойынша бес морфема, сондықтан бір қате жалғау тұтас сөзге түседі. 2-дәрістегі шешілмеген токенизация мәселесі енді метриканы анықтап тұр.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section" aria-labelledby="results-asr">
             <div class="container">
               <span class="section__eyebrow">Нәтиже &#183; Тану</span>
@@ -604,6 +794,115 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
             </div>
           </section>
 
+          <section class="section" aria-labelledby="howvoice">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Синтезатор ішінде</span>
+              <h2 id="howvoice">Модель дауысты шын мәнінде қалай жасайды</h2>
+              <p class="narrow lead">
+                Модель секундына 24 000 санды бір-бірлеп болжай алмайды — мұны ешкім істей алмас еді. Қазіргі TTS-ті жүргізетін амал — дыбысқа сөздік ойлап табу, сонда сөйлеуді тудыру мәтін тудырумен бір мәселеге айналады.
+              </p>
+
+              <h3 style="margin-top: 36px">1-қадам — дыбысқа әліпби беру</h3>
+              <p class="narrow">
+                <strong>Нейрондық аудиокодек</strong> — ортасы дискретті болуға мәжбүрленген автоэнкодер. Ол толқынды бүтін сандардың қысқа тізбегіне сығып, солардан толқынды қалпына келтіреді. OmniVoice Higgs Audio v2 деген кодекті қолданады, әрі одан не істейтінін тікелей сұрай аламыз:
+              </p>
+
+              <div class="code-block" data-lang="python"><pre><code>tokenizer = model.audio_tokenizer          # HiggsAudioV2TokenizerModel
+codes = tokenizer.encode(torch.zeros(1, 1, 24000 * 2))   # 2 seconds
+print(codes.shape)                          # (1, 8, 50)
+print(tokenizer.decode(codes).shape)        # (1, 1, 48000) -> 2.00 s at 24 kHz</code></pre></div>
+
+              <div class="code-block" data-lang="output"><pre><code>  1 s -> codes (1, 8, 25)     25.0 frames/s   200 codes total (8 codebooks)
+  2 s -> codes (1, 8, 50)     25.0 frames/s   400 codes total (8 codebooks)
+  4 s -> codes (1, 8, 100)    25.0 frames/s   800 codes total (8 codebooks)
+  8 s -> codes (1, 8, 200)    25.0 frames/s  1600 codes total (8 codebooks)</code></pre></div>
+
+              <div class="figure" style="margin-top: 28px">
+                <svg viewBox="0 0 340 182" role="img" aria-labelledby="fig-codec-t">
+                  <title id="fig-codec-t">Нейрондық кодек бір секунд дыбысты 200 бүтін санға айналдырады</title>
+                  <text x="8" y="12" font-size="8" fill="#5b6270">бір секунд сөйлеу</text>
+                  <rect x="8" y="18" width="96" height="20" rx="4" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="56" y="32" font-size="7.5" fill="#111111" text-anchor="middle">24 000 сан</text>
+                  <line x1="104" y1="28" x2="120" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="120" y="18" width="62" height="20" rx="4" fill="#2563eb" />
+                  <text x="151" y="32" font-size="7.5" fill="#ffffff" text-anchor="middle">encoder</text>
+                  <line x1="182" y1="28" x2="198" y2="28" stroke="#5b6270" stroke-width="1.2" />
+                  <rect x="198" y="18" width="134" height="20" rx="4" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="265" y="32" font-size="7.5" fill="#111111" text-anchor="middle">25 кадр &#215; 8 код = 200 бүтін</text>
+
+                  <text x="8" y="58" font-size="8" fill="#5b6270">бір кадр қалай көрінеді — 8 кодтық кітап, дөрекіден дәлге</text>
+                  <rect x="8" y="64" width="38" height="16" rx="3" fill="#2563eb" />
+                  <text x="27" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">417</text>
+                  <rect x="48" y="64" width="38" height="16" rx="3" fill="#4d82ee" />
+                  <text x="67" y="75" font-size="6.5" fill="#ffffff" text-anchor="middle">92</text>
+                  <rect x="88" y="64" width="38" height="16" rx="3" fill="#7aa2f2" />
+                  <text x="107" y="75" font-size="6.5" fill="#111111" text-anchor="middle">1003</text>
+                  <rect x="128" y="64" width="38" height="16" rx="3" fill="#9dbcf6" />
+                  <text x="147" y="75" font-size="6.5" fill="#111111" text-anchor="middle">55</text>
+                  <rect x="168" y="64" width="38" height="16" rx="3" fill="#b8cef8" />
+                  <text x="187" y="75" font-size="6.5" fill="#111111" text-anchor="middle">640</text>
+                  <rect x="208" y="64" width="38" height="16" rx="3" fill="#cddefa" />
+                  <text x="227" y="75" font-size="6.5" fill="#111111" text-anchor="middle">311</text>
+                  <rect x="248" y="64" width="38" height="16" rx="3" fill="#dfe9fc" />
+                  <text x="267" y="75" font-size="6.5" fill="#111111" text-anchor="middle">8</text>
+                  <rect x="288" y="64" width="38" height="16" rx="3" fill="#eef3fe" />
+                  <text x="307" y="75" font-size="6.5" fill="#111111" text-anchor="middle">772</text>
+                  <text x="8" y="92" font-size="7" fill="#5b6270">1-кітап: дөрекі пішін</text>
+                  <text x="332" y="92" font-size="7" fill="#5b6270" text-anchor="end">8-кітап: соңғы бөлшектер</text>
+                  <text x="170" y="104" font-size="7.5" fill="#111111" text-anchor="middle">әр код — 1 024-тің бірі; әр келесі кітап алдыңғыларын түзейді</text>
+
+                  <rect x="8" y="116" width="324" height="22" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="170" y="130" font-size="8" fill="#111111" text-anchor="middle">25 &#215; 8 &#215; 10 бит = сөйлеудің секундына 2 000 бит</text>
+
+                  <text x="170" y="154" font-size="8" fill="#5b6270" text-anchor="middle">секундына 24 000 сан 200 болды — әрі кодек олардан</text>
+                  <text x="170" y="166" font-size="8" fill="#5b6270" text-anchor="middle">толқынды қайта құра алады, бұның бәрі сол үшін</text>
+                  <text x="170" y="178" font-size="7.5" fill="#15803d" text-anchor="middle">енді сөйлеу — 1 024 сөздік сөздік үстіндегі тізбек</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Бұл — <strong>residual vector quantization</strong>. Бір кодтық кітап сөйлеуді қалпына келтіруге тым дөрекі, сондықтан әр келесісі алдыңғылары қате бергенді кодтайды. Модель конфигі оларды 8, 8, 6, 6, 4, 4, 2, 2 деп салмақтайды — ең бастысы алғашқыларына дәл түсу.
+                </figcaption>
+              </div>
+
+              <h3 style="margin-top: 44px">2-қадам — сол сандарды мәтіннен болжау</h3>
+              <p class="narrow">
+                Енді міндет таныс: мәтін берілгенде кодтар тізбегін шығару. OmniVoice негізі — Qwen3, 28 қабат, 8-дәрістегі тілдік модельдермен бір архитектуралық отбасы, — қасына аудио сөздігі қосылған.
+              </p>
+              <p class="narrow">
+                Бір бұрылыс: бұл солдан оңға емес, <strong>диффузиялық</strong> тілдік модель. Аудио сөздігінде 1 025 жазба бар, ал артығы — <code>&lt;mask&gt;</code>. Генерация барлық аудио позициясы маскаланған күйден басталып, бірнеше өтуде масканы шешеді: сөйлемнің немен бітетіні шешілгенше алғашқы 40 мс-ты бекітудің орнына бүкіл сөйленісті тұтас нақтылайды. Сондықтан просодия үйлесімді шығады, әрі сондықтан real-time factor (0.62) танығыштыкінен (0.03) нашар — тізбек бойынша бір емес, бірнеше өту.
+              </p>
+
+              <h3 style="margin-top: 44px">3-қадам — сонда дауыс деген <em>не</em>?</h3>
+              <div class="grid grid--2" style="margin-top: 24px">
+                <div class="card">
+                  <h3>Бұл параметр емес</h3>
+                  <p>
+                    «Сөйлеуші» деген параметр де, сақталған адамдар кітапханасы да жоқ. Тұлға толықтай мәтіннің алдына қоятын шартыңызда тұрады.
+                  </p>
+                </div>
+                <div class="card">
+                  <h3>Бұл — контекст</h3>
+                  <p>
+                    Клондауда референстік клип сол аудио кодтарға кодталып, ол кодтар контекстке қойылады. Содан соң модель соларға үйлесімді жалғастырады — 9-дәрістегі few-shot сияқты контексте оқу, тек мысал ретінде аудио-tokens тұрады.
+                  </p>
+                </div>
+              </div>
+
+              <div class="breakdown" style="margin-top: 28px">
+                <span class="breakdown__label">Осы үш режим мен олардың құнын түсіндіретін нәрсе</span>
+                <dl class="breakdown__list">
+                  <dt>auto — шартсыз</dt>
+                  <dd>Дауысты ештеңе шектемейді, сондықтан модель тіл мен мәтінге үйлесетінін таңдайды. Ең арзаны: 1.9 с ішінде 2.96 с аудио.</dd>
+                  <dt>voice design — заттаңба арқылы шарт</dt>
+                  <dd><code>female, elderly, low pitch</code> — модель қатар оқытылған арнайы tokens, әрі еркін проза дәл сондықтан қабылданбайды: көрмеген тіркес — оны ешқашан шарт етпеген token. Интерфейс дегеніміз — сөздік.</dd>
+                  <dt>voice clone — мысал арқылы шарт</dt>
+                  <dd>Референс кодтарға кодталып, алдына қойылады, сондықтан 14.9 секундтық референс шамамен 14.9 &#215; 200 = 3 000 қосымша контекст token. Клондау 1.9 с орнына 11.6 с алғаны сондықтан: сіз референсті оқығаныңыз үшін әр жолы төлейсіз.</dd>
+                  <dt>әрі референс транскрипциясы неге керек</dt>
+                  <dd>Модельге референстік аудио <em>және</em> ондағы сөздер беріледі, сонда ол сол сөздерден сол сөйлеушінің дыбыстарына апаратын сәйкестікті шығара алады. Сәйкес келмейтін транскрипция берсеңіз, шығарылған сәйкестік барлық жерде қате — төменде бұл WER 0.667-ден 1.000-ға айналуы болып өлшенген.</dd>
+                </dl>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="roundtrip">
             <div class="container">
               <span class="section__eyebrow">Нәтиже &#183; Дауысты бағалау</span>
@@ -714,6 +1013,106 @@ sf.write("out.wav", audio[0], 24000)</code></pre></div>
               </div>
             </div>
           </section>
+          <section class="section" aria-labelledby="ttseval">
+            <div class="container">
+              <span class="section__eyebrow">Теория &#183; Бағалау</span>
+              <h2 id="ttseval">Синтезаторды дұрыс бағалау</h2>
+              <p class="narrow lead">
+                Біздің айналма рейс бір нәрсені жақсы өлшейді әрі үшеуін мүлдем өлшемейді. Синтезатор төрт бөлек ось бойынша бағаланады, олар өзара корреляцияламайды, әрі жүйе біреуінде тамаша, екіншісінде сәтсіз бола алады.
+              </p>
+
+              <div class="table-wrap">
+                <table class="compare">
+                  <caption class="visually-hidden">TTS бағалаудың төрт осі</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Не білгіңіз келеді</th>
+                      <th scope="col">Қалай өлшенеді</th>
+                      <th scope="col">Адам керек пе?</th>
+                      <th scope="col">Біз өлшедік пе?</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Түсініктілік</strong><br />сөздерді қалпына келтіруге бола ма</td>
+                      <td>синтетикалық аудионың ASR транскрипциясының WER/CER-і</td>
+                      <td>жоқ</td>
+                      <td class="yes">иә — 0.083 en / 0.787 kk</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Табиғилық</strong><br />адам сияқты естіле ме</td>
+                      <td>MOS: тыңдаушылар 1&#8211;5 қояды; немесе CMOS, эталонға қарсы A/B</td>
+                      <td>иә</td>
+                      <td class="no">жоқ</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Сөйлеуші ұқсастығы</strong><br />бұл дұрыс адам ба</td>
+                      <td>референс пен нәтиженің speaker embeddings арасындағы косинус</td>
+                      <td>жоқ</td>
+                      <td class="no">жоқ</td>
+                    </tr>
+                    <tr>
+                      <td><strong>Просодия</strong><br />дұрыс ырғақ, екпін, интонация</td>
+                      <td>адам оқуына қарсы ұзақтық пен тон статистикасы; немесе тыңдаушылар</td>
+                      <td>ішінара</td>
+                      <td class="no">жоқ</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="figure" style="margin-top: 32px">
+                <svg viewBox="0 0 340 166" role="img" aria-labelledby="fig-eval-t">
+                  <title id="fig-eval-t">Әр метрика нені көреді және нені көрмейді</title>
+                  <rect x="8" y="16" width="156" height="60" rx="5" fill="#eff4ff" stroke="#c7d9ff" />
+                  <text x="86" y="31" font-size="8.5" fill="#111111" text-anchor="middle">автоматты, тегін, қайталанымды</text>
+                  <text x="86" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">айналма рейс WER &#183; CER</text>
+                  <text x="86" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">speaker embedding косинусы</text>
+                  <text x="86" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">ұзақтық, тон статистикасы</text>
+
+                  <rect x="176" y="16" width="156" height="60" rx="5" fill="#f3f5f8" stroke="#d1d6de" />
+                  <text x="254" y="31" font-size="8.5" fill="#111111" text-anchor="middle">тыңдаушы керек, ақша тұрады</text>
+                  <text x="254" y="46" font-size="7.5" fill="#5b6270" text-anchor="middle">MOS 1&#8211;5, көп бағалаушы</text>
+                  <text x="254" y="58" font-size="7.5" fill="#5b6270" text-anchor="middle">CMOS, A/B артықшылық</text>
+                  <text x="254" y="70" font-size="7.5" fill="#5b6270" text-anchor="middle">«мұны шығарар ма едіңіз?»</text>
+
+                  <rect x="8" y="88" width="324" height="24" rx="5" fill="#fdeaea" stroke="#f3c2c2" />
+                  <text x="170" y="103" font-size="8" fill="#111111" text-anchor="middle">роботтанған монотон сол бағанадан мінсіз ұпай алады</text>
+
+                  <text x="170" y="130" font-size="8" fill="#5b6270" text-anchor="middle">сол бағанамен регрессияларды арзан әрі жиі ұстаңыз;</text>
+                  <text x="170" y="142" font-size="8" fill="#5b6270" text-anchor="middle">оң бағанамен — шығармас бұрын, одан жиі емес</text>
+                  <text x="170" y="158" font-size="7.5" fill="#15803d" text-anchor="middle">екі бағана да артық емес, әрі бірін-бірі алмастырмайды</text>
+                </svg>
+                <figcaption class="figure__caption">
+                  Сөйлеу синтезінің ыңғайсыз шындығы: пайдаланушыларға ең маңызды қасиет — адамша естіле ме — дәл сол арзан автоматты өлшемі жоғы.
+                </figcaption>
+              </div>
+
+              <div class="breakdown">
+                <span class="breakdown__label">Әрқайсысы іс жүзінде қалай жасалады</span>
+                <dl class="breakdown__list">
+                  <dt>MOS және ол неге естілгеннен қиын</dt>
+                  <dd>Тыңдаушылар әр клипті 1-ден 5-ке дейін бағалайды, сіз орташалайсыз. Ұпайлар зерттеулер арасында салыстырылмайды — әртүрлі бағалаушы, нұсқаулық және эталон клиптері орташаны модельдің көп жақсаруынан да қатты жылжытады, — сондықтан бір мақаладағы MOS 4.1 мен екіншісіндегі 3.9 ештеңе айтпайды. Бір эксперимент ішінде, сол адамдар екі жүйені де естігенде, бұл мағыналы.</dd>
+                  <dt>CMOS, командалар шын пайдаланатыны</dt>
+                  <dd>A мен B-ны ойнатып, қайсысы жақсы деп сұраңыз, &#8722;3-тен +3-ке дейінгі шкаламен. Салыстырмалы пікірлер абсолюттіден әлдеқайда тұрақты, әрі олар сізде шынымен бар сұраққа жауап береді: жаңа checkpoint ескісінен жақсы ма?</dd>
+                  <dt>сөйлеуші ұқсастығы</dt>
+                  <dd>Референс пен нәтижені сөйлеушіні верификациялау моделі арқылы өткізіңіз — екі жазбада бір адам ба дегенді анықтайтын сол модель — және embeddings арасындағы косинусты алыңыз. Клондауда қарау керек сан осы, ал біз оны өлшеген жоқпыз: біздің клондау бөлімі түсініктілікті бағалады, ал дауыс мүлде басқа адамға ауысып бара жатқанда да ол жоғары қала береді.</dd>
+                  <dt>просодия</dt>
+                  <dd>Синтетикалық сөйленісті сол сөйлемнің адам оқуымен салыстырыңыз: жалпы ұзақтық, кідірістердің орны, тон контуры. Регрессия тексерісі ретінде пайдалы, сапа өлшемі ретінде әлсіз, өйткені кез келген сөйлемнің көп қолайлы оқылуы бар — TTS-ті бағалауды ASR-ден қиындататын дәл сол көпмағыналылық.</dd>
+                </dl>
+                <p class="breakdown__reading">
+                  Қазақ өнімі үшін тағы бір ось маңызды, ал оны төртеуінің бірде-бірі қамтымайды: айтылым жай ғана түсінікті емес, <em>дұрыс қазақша</em> ма. Ол үшін тіл иесі керек, әрі оны сұрауға кететін он минутты ешқандай автоматты бағалау алмастырмайды.
+                </p>
+              </div>
+
+              <div class="callout" style="margin-top: 28px">
+                <p style="margin-bottom: 0">
+                  <strong>Келесі кезекте не қосар едік.</strong> Алдымен сөйлеуші ұқсастығының косинусы, өйткені ол автоматты әрі клондау экспериментіміз дәл соған соқыр. Содан соң OmniVoice-ті адам жазбасымен салыстыратын, бірнеше қазақ тілін білетін адаммен CMOS сынағы — жиырма клип пен бір күн. Қалғанының бәрі — жетілдіру.
+                </p>
+              </div>
+            </div>
+          </section>
+
           <section class="section section--surface" aria-labelledby="kazakh">
             <div class="container">
               <span class="section__eyebrow">Теория &#183; Өтпелі желі</span>
@@ -800,7 +1199,7 @@ python3 app.py               # http://127.0.0.1:7862</code></pre></div>
                   <p class="challenge__task">Transformer көрместен бұрын аудио неге спектрограммаға айналуға тиіс?</p>
                   <details class="answer">
                     <summary>Жауапты көрсету</summary>
-                    <p style="margin-bottom: 0">Негізінен ұзындықтан. Attention тізбек ұзындығына квадраттық, ал 16&#8202;кГц-те 30 секунд — 480 000 үлгі. Спектрограмма оны 80 саннан тұратын шамамен 1 500 кадрға айналдырады — 300&#215; қысқарту — әрі сөйлеу дыбыстарын ажырататын жиілік құрылымын сақтайды. Одан кейін бұл жай ғана векторлар тізбегі, ал оны 6-дәрістегі encoder бұрыннан қабылдайтын.</p>
+                    <p style="margin-bottom: 0">Негізінен ұзындықтан. Attention тізбек ұзындығына квадраттық, ал 16&#8202;кГц-те 30 секунд — 480 000 үлгі. Спектрограмма оны 80 саннан тұратын 3 000 кадрға айналдырады, ал encoder-дің stride 2 конволюциясы оны 1 500-ге дейін тағы жартылайды — уақыт қадамдары 320&#215; аз — әрі сөйлеу дыбыстарын ажырататын жиілік құрылымын сақтайды. Одан кейін бұл жай ғана векторлар тізбегі, ал оны 6-дәрістегі encoder бұрыннан қабылдайтын.</p>
                   </details>
                 </article>
                 <article class="challenge">
